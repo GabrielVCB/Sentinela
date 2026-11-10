@@ -42,7 +42,12 @@ async function carregar() {
   }
 
   const configuracao = estado.configuracao || {};
-  elementos.monitoramento.checked = Boolean(configuracao.monitoramentoAtivo);
+  elementos.monitoramento.textContent =
+    configuracao.monitoramentoAtivo === true
+      ? "Ativo · definido no painel"
+      : configuracao.monitoramentoAtivo === false
+        ? "Desativado · definido no painel"
+        : "Aguardando painel";
   elementos.departamento.textContent = configuracao.departamento || "não configurado";
   elementos.colaborador.textContent = configuracao.colaborador || "não configurado";
   elementos.servidor.textContent = configuracao.serverUrl || "—";
@@ -80,33 +85,6 @@ async function carregar() {
   }
 }
 
-const TODOS_OS_SITES = [
-  "chatgpt.com",
-  "chat.openai.com",
-  "gemini.google.com",
-  "claude.ai",
-  "copilot.cloud.microsoft",
-  "copilot.microsoft.com",
-  "copilot.com",
-];
-
-async function alternarMonitoramento(evento) {
-  const ativo = evento.target.checked;
-  const estado = await enviar({ tipo: "OBTER_ESTADO" });
-  const configuracoes = estado.configuracao || {};
-  // O interruptor vale para todos os chats: ligado marca todos, desligado
-  // desmarca todos. A mesma escolha aparece na tela de Opções.
-  const configuracao = Object.assign({}, configuracoes, {
-    monitoramentoAtivo: ativo,
-    sitesAtivos: ativo ? TODOS_OS_SITES.slice() : [],
-  });
-  await chrome.storage.local.set({ configuracao: configuracao });
-  pintarStatus(
-    Boolean(estado.status && estado.status.conectado),
-    ativo ? "Monitoramento ativado." : "Monitoramento desativado.",
-  );
-}
-
 async function testarConexao() {
   elementos.testar.disabled = true;
   elementos.testar.textContent = "Testando…";
@@ -135,7 +113,6 @@ document.addEventListener("DOMContentLoaded", function () {
   elementos.testar = document.getElementById("testar");
   elementos.opcoes = document.getElementById("opcoes");
 
-  elementos.monitoramento.addEventListener("change", alternarMonitoramento);
   elementos.testar.addEventListener("click", testarConexao);
   elementos.opcoes.addEventListener("click", function () {
     chrome.runtime.openOptionsPage();

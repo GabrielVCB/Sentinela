@@ -56,6 +56,7 @@ VERSAO_MATRIZ = "3"
 # arquivos, então não existe uma segunda cópia para divergir.
 AREAS = regras.AREAS
 CAMINHO_MENSAGENS = Path(__file__).resolve().parent / "dados" / "mensagens.json"
+CAMINHO_SITES = Path(__file__).resolve().parent / "dados" / "sites.json"
 
 # Texto usado pela versão 2.1. Bancos antigos são atualizados para a mensagem
 # nova apenas enquanto o administrador não tiver editado o texto.
@@ -65,6 +66,8 @@ MENSAGEM_BAIXO_ANTERIOR = (
 )
 
 MENSAGENS_PADRAO = json.loads(CAMINHO_MENSAGENS.read_text(encoding="utf-8"))
+SITES_MONITORADOS = json.loads(CAMINHO_SITES.read_text(encoding="utf-8"))["sites"]
+SITES_PADRAO = [site["id"] for site in SITES_MONITORADOS]
 
 # Esquema do banco, no dialeto do Postgres. O servidor cria as tabelas sozinho
 # no primeiro acesso: não é preciso rodar SQL na mão.
@@ -125,8 +128,23 @@ CREATE TABLE IF NOT EXISTS usuarios_admin (
     senha_hash text NOT NULL,
     criado_em text NOT NULL,
     tentativas_falhas integer NOT NULL DEFAULT 0,
-    bloqueado_ate text
+    bloqueado_ate text,
+    superadmin integer NOT NULL DEFAULT 0
 );
+
+CREATE TABLE IF NOT EXISTS dispositivos (
+    id text PRIMARY KEY,
+    setor text,
+    ip text,
+    versao text,
+    codigo_versao integer NOT NULL DEFAULT 1,
+    ativo integer NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1)),
+    primeiro_visto text NOT NULL,
+    ultimo_visto text NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_dispositivos_ultimo_visto ON dispositivos(ultimo_visto DESC);
+CREATE INDEX IF NOT EXISTS idx_dispositivos_codigo ON dispositivos(codigo_versao);
 
 CREATE TABLE IF NOT EXISTS schema_migrations (
     versao text PRIMARY KEY,
@@ -259,6 +277,33 @@ MIGRACOES = [
         """
         ALTER TABLE usuarios_admin ADD COLUMN IF NOT EXISTS tentativas_falhas integer NOT NULL DEFAULT 0;
         ALTER TABLE usuarios_admin ADD COLUMN IF NOT EXISTS bloqueado_ate text;
+        """,
+    ),
+    (
+        "004_superadmin_dispositivos_e_versao",
+        """
+        ALTER TABLE usuarios_admin ADD COLUMN IF NOT EXISTS superadmin integer NOT NULL DEFAULT 0;
+        UPDATE usuarios_admin SET superadmin = 1
+            WHERE id = (SELECT MIN(id) FROM usuarios_admin)
+              AND NOT EXISTS (SELECT 1 FROM usuarios_admin WHERE superadmin = 1);
+
+        CREATE TABLE IF NOT EXISTS dispositivos (
+            id text PRIMARY KEY,
+            setor text,
+            ip text,
+            versao text,
+            codigo_versao integer NOT NULL DEFAULT 1,
+            ativo integer NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1)),
+            primeiro_visto text NOT NULL,
+            ultimo_visto text NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_dispositivos_ultimo_visto ON dispositivos(ultimo_visto DESC);
+        CREATE INDEX IF NOT EXISTS idx_dispositivos_codigo ON dispositivos(codigo_versao);
+
+        INSERT INTO configuracoes (chave, valor) VALUES ('api_token_versao', '1')
+            ON CONFLICT(chave) DO NOTHING;
+        INSERT INTO configuracoes (chave, valor) VALUES ('config_versao', '1')
+            ON CONFLICT(chave) DO NOTHING;
         """,
     ),
 ]
@@ -409,6 +454,23 @@ def inicializar_banco(usuario: str, senha: str) -> None:
             ("limiar_gargalo", "30"),
         )
 
+        # Política de monitoramento definida no painel. A extensão recebe
+        # estes valores em /api/config; não há mais interruptor local.
+        conexao_aberta.execute(
+            """
+            INSERT INTO configuracoes (chave, valor) VALUES (?, ?)
+            ON CONFLICT(chave) DO NOTHING
+            """,
+            ("monitoramento_ativo", "1"),
+        )
+        conexao_aberta.execute(
+            """
+            INSERT INTO configuracoes (chave, valor) VALUES (?, ?)
+            ON CONFLICT(chave) DO NOTHING
+            """,
+            ("sites_ativos", json.dumps(SITES_PADRAO)),
+        )
+
         # 2.2: código de instalação usado pelas extensões quando o servidor está
         # publicado na internet. Gerado uma vez e guardado no banco.
         conexao_aberta.execute(
@@ -418,15 +480,48 @@ def inicializar_banco(usuario: str, senha: str) -> None:
             """,
             ("api_token", secrets.token_urlsafe(32)),
         )
+        # Versão do código: aumenta a cada renovação para o painel identificar
+        # quais dispositivos ainda usam o código anterior.
+        conexao_aberta.execute(
+            """
+            INSERT INTO configuracoes (chave, valor) VALUES (?, ?)
+            ON CONFLICT(chave) DO NOTHING
+            """,
+            ("api_token_versao", "1"),
+        )
+        # Muda sempre que regra, área, mensagem ou política é alterada. A
+        # extensão compara esta versão antes de baixar a matriz inteira.
+        conexao_aberta.execute(
+            """
+            INSERT INTO configuracoes (chave, valor) VALUES (?, ?)
+            ON CONFLICT(chave) DO NOTHING
+            """,
+            ("config_versao", "1"),
+        )
 
         existente = conexao_aberta.execute(
-            "SELECT id FROM usuarios_admin WHERE LOWER(usuario) = LOWER(?)", (usuario,)
+            "SELECT id, superadmin FROM usuarios_admin WHERE LOWER(usuario) = LOWER(?)",
+            (usuario,),
         ).fetchone()
         if not existente:
             conexao_aberta.execute(
-                "INSERT INTO usuarios_admin (usuario, senha_hash, criado_em) VALUES (?, ?, ?)",
+                """
+                INSERT INTO usuarios_admin (usuario, senha_hash, criado_em, superadmin)
+                VALUES (?, ?, ?, 1)
+                """,
                 (usuario, hash_senha(senha), datetime.now().isoformat(timespec="seconds")),
             )
+        elif not existente.get("superadmin"):
+            # Bancos antigos recebem a coluna pela migração; só promovemos o
+            # administrador inicial se ainda não houver nenhum superadmin.
+            superadmin = conexao_aberta.execute(
+                "SELECT id FROM usuarios_admin WHERE superadmin = 1 LIMIT 1"
+            ).fetchone()
+            if not superadmin:
+                conexao_aberta.execute(
+                    "UPDATE usuarios_admin SET superadmin = 1 WHERE id = ?",
+                    (existente["id"],),
+                )
 
         _migrar_senhas_em_texto(conexao_aberta)
         conexao_aberta.commit()
@@ -476,10 +571,162 @@ def token_api() -> str:
     return ler_configuracao("api_token")
 
 
-def renovar_token_api() -> str:
-    novo = secrets.token_urlsafe(32)
-    gravar_configuracao("api_token", novo)
-    return novo
+def token_versao_api() -> int:
+    """Versão do código de instalação, usada para classificar dispositivos."""
+    try:
+        return int(ler_configuracao("api_token_versao", "1"))
+    except (TypeError, ValueError):
+        return 1
+
+
+def versao_config() -> str:
+    """Versão leve da configuração, consultada pelas extensões a cada minuto."""
+    return ler_configuracao("config_versao", "1")
+
+
+def marcar_config_alterada() -> str:
+    """Muda a versão depois de qualquer alteração que a extensão precise ver.
+
+    Um timestamp em nanossegundos evita que duas alterações no mesmo segundo
+    recebam a mesma versão. A extensão só baixa a matriz completa quando o
+    valor muda, então o tráfego de um poll normal é mínimo.
+    """
+    valor = str(time.time_ns())
+    gravar_configuracao("config_versao", valor)
+    return valor
+
+
+def renovar_token_api() -> dict:
+    """Gera um código novo, avança a versão e conta os vínculos anteriores."""
+    conexao_aberta = conectar()
+    try:
+        antiga = token_versao_api()
+        vinculos = conexao_aberta.execute(
+            "SELECT COUNT(*) AS total FROM dispositivos "
+            "WHERE ativo = 1 AND codigo_versao = ?",
+            (antiga,),
+        ).fetchone()["total"]
+        novo = secrets.token_urlsafe(32)
+        for chave, valor in (
+            ("api_token", novo),
+            ("api_token_versao", str(antiga + 1)),
+            ("config_versao", str(time.time_ns())),
+        ):
+            conexao_aberta.execute(
+                """
+                INSERT INTO configuracoes (chave, valor) VALUES (?, ?)
+                ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor
+                """,
+                (chave, valor),
+            )
+        conexao_aberta.commit()
+        return {
+            "token": novo,
+            "codigo_versao": antiga + 1,
+            "dispositivos_vinculados": vinculos,
+        }
+    finally:
+        conexao_aberta.close()
+
+
+def registrar_dispositivo(
+    dispositivo_id: str,
+    setor: str,
+    ip: str,
+    versao: str,
+    codigo_versao: int,
+) -> int:
+    """Cria ou atualiza o último contato de uma instalação da extensão.
+
+    A linha revogada nunca volta a ficar ativa por este caminho; o painel é o
+    único lugar que pode liberar o dispositivo novamente.
+    """
+    agora = datetime.utcnow().isoformat(timespec="seconds")
+    conexao_aberta = conectar()
+    try:
+        existente = conexao_aberta.execute(
+            "SELECT ativo FROM dispositivos WHERE id = ?", (dispositivo_id,)
+        ).fetchone()
+        if existente and not existente["ativo"]:
+            return 0
+        conexao_aberta.execute(
+            """
+            INSERT INTO dispositivos
+                (id, setor, ip, versao, codigo_versao, ativo, primeiro_visto, ultimo_visto)
+            VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                setor = excluded.setor,
+                ip = excluded.ip,
+                versao = excluded.versao,
+                codigo_versao = excluded.codigo_versao,
+                ultimo_visto = excluded.ultimo_visto
+            """,
+            (dispositivo_id, setor, ip, versao, codigo_versao, agora, agora),
+        )
+        conexao_aberta.commit()
+        return 1
+    finally:
+        conexao_aberta.close()
+
+
+def dispositivo_revogado(dispositivo_id: str) -> bool:
+    """Retorna True somente para um dispositivo que o painel desconectou."""
+    if not dispositivo_id:
+        return False
+    conexao_aberta = conectar()
+    try:
+        linha = conexao_aberta.execute(
+            "SELECT ativo FROM dispositivos WHERE id = ?", (dispositivo_id,)
+        ).fetchone()
+        return bool(linha and not linha["ativo"])
+    finally:
+        conexao_aberta.close()
+
+
+
+def listar_dispositivos() -> list:
+    conexao_aberta = conectar()
+    try:
+        linhas = conexao_aberta.execute(
+            """
+            SELECT id, setor, ip, versao, codigo_versao, primeiro_visto, ultimo_visto
+            FROM dispositivos
+            WHERE ativo = 1
+            ORDER BY ultimo_visto DESC
+            """
+        ).fetchall()
+        return [dict(linha) for linha in linhas]
+    finally:
+        conexao_aberta.close()
+
+
+def desconectar_dispositivo(dispositivo_id: str) -> int:
+    conexao_aberta = conectar()
+    try:
+        cursor = conexao_aberta.execute(
+            "UPDATE dispositivos SET ativo = 0 WHERE id = ? AND ativo = 1",
+            (dispositivo_id,),
+        )
+        conexao_aberta.commit()
+        return cursor.rowcount
+    finally:
+        conexao_aberta.close()
+
+
+def contar_dispositivos(codigo_versao: int = None) -> int:
+    conexao_aberta = conectar()
+    try:
+        if codigo_versao is None:
+            return conexao_aberta.execute(
+                "SELECT COUNT(*) AS total FROM dispositivos WHERE ativo = 1"
+            ).fetchone()["total"]
+        return conexao_aberta.execute(
+            "SELECT COUNT(*) AS total FROM dispositivos "
+            "WHERE ativo = 1 AND codigo_versao = ?",
+            (codigo_versao,),
+        ).fetchone()["total"]
+    finally:
+        conexao_aberta.close()
 
 
 LIMITE_TENTATIVAS_LOGIN = 5
@@ -551,9 +798,34 @@ def listar_admins() -> list:
     conexao_aberta = conectar()
     try:
         linhas = conexao_aberta.execute(
-            "SELECT id, usuario, criado_em FROM usuarios_admin ORDER BY LOWER(usuario)"
+            """
+            SELECT id, usuario, criado_em, superadmin
+            FROM usuarios_admin
+            ORDER BY superadmin DESC, LOWER(usuario)
+            """
         ).fetchall()
         return [dict(linha) for linha in linhas]
+    finally:
+        conexao_aberta.close()
+
+
+def admin_existe(admin_id: int) -> bool:
+    conexao_aberta = conectar()
+    try:
+        return conexao_aberta.execute(
+            "SELECT 1 FROM usuarios_admin WHERE id = ?", (admin_id,)
+        ).fetchone() is not None
+    finally:
+        conexao_aberta.close()
+
+
+def admin_e_superadmin(admin_id: int) -> bool:
+    conexao_aberta = conectar()
+    try:
+        linha = conexao_aberta.execute(
+            "SELECT superadmin FROM usuarios_admin WHERE id = ?", (admin_id,)
+        ).fetchone()
+        return bool(linha and linha["superadmin"])
     finally:
         conexao_aberta.close()
 
@@ -563,7 +835,10 @@ def criar_admin(usuario: str, senha: str) -> int:
     try:
         novo_id = inserir_id(
             conexao_aberta,
-            "INSERT INTO usuarios_admin (usuario, senha_hash, criado_em) VALUES (?, ?, ?)",
+            """
+            INSERT INTO usuarios_admin (usuario, senha_hash, criado_em, superadmin)
+            VALUES (?, ?, ?, 0)
+            """,
             (usuario, hash_senha(senha), datetime.now().isoformat(timespec="seconds")),
         )
         conexao_aberta.commit()
@@ -573,10 +848,11 @@ def criar_admin(usuario: str, senha: str) -> int:
 
 
 def remover_admin(admin_id: int) -> int:
+    """Remove somente contas comuns; o superadmin nunca é apagado."""
     conexao_aberta = conectar()
     try:
         cursor = conexao_aberta.execute(
-            "DELETE FROM usuarios_admin WHERE id = ?", (admin_id,)
+            "DELETE FROM usuarios_admin WHERE id = ? AND superadmin = 0", (admin_id,)
         )
         conexao_aberta.commit()
         return cursor.rowcount

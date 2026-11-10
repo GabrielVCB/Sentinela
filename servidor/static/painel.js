@@ -18,6 +18,10 @@ const estado = {
   totalPaginas: 1,
   alertaAtual: null,
   secao: "visao",
+  monitoramento: null,
+  dispositivos: [],
+  codigoVersao: 0,
+  euSuperadmin: false,
 };
 
 const SECAO_INFO = {
@@ -26,7 +30,8 @@ const SECAO_INFO = {
   areas: "Estrutura da matriz de risco da empresa.",
   mensagens: "Texto educativo exibido pela extensão.",
   alertas: "Auditoria, filtros, retenção e exportação.",
-  instalacao: "Código de instalação das extensões e contas de administrador.",
+  instalacao: "Código de instalação, dispositivos conectados e contas de administrador.",
+  monitoramento: "Ativação global, sites e sincronização das extensões.",
 };
 
 const ROTULO_NIVEL = { baixo: "Baixo", medio: "Médio", alto: "Alto" };
@@ -189,7 +194,9 @@ function carregarSecao(secao) {
       })
       .catch(tratarErro);
   } else if (secao === "instalacao") {
-    Promise.all([carregarInstalacao(), carregarAdmins()]).catch(tratarErro);
+    Promise.all([carregarInstalacao(), carregarAdmins(), carregarDispositivos()]).catch(tratarErro);
+  } else if (secao === "monitoramento") {
+    carregarMonitoramento().catch(tratarErro);
   }
 }
 
@@ -216,6 +223,33 @@ async function carregarResumo() {
     "% deles em risco alto.";
 
   desenharGrafico(dados.evolucao);
+  const porNivel = dados.por_nivel || {
+    baixo: dados.total - dados.total_alto,
+    medio: 0,
+    alto: dados.total_alto,
+  };
+  const porAcao = dados.por_acao || {
+    enviou: dados.total_enviou,
+    cancelou: dados.total_cancelou,
+  };
+  desenharDonut(
+    "grafico-risco",
+    [
+      { rotulo: "Alto", valor: porNivel.alto, cor: "#a83227" },
+      { rotulo: "Médio", valor: porNivel.medio, cor: "#96691a" },
+      { rotulo: "Baixo", valor: porNivel.baixo, cor: "#3c7a5a" },
+    ],
+    "Distribuição dos alertas por nível de risco",
+  );
+  desenharDonut(
+    "grafico-acao",
+    [
+      { rotulo: "Enviou", valor: porAcao.enviou, cor: "#1b1b1a" },
+      { rotulo: "Cancelou", valor: porAcao.cancelou, cor: "#d8d6cf" },
+    ],
+    "Decisão dos colaboradores após o aviso",
+  );
+  desenharSites(dados.por_site || []);
   desenharBarras(dados.por_departamento);
   desenharTipos(dados.tipos);
   desenharLetramento(dados);
@@ -309,6 +343,96 @@ function desenharGrafico(evolucao) {
   legenda.appendChild(itemAlto);
   legenda.appendChild(itemDemais);
   container.appendChild(legenda);
+}
+
+function desenharDonut(id, itens, descricao) {
+  const container = $(id);
+  limpar(container);
+  const total = itens.reduce(function (soma, item) {
+    return soma + (Number(item.valor) || 0);
+  }, 0);
+
+  if (!total) {
+    container.appendChild(criar("p", "micro", "Nenhum alerta registrado ainda."));
+    return;
+  }
+
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 42 42");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", descricao);
+
+  const fundo = document.createElementNS(ns, "circle");
+  fundo.setAttribute("cx", "21");
+  fundo.setAttribute("cy", "21");
+  fundo.setAttribute("r", "15.9155");
+  fundo.setAttribute("fill", "none");
+  fundo.setAttribute("stroke", "#e0ded8");
+  fundo.setAttribute("stroke-width", "5");
+  svg.appendChild(fundo);
+
+  let deslocamento = 0;
+  itens.forEach(function (item) {
+    const valor = Number(item.valor) || 0;
+    if (!valor) return;
+    const fatia = (valor / total) * 100;
+    const circulo = document.createElementNS(ns, "circle");
+    circulo.setAttribute("cx", "21");
+    circulo.setAttribute("cy", "21");
+    circulo.setAttribute("r", "15.9155");
+    circulo.setAttribute("fill", "none");
+    circulo.setAttribute("stroke", item.cor);
+    circulo.setAttribute("stroke-width", "5");
+    circulo.setAttribute("stroke-dasharray", fatia + " " + (100 - fatia));
+    circulo.setAttribute("stroke-dashoffset", String(25 - deslocamento));
+    const titulo = document.createElementNS(ns, "title");
+    titulo.textContent = item.rotulo + ": " + valor + " (" + Math.round(fatia) + "%)";
+    circulo.appendChild(titulo);
+    svg.appendChild(circulo);
+    deslocamento += fatia;
+  });
+  container.appendChild(svg);
+
+  const legenda = criar("div", "donut-legenda");
+  itens.forEach(function (item) {
+    const linha = criar("p");
+    const marca = criar("i");
+    marca.style.background = item.cor;
+    linha.appendChild(marca);
+    linha.appendChild(document.createTextNode(item.rotulo));
+    linha.appendChild(criar("strong", null, numero(item.valor)));
+    legenda.appendChild(linha);
+  });
+  container.appendChild(legenda);
+}
+
+function desenharSites(sites) {
+  const container = $("barras-sites");
+  limpar(container);
+
+  if (!sites || !sites.length) {
+    container.appendChild(criar("p", "micro", "Nenhum site com alerta ainda."));
+    return;
+  }
+
+  const maximo = Math.max.apply(
+    null,
+    [1].concat(sites.map(function (item) { return item.total; })),
+  );
+  const bloco = criar("div", "barra-site");
+  sites.forEach(function (item) {
+    const linha = criar("div", "barra-item");
+    linha.appendChild(criar("span", "nome", item.site));
+    const trilho = criar("span", "barra-trilho");
+    const preenchimento = criar("span", "barra-preenchimento");
+    preenchimento.style.width = Math.max((item.total / maximo) * 100, item.total > 0 ? 2 : 0) + "%";
+    trilho.appendChild(preenchimento);
+    linha.appendChild(trilho);
+    linha.appendChild(criar("span", "barra-valor", numero(item.total)));
+    bloco.appendChild(linha);
+  });
+  container.appendChild(bloco);
 }
 
 function desenharBarras(porDepartamento) {
@@ -1092,11 +1216,19 @@ async function exportarFiltrosAtuais() {
 
 async function carregarInstalacao() {
   const dados = await api("/api/admin/instalacao");
+  estado.euSuperadmin = Boolean(dados.superadmin);
   $("instalacao-url").textContent = dados.url_base;
   $("instalacao-token").textContent = dados.token;
   $("instalacao-token").dataset.valor = dados.token;
   $("instalacao-origem").textContent = dados.endereco_visto || "—";
   $("instalacao-versao").textContent = "versão " + dados.versao;
+  $("instalacao-dispositivos").textContent =
+    (dados.dispositivos_total ?? dados.dispositivos_vinculados) +
+    " conectado(s) · " +
+    dados.dispositivos_vinculados +
+    " no código atual (v" +
+    dados.codigo_versao +
+    ")";
   $("instalacao-banco").textContent =
     "Externo (Postgres) · os alertas ficam gravados na nuvem";
 
@@ -1105,6 +1237,74 @@ async function carregarInstalacao() {
   modo.className = "badge risco-alto";
   $("instalacao-exigencia").textContent =
     "Obrigatório: a extensão de cada computador precisa do código para registrar alertas.";
+}
+
+async function carregarDispositivos() {
+  const dados = await api("/api/admin/dispositivos");
+  estado.dispositivos = dados.dispositivos || [];
+  estado.codigoVersao = dados.codigo_versao || 0;
+  const corpo = $("tabela-dispositivos");
+  limpar(corpo);
+
+  $("resumo-dispositivos").textContent =
+    dados.total + " dispositivo(s) ativo(s) · código de instalação v" + dados.codigo_versao + ".";
+
+  if (!estado.dispositivos.length) {
+    const linha = criar("tr");
+    const celula = criar("td", "micro", "Nenhum dispositivo conectado ainda.");
+    celula.colSpan = 7;
+    linha.appendChild(celula);
+    corpo.appendChild(linha);
+    return;
+  }
+
+  estado.dispositivos.forEach(function (dispositivo) {
+    const linha = criar("tr");
+
+    const identificador = criar("td");
+    identificador.appendChild(criar("code", "id-dispositivo", dispositivo.id));
+    linha.appendChild(identificador);
+    linha.appendChild(criar("td", null, dispositivo.setor || "Não informado"));
+    linha.appendChild(criar("td", "ip", dispositivo.ip || "—"));
+    linha.appendChild(criar("td", null, dispositivo.versao || "—"));
+
+    const codigo = criar("td");
+    const selo = criar(
+      "span",
+      "codigo-dispositivo" + (dispositivo.codigo_atual ? "" : " anterior"),
+      dispositivo.codigo_atual ? "Atual" : "Anterior v" + dispositivo.codigo_versao,
+    );
+    codigo.appendChild(selo);
+    linha.appendChild(codigo);
+    linha.appendChild(criar("td", "micro", quando(dispositivo.ultimo_visto)));
+
+    const acoes = criar("td", "direita");
+    const desconectar = criar("button", "botao pequeno perigo", "Desconectar");
+    desconectar.type = "button";
+    desconectar.addEventListener("click", function () {
+      confirmar(
+        "Desconectar dispositivo?",
+        "O dispositivo " +
+          dispositivo.id +
+          " deixa de receber regras e de registrar alertas até ser reinstalado.",
+        "Desconectar",
+        async function () {
+          try {
+            await api("/api/admin/dispositivos/" + encodeURIComponent(dispositivo.id), {
+              method: "DELETE",
+            });
+            avisar("Dispositivo desconectado.");
+            await Promise.all([carregarDispositivos(), carregarInstalacao()]);
+          } catch (erro) {
+            tratarErro(erro);
+          }
+        },
+      );
+    });
+    acoes.appendChild(desconectar);
+    linha.appendChild(acoes);
+    corpo.appendChild(linha);
+  });
 }
 
 async function copiarToken() {
@@ -1122,16 +1322,42 @@ async function renovarToken() {
   try {
     const resposta = await api("/api/admin/instalacao/renovar-token", { method: "POST" });
     avisar(resposta.mensagem || "Código renovado.");
-    await carregarInstalacao();
+    await Promise.all([carregarInstalacao(), carregarDispositivos()]);
+  } catch (erro) {
+    tratarErro(erro);
+  }
+}
+
+async function confirmarRenovacaoToken() {
+  try {
+    const dados = await api("/api/admin/instalacao");
+    const total = Number(dados.dispositivos_vinculados) || 0;
+    confirmar(
+      "Renovar o código de instalação?",
+      total === 0
+        ? "Nenhum dispositivo está vinculado ao código atual. As extensões existentes deixarão de registrar alertas até receber o novo valor."
+        : "Há " +
+            total +
+            " dispositivo(s) ainda vinculado(s) ao código atual. Todos deixarão de receber regras e registrar alertas até serem reconfigurados.",
+      "Renovar código",
+      function () { void renovarToken(); },
+    );
   } catch (erro) {
     tratarErro(erro);
   }
 }
 
 async function carregarAdmins() {
-  const admins = await api("/api/admin/usuarios");
+  const dados = await api("/api/admin/usuarios");
+  estado.euSuperadmin = Boolean(dados.superadmin);
+  const admins = dados.usuarios || [];
   const corpo = $("tabela-admins");
   limpar(corpo);
+
+  $("novo-admin").hidden = !estado.euSuperadmin;
+  $("admin-nota").textContent = estado.euSuperadmin
+    ? "Você é o superadmin: pode criar e remover contas comuns. A sua conta e o perfil de superadmin são protegidos."
+    : "Apenas o superadmin pode criar ou remover administradores. Você pode trocar a sua própria senha.";
 
   admins.forEach(function (admin) {
     const linha = criar("tr");
@@ -1144,15 +1370,26 @@ async function carregarAdmins() {
     }
     linha.appendChild(usuario);
 
+    const perfil = criar("td");
+    const selo = criar(
+      "span",
+      "badge " + (admin.superadmin ? "risco-alto" : "risco-baixo"),
+      admin.superadmin ? "Superadmin" : "Administrador",
+    );
+    perfil.appendChild(selo);
+    linha.appendChild(perfil);
     linha.appendChild(criar("td", "", quando(admin.criado_em)));
 
     const acoes = criar("td", "direita");
-    const senha = criar("button", "botao pequeno", "Trocar senha");
-    senha.type = "button";
-    senha.addEventListener("click", function () { abrirAdmin(admin); });
-    acoes.appendChild(senha);
+    const podeTrocarSenha = admin.atual || (estado.euSuperadmin && !admin.superadmin);
+    if (podeTrocarSenha) {
+      const senha = criar("button", "botao pequeno", "Trocar senha");
+      senha.type = "button";
+      senha.addEventListener("click", function () { abrirAdmin(admin); });
+      acoes.appendChild(senha);
+    }
 
-    if (!admin.atual) {
+    if (estado.euSuperadmin && !admin.atual && !admin.superadmin) {
       const remover = criar("button", "botao pequeno perigo", "Remover");
       remover.type = "button";
       remover.style.marginLeft = "6px";
@@ -1175,6 +1412,9 @@ async function carregarAdmins() {
       acoes.appendChild(remover);
     }
 
+    if (!acoes.childNodes.length) {
+      acoes.appendChild(criar("span", "micro", "Protegido"));
+    }
     linha.appendChild(acoes);
     corpo.appendChild(linha);
   });
@@ -1232,6 +1472,87 @@ async function exportarPdfFiltrosAtuais() {
 }
 
 // ---------------------------------------------------------------------------
+// Monitoramento
+// ---------------------------------------------------------------------------
+
+function desenharSitesMonitorados(disponiveis, ativos) {
+  const container = $("sites-monitorados");
+  limpar(container);
+  const selecionados = new Set(Array.isArray(ativos) ? ativos : []);
+
+  (Array.isArray(disponiveis) ? disponiveis : []).forEach(function (site) {
+    const rotulo = criar("label", "site-painel");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.value = site.id;
+    checkbox.checked = selecionados.has(site.id);
+
+    const texto = criar("span", "site-painel-texto");
+    texto.appendChild(criar("strong", null, site.nome));
+    texto.appendChild(criar("small", null, (site.hosts || []).join(" · ")));
+
+    rotulo.appendChild(checkbox);
+    rotulo.appendChild(texto);
+    container.appendChild(rotulo);
+  });
+}
+
+async function carregarMonitoramento() {
+  const dados = await api("/api/admin/configuracoes");
+  estado.monitoramento = dados;
+  $("monitoramento-ativo").checked = Boolean(dados.monitoramento_ativo);
+  desenharSitesMonitorados(dados.sites_disponiveis, dados.sites_ativos);
+}
+
+async function salvarMonitoramento() {
+  const ativo = $("monitoramento-ativo").checked;
+  const sites = Array.from(
+    document.querySelectorAll("#sites-monitorados input[type=checkbox]:checked"),
+  ).map(function (checkbox) {
+    return checkbox.value;
+  });
+
+  if (ativo && !sites.length) {
+    avisar("Selecione ao menos um site ou desligue o monitoramento.", "erro");
+    return;
+  }
+
+  try {
+    const dados = await api("/api/admin/configuracoes", {
+      method: "PUT",
+      body: JSON.stringify({ monitoramento_ativo: ativo, sites_ativos: sites }),
+    });
+    estado.monitoramento = dados;
+    $("monitoramento-ativo").checked = Boolean(dados.monitoramento_ativo);
+    desenharSitesMonitorados(dados.sites_disponiveis, dados.sites_ativos);
+    avisar("Monitoramento atualizado. As extensões aplicam automaticamente em até 1 minuto.");
+    $("sincronizacao-monitoramento").textContent =
+      "Política salva · os dispositivos conectados recebem a nova versão em até 1 minuto.";
+  } catch (erro) {
+    tratarErro(erro);
+  }
+}
+
+async function sincronizarTodos() {
+  const botao = $("sincronizar-todos");
+  botao.disabled = true;
+  botao.textContent = "Sincronizando…";
+  try {
+    const dados = await api("/api/admin/configuracoes/sincronizar", { method: "POST" });
+    avisar(dados.mensagem || "Sincronização solicitada.");
+    $("sincronizacao-monitoramento").textContent =
+      dados.dispositivos +
+      " dispositivo(s) serão atualizados na próxima consulta automática (até 1 minuto).";
+    await Promise.all([carregarDispositivos(), carregarInstalacao()]);
+  } catch (erro) {
+    tratarErro(erro);
+  } finally {
+    botao.disabled = false;
+    botao.textContent = "Sincronizar todos agora";
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Eventos
 // ---------------------------------------------------------------------------
 
@@ -1257,6 +1578,10 @@ function ligarEventos() {
     } catch (erro) {
       tratarErro(erro);
     }
+  });
+
+  $("salvar-monitoramento").addEventListener("click", function () {
+    void salvarMonitoramento();
   });
 
   $("nova-regra").addEventListener("click", function () { abrirRegra(null); });
@@ -1305,12 +1630,15 @@ function ligarEventos() {
   });
 
   $("renovar-token").addEventListener("click", function () {
-    confirmar(
-      "Renovar o código de instalação?",
-      "As extensões que já usam o código atual param de registrar alertas até receberem o novo valor.",
-      "Renovar código",
-      function () { void renovarToken(); },
-    );
+    void confirmarRenovacaoToken();
+  });
+
+  $("atualizar-dispositivos").addEventListener("click", function () {
+    carregarDispositivos().catch(tratarErro);
+  });
+
+  $("sincronizar-todos").addEventListener("click", function () {
+    void sincronizarTodos();
   });
 
   $("novo-admin").addEventListener("click", function () { abrirAdmin(null); });

@@ -1,0 +1,28 @@
+{
+  "sites": [
+    {
+      "id": "chatgpt",
+      "nome": "ChatGPT",
+      "hosts": ["chatgpt.com", "chat.openai.com"]
+    },
+    {
+      "id": "gemini",
+      "nome": "Gemini",
+      "hosts": ["gemini.google.com"]
+    },
+    {
+      "id": "claude",
+      "nome": "Claude",
+      "hosts": ["claude.ai"]
+    },
+    {
+      "id": "copilot",
+      "nome": "Copilot",
+      "hosts": [
+        "copilot.microsoft.com",
+        "copilot.cloud.microsoft",
+        "copilot.com"
+      ]
+    }
+  ]
+}

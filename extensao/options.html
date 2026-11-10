@@ -12,9 +12,10 @@
         <p class="marca">Sentinela</p>
         <h1>Configuração da extensão</h1>
         <p class="subtitulo">
-          Conecte ao servidor da empresa, informe o departamento e o colaborador e escolha onde o
-          monitoramento deve funcionar. Texto, colagens, prints e PDFs são analisados localmente.
+          Conecte ao servidor da empresa e informe o departamento e o colaborador. A ativação e
+          os sites monitorados são definidos pelo painel administrativo.
         </p>
+        <p class="micro">Extensão versão <strong id="versao-extensao">2.9</strong></p>
       </div>
       <span id="status-ponto" class="ponto-status" aria-hidden="true"></span>
     </header>
@@ -26,15 +27,16 @@
           <div>
             <h2>Servidor</h2>
             <p>
-              O endereço do servidor da empresa já vem preenchido. Cole o código que aparece no
-              painel, em <strong>06 · Instalação</strong>; sem ele, o servidor recusa os alertas.
+              Copie a URL e o código que aparecem no painel, em <strong>06 · Instalação</strong>.
+              A URL de exemplo não funciona: use o endereço real do Render. Sem o código, o
+              servidor recusa os alertas.
             </p>
           </div>
         </div>
         <div class="grade">
           <label class="campo">
             <span class="rotulo">URL do servidor</span>
-            <input id="servidor" type="url" placeholder="https://sentinela.suaempresa.com" />
+            <input id="servidor" type="url" placeholder="https://sua-url.onrender.com" />
           </label>
           <label class="campo">
             <span class="rotulo">Código de instalação (obrigatório)</span>
@@ -49,7 +51,6 @@
         </p>
         <div class="acoes">
           <button id="testar" class="botao" type="button">Testar conexão</button>
-          <button id="sincronizar" class="botao" type="button">Sincronizar regras agora</button>
           <p id="resultado-conexao" class="resultado" role="status"></p>
         </div>
       </section>
@@ -88,34 +89,8 @@
         <div class="secao-titulo">
           <span class="numero">03</span>
           <div>
-            <h2>Monitoramento</h2>
-            <p>
-              Desligar o interruptor encerra o aviso em todos os chats; ligar marca todos de volta.
-              Também é possível escolher site por site.
-            </p>
-          </div>
-        </div>
-
-        <label class="linha-opcao">
-          <span>
-            <strong>Ativar monitoramento</strong>
-            <span class="dica">Liga ou desliga a análise em todos os chats de uma vez.</span>
-          </span>
-          <span class="switch">
-            <input id="ativo" type="checkbox" />
-            <span class="trilho"><span class="bolinha"></span></span>
-          </span>
-        </label>
-
-        <div class="sites" id="sites"></div>
-      </section>
-
-      <section class="secao">
-        <div class="secao-titulo">
-          <span class="numero">04</span>
-          <div>
             <h2>Cache de regras</h2>
-            <p>As regras são sincronizadas a cada 30 minutos (ou no botão “Sincronizar agora”). Alertas são gravados na hora.</p>
+            <p>As regras e a política são atualizadas automaticamente quando o painel muda. Não há botão manual de sincronização.</p>
           </div>
         </div>
 
@@ -132,6 +107,7 @@
       </div>
 
       <p class="nota">
+        A ativação e os sites monitorados ficam no painel, em <strong>07 · Monitoramento</strong>.
         A extensão lê o campo de texto e os anexos (imagens e PDFs) das IAs monitoradas. O
         conteúdo analisado nunca é gravado nem transmitido: o alerta contém somente site,
         departamento, nível de risco, tipos detectados, origem e a ação do colaborador.

@@ -11,7 +11,9 @@ Rotas públicas:
     GET  /                   landing (primeira tela)
     GET  /login              formulário de acesso
     GET  /api/ping
+    GET  /api/config/versao   (poll leve da extensão)
     GET  /api/config          (identifica a extensão)
+    POST /api/dispositivos/registrar (identifica a extensão)
     POST /api/alertas         (identifica a extensão)
 
 Painel (sessão):
@@ -24,6 +26,7 @@ do alerta (site, departamento, nível, tipos detectados, origem, ação e IP).
 import csv
 import hmac
 import io
+import json
 import os
 import re
 import time
@@ -52,7 +55,11 @@ import db
 import pdf
 
 VERSAO = "2.9"
+# A versão do produto continua 2.9; este sufixo invalida o cache dos arquivos
+# estáticos quando a interface muda sem alterar a versão exibida.
+VERSAO_ASSETS = "2.9.2"
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
+SITES_POR_ID = {site["id"]: site for site in db.SITES_MONITORADOS}
 
 # ---------------------------------------------------------------------------
 # Configuração (sempre por variáveis de ambiente, com padrão de desenvolvimento)
@@ -93,10 +100,14 @@ app.wsgi_app = ProxyFix(
 ORIGENS_CORS = os.environ.get("SENTINELA_CORS_ORIGINS", "*").strip() or "*"
 if ORIGENS_CORS != "*":
     ORIGENS_CORS = [origem.strip() for origem in ORIGENS_CORS.split(",") if origem.strip()]
+    # O alerta da extensão chega de chrome-extension:// (Chrome e Edge).
+    # Restringir a lista não pode bloquear a extensão; o X-API-Token continua
+    # sendo a autorização real.
+    ORIGENS_CORS.append(r"chrome-extension://.*")
 CORS(
     app,
     resources={r"/api/*": {"origins": ORIGENS_CORS}},
-    allow_headers=["Content-Type", "X-API-Token"],
+    allow_headers=["Content-Type", "X-API-Token", "X-Device-ID"],
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 )
 
@@ -107,8 +118,19 @@ _CACHE_CONFIG_TTL = max(0, int(os.environ.get("SENTINELA_CONFIG_CACHE", "30")))
 
 
 def invalidar_cache_config() -> None:
+    """Limpa o cache local e avisa as extensões que a matriz mudou.
+
+    O incremento da versão no Postgres é o que permite a sincronização
+    transparente: cada extensão consulta uma resposta minúscula e só baixa a
+    matriz completa quando o valor muda.
+    """
     _CACHE_CONFIG["expira"] = 0.0
     _CACHE_CONFIG["dados"] = None
+    try:
+        db.marcar_config_alterada()
+    except Exception:
+        # Uma falha ao versionar não pode desfazer uma alteração já gravada.
+        pass
 
 
 # Limite em memória por instância. Para o volume de um único Render/Cloud Run
@@ -136,10 +158,10 @@ db.inicializar_banco(ADMIN_USUARIO, ADMIN_SENHA)
 def variaveis_globais():
     """Deixa a versão disponível em todos os templates.
 
-    Ela entra no endereço dos arquivos estáticos (?v=2.9), então o navegador não
-    reaproveita um painel.js ou um CSS de uma publicação anterior.
+    Ela entra no endereço dos arquivos estáticos (?v=2.9.2), então o navegador
+    não reaproveita um painel.js ou um CSS de uma publicação anterior.
     """
-    return {"versao": VERSAO}
+    return {"versao": VERSAO, "versao_assets": VERSAO_ASSETS}
 
 
 class ErroValidacao(Exception):
@@ -262,6 +284,9 @@ def exigir_token_api(funcao):
         falha = conferir_token()
         if falha is not None:
             return falha
+        revogado = recusar_dispositivo_revogado()
+        if revogado is not None:
+            return revogado
         return funcao(*args, **kwargs)
 
     return interna
@@ -325,17 +350,67 @@ def ler_corpo() -> dict:
 def exigir_sessao_api(funcao):
     @wraps(funcao)
     def interna(*args, **kwargs):
-        if not session.get("admin_id"):
+        admin_id = session.get("admin_id")
+        if not admin_id:
             return jsonify({"erro": "Sessão expirada. Entre novamente."}), 401
+        # Excluir uma conta invalida imediatamente as sessões abertas dela.
+        if not db.admin_existe(admin_id):
+            session.clear()
+            return jsonify({"erro": "Sessão encerrada. Entre novamente."}), 401
         return funcao(*args, **kwargs)
 
     return interna
 
 
+def exigir_superadmin_api(funcao):
+    """Restringe criar/excluir administradores ao superadmin inicial."""
+    @wraps(funcao)
+    def interna(*args, **kwargs):
+        admin_id = session.get("admin_id")
+        if not admin_id:
+            return jsonify({"erro": "Sessão expirada. Entre novamente."}), 401
+        if not db.admin_existe(admin_id):
+            session.clear()
+            return jsonify({"erro": "Sessão encerrada. Entre novamente."}), 401
+        if not db.admin_e_superadmin(admin_id):
+            return jsonify({"erro": "Apenas o superadmin pode gerenciar administradores."}), 403
+        return funcao(*args, **kwargs)
+
+    return interna
+
+
+def dispositivo_revogado() -> bool:
+    """Confere o dispositivo enviado pela extensão, quando presente.
+
+    Extensões antigas não mandam X-Device-ID; elas continuam funcionando com
+    o código de instalação. Instalações novas podem ser desconectadas.
+    """
+    dispositivo_id = (request.headers.get("X-Device-ID") or "").strip()
+    if not dispositivo_id:
+        return False
+    return db.dispositivo_revogado(dispositivo_id[:80])
+
+
+def recusar_dispositivo_revogado():
+    if dispositivo_revogado():
+        return (
+            jsonify(
+                {
+                    "erro": "Este dispositivo foi desconectado pelo painel. "
+                    "Abra as Opções, salve a configuração novamente ou reinstale a extensão."
+                }
+            ),
+            403,
+        )
+    return None
+
+
 def exigir_sessao_pagina(funcao):
     @wraps(funcao)
     def interna(*args, **kwargs):
-        if not session.get("admin_id"):
+        admin_id = session.get("admin_id")
+        if not admin_id or not db.admin_existe(admin_id):
+            session.clear()
             return redirect(url_for("login"))
         return funcao(*args, **kwargs)
 
@@ -355,6 +430,30 @@ def nivel_por_itens(itens, fallback: str) -> str:
     if "medio" in riscos:
         return "medio"
     return fallback if not riscos else "baixo"
+
+
+def sites_ativos_do_banco(valor) -> list:
+    """Lê a política salva sem deixar IDs desconhecidos chegarem à extensão."""
+    if isinstance(valor, str):
+        try:
+            valor = json.loads(valor)
+        except (TypeError, ValueError):
+            return db.SITES_PADRAO[:]
+    if not isinstance(valor, list):
+        return db.SITES_PADRAO[:]
+    return [site_id for site_id in valor if site_id in SITES_POR_ID]
+
+
+def validar_sites_ativos(valor) -> list:
+    if not isinstance(valor, list):
+        raise ErroValidacao("Sites monitorados deve ser uma lista.")
+    escolhidos = []
+    for site_id in valor:
+        if site_id not in SITES_POR_ID:
+            raise ErroValidacao("Site monitorado desconhecido.")
+        if site_id not in escolhidos:
+            escolhidos.append(site_id)
+    return escolhidos
 
 
 def condicoes_de_filtro(args) -> tuple:
@@ -529,6 +628,24 @@ def api_health():
     return jsonify({"ok": True, "versao": VERSAO})
 
 
+@app.get("/api/config/versao")
+@exigir_token_api
+def api_config_versao():
+    """Resposta mínima consultada pelas extensões para detectar mudanças."""
+    cache = _CACHE_CONFIG["dados"] if time.monotonic() < _CACHE_CONFIG["expira"] else None
+    versao = cache.get("versao_config") if cache else db.versao_config()
+    codigo_versao = cache.get("codigo_versao") if cache else db.token_versao_api()
+    resposta = jsonify(
+        {
+            "versao_config": versao or "1",
+            "codigo_versao": codigo_versao or 1,
+            "versao": VERSAO,
+        }
+    )
+    resposta.headers["Cache-Control"] = "no-store"
+    return resposta
+
+
 @app.get("/api/config")
 @exigir_token_api
 def api_config():
@@ -562,7 +679,20 @@ def api_config():
                 "SELECT nome FROM areas ORDER BY id"
             ).fetchall()
         ]
+        configuracoes = {
+            linha["chave"]: linha["valor"]
+            for linha in conexao_aberta.execute(
+                "SELECT chave, valor FROM configuracoes "
+                "WHERE chave IN ('monitoramento_ativo', 'sites_ativos', 'config_versao', "
+                "'api_token_versao')"
+            ).fetchall()
+        }
         dados = {
+            "versao_config": configuracoes.get("config_versao", "1"),
+            "codigo_versao": db.token_versao_api(),
+            "monitoramento_ativo": configuracoes.get("monitoramento_ativo", "1") != "0",
+            "sites_ativos": sites_ativos_do_banco(configuracoes.get("sites_ativos")),
+            "sites_disponiveis": db.SITES_MONITORADOS,
             "regras": [
                 {
                     "id": linha["id"],
@@ -589,6 +719,42 @@ def api_config():
         return resposta
     finally:
         conexao_aberta.close()
+
+
+@app.post("/api/dispositivos/registrar")
+@exigir_token_api
+def api_registrar_dispositivo():
+    """Registra o contato de uma instalação para o painel de dispositivos.
+
+    O identificador é aleatório e gerado pela extensão; não é o nome da pessoa.
+    O setor e o IP são os únicos dados organizacionais exibidos no painel.
+    """
+    corpo = ler_corpo()
+    dispositivo_id = texto_obrigatorio(corpo.get("id"), "Identificador do dispositivo", 80)
+    if not re.fullmatch(r"[A-Za-z0-9_-]{8,80}", dispositivo_id):
+        raise ErroValidacao("Identificador do dispositivo inválido.")
+    setor = texto_opcional(corpo.get("setor"), "Setor", 80) or "Não informado"
+    versao = texto_opcional(corpo.get("versao"), "Versão da extensão", 20) or "desconhecida"
+    codigo_versao = db.token_versao_api()
+    if db.registrar_dispositivo(
+        dispositivo_id, setor, ip_do_cliente(), versao, codigo_versao
+    ) == 0:
+        return (
+            jsonify(
+                {
+                    "erro": "Este dispositivo foi desconectado pelo painel. "
+                    "Abra as Opções, salve novamente ou reinstale a extensão."
+                }
+            ),
+            403,
+        )
+    return jsonify(
+        {
+            "id": dispositivo_id,
+            "codigo_versao": codigo_versao,
+            "mensagem": "Dispositivo atualizado.",
+        }
+    )
 
 
 @app.post("/api/alertas")
@@ -828,6 +994,7 @@ def painel():
     return render_template(
         "painel.html",
         usuario=session.get("admin_usuario", "admin"),
+        superadmin=db.admin_e_superadmin(session.get("admin_id")),
         limiar_padrao=obter_limiar(),
     )
 
@@ -880,6 +1047,20 @@ def api_resumo():
     total_alto = sum(1 for alerta in alertas if alerta["nivel_risco"] == "alto")
     total_enviou = sum(1 for alerta in alertas if alerta["acao"] == "enviou")
     total_cancelou = total - total_enviou
+
+    por_nivel = {nivel: 0 for nivel in db.NIVEIS}
+    por_site = {}
+    for alerta in alertas:
+        if alerta["nivel_risco"] in por_nivel:
+            por_nivel[alerta["nivel_risco"]] += 1
+        por_site[alerta["site"]] = por_site.get(alerta["site"], 0) + 1
+
+    sites = [
+        {"site": nome, "total": quantidade}
+        for nome, quantidade in sorted(
+            por_site.items(), key=lambda item: item[1], reverse=True
+        )
+    ][:8]
 
     departamentos = {}
     for alerta in alertas:
@@ -976,6 +1157,9 @@ def api_resumo():
             "total_cancelou": total_cancelou,
             "taxa_envio": percentual(total_enviou, total),
             "taxa_alto": percentual(total_alto, total),
+            "por_nivel": por_nivel,
+            "por_acao": {"enviou": total_enviou, "cancelou": total_cancelou},
+            "por_site": sites,
             "tipos_distintos": len(contagem_tipos),
             "departamentos_ativos": len(departamentos),
             "limiar": limiar,
@@ -1311,6 +1495,10 @@ def api_instalacao():
         {
             "url_base": url_base,
             "token": token_esperado(),
+            "codigo_versao": db.token_versao_api(),
+            "dispositivos_vinculados": db.contar_dispositivos(db.token_versao_api()),
+            "dispositivos_total": db.contar_dispositivos(),
+            "superadmin": db.admin_e_superadmin(session.get("admin_id")),
             "endereco_visto": ip_do_cliente(),
             "versao": VERSAO,
         }
@@ -1324,11 +1512,52 @@ def api_renovar_token():
         raise ErroValidacao(
             "O código está definido em SENTINELA_API_TOKEN. Troque o valor lá e reinicie o servidor."
         )
-    novo = db.renovar_token_api()
+    resultado = db.renovar_token_api()
+    invalidar_cache_config()
     return jsonify(
         {
-            "token": novo,
-            "mensagem": "Código renovado. Reconfigure as extensões com o novo valor.",
+            **resultado,
+            "mensagem": (
+                f"Código renovado. {resultado['dispositivos_vinculados']} dispositivo(s) "
+                "ainda estavam vinculados ao código anterior e precisam ser reconfigurados."
+            ),
+        }
+    )
+
+
+@app.get("/api/admin/dispositivos")
+@exigir_sessao_api
+def api_listar_dispositivos():
+    versao_atual = db.token_versao_api()
+    dispositivos = []
+    for item in db.listar_dispositivos():
+        dispositivos.append(
+            {
+                **item,
+                "codigo_atual": item["codigo_versao"] == versao_atual,
+                "ultimo_visto": iso_para_navegador(item["ultimo_visto"]),
+                "primeiro_visto": iso_para_navegador(item["primeiro_visto"]),
+            }
+        )
+    return jsonify(
+        {
+            "dispositivos": dispositivos,
+            "codigo_versao": versao_atual,
+            "total": len(dispositivos),
+        }
+    )
+
+
+@app.delete("/api/admin/dispositivos/<dispositivo_id>")
+@exigir_sessao_api
+def api_desconectar_dispositivo(dispositivo_id: str):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{8,80}", dispositivo_id or ""):
+        return jsonify({"erro": "Dispositivo inválido."}), 400
+    if db.desconectar_dispositivo(dispositivo_id) == 0:
+        return jsonify({"erro": "Dispositivo não encontrado ou já desconectado."}), 404
+    return jsonify(
+        {
+            "mensagem": "Dispositivo desconectado. Ele deixa de receber regras e alertas até ser reinstalado."
         }
     )
 
@@ -1343,21 +1572,26 @@ def validar_senha_admin(valor) -> str:
 @exigir_sessao_api
 def api_listar_usuarios():
     atual = session.get("admin_id")
+    eu_sou_superadmin = db.admin_e_superadmin(atual)
     return jsonify(
-        [
-            {
-                "id": admin["id"],
-                "usuario": admin["usuario"],
-                "criado_em": iso_para_navegador(admin["criado_em"]),
-                "atual": admin["id"] == atual,
-            }
-            for admin in db.listar_admins()
-        ]
+        {
+            "superadmin": eu_sou_superadmin,
+            "usuarios": [
+                {
+                    "id": admin["id"],
+                    "usuario": admin["usuario"],
+                    "criado_em": iso_para_navegador(admin["criado_em"]),
+                    "atual": admin["id"] == atual,
+                    "superadmin": bool(admin["superadmin"]),
+                }
+                for admin in db.listar_admins()
+            ],
+        }
     )
 
 
 @app.post("/api/admin/usuarios")
-@exigir_sessao_api
+@exigir_superadmin_api
 def api_criar_usuario():
     corpo = ler_corpo()
     usuario = texto_obrigatorio(corpo.get("usuario"), "Usuário", 40)
@@ -1380,12 +1614,21 @@ def api_criar_usuario():
 
 
 @app.delete("/api/admin/usuarios/<int:admin_id>")
-@exigir_sessao_api
+@exigir_superadmin_api
 def api_remover_usuario(admin_id: int):
     if admin_id == session.get("admin_id"):
         raise ErroValidacao("Você não pode remover a sua própria conta.")
-    if db.total_admins() <= 1:
-        raise ErroValidacao("O painel precisa de pelo menos um administrador.")
+    conexao_aberta = conexao()
+    try:
+        alvo = conexao_aberta.execute(
+            "SELECT superadmin FROM usuarios_admin WHERE id = ?", (admin_id,)
+        ).fetchone()
+    finally:
+        conexao_aberta.close()
+    if alvo is None:
+        return jsonify({"erro": "Administrador não encontrado."}), 404
+    if alvo["superadmin"]:
+        return jsonify({"erro": "O superadmin inicial não pode ser removido."}), 403
     if db.remover_admin(admin_id) == 0:
         return jsonify({"erro": "Administrador não encontrado."}), 404
     return jsonify({"mensagem": "Administrador removido."})
@@ -1395,6 +1638,23 @@ def api_remover_usuario(admin_id: int):
 @exigir_sessao_api
 def api_trocar_senha(admin_id: int):
     corpo = ler_corpo()
+
+    # Administradores comuns só trocam a própria senha. O superadmin pode
+    # redefinir a senha de contas comuns, mas não a própria sem confirmar a atual.
+    if admin_id != session.get("admin_id"):
+        if not db.admin_e_superadmin(session.get("admin_id")):
+            return jsonify({"erro": "Apenas o superadmin pode alterar a senha de outra conta."}), 403
+        conexao_aberta = conexao()
+        try:
+            alvo = conexao_aberta.execute(
+                "SELECT superadmin FROM usuarios_admin WHERE id = ?", (admin_id,)
+            ).fetchone()
+        finally:
+            conexao_aberta.close()
+        if alvo is None:
+            return jsonify({"erro": "Administrador não encontrado."}), 404
+        if alvo["superadmin"]:
+            return jsonify({"erro": "A senha do superadmin só pode ser alterada por ele."}), 403
 
     # Trocar senha exige a senha atual da conta logada: quem já está com a
     # sessão aberta não consegue definir uma senha nova sem conhecê-la.
@@ -1724,36 +1984,98 @@ def api_atualizar_mensagem(nivel: str):
         conexao_aberta.close()
 
 
+def obter_politica_monitoramento() -> dict:
+    ativo = db.ler_configuracao("monitoramento_ativo", "1") != "0"
+    sites = sites_ativos_do_banco(
+        db.ler_configuracao("sites_ativos", json.dumps(db.SITES_PADRAO))
+    )
+    return {"monitoramento_ativo": ativo, "sites_ativos": sites}
+
+
 @app.get("/api/admin/configuracoes")
 @exigir_sessao_api
 def api_obter_configuracoes():
-    return jsonify({"limiar_gargalo": obter_limiar()})
+    return jsonify(
+        {
+            "limiar_gargalo": obter_limiar(),
+            **obter_politica_monitoramento(),
+            "sites_disponiveis": db.SITES_MONITORADOS,
+        }
+    )
 
 
 @app.put("/api/admin/configuracoes")
 @exigir_sessao_api
 def api_salvar_configuracoes():
     corpo = ler_corpo()
-    try:
-        limiar = int(corpo.get("limiar_gargalo"))
-    except (TypeError, ValueError) as erro:
-        raise ErroValidacao("Informe uma tolerância de risco numérica.") from erro
-    if limiar < 0 or limiar > 100:
-        raise ErroValidacao("A tolerância de risco deve ficar entre 0 e 100%.")
+    politica = obter_politica_monitoramento()
+    limiar = obter_limiar()
+
+    if "limiar_gargalo" in corpo:
+        try:
+            limiar = int(corpo.get("limiar_gargalo"))
+        except (TypeError, ValueError) as erro:
+            raise ErroValidacao("Informe uma tolerância de risco numérica.") from erro
+        if limiar < 0 or limiar > 100:
+            raise ErroValidacao("A tolerância de risco deve ficar entre 0 e 100%.")
+
+    if "monitoramento_ativo" in corpo:
+        if not isinstance(corpo["monitoramento_ativo"], bool):
+            raise ErroValidacao("O estado do monitoramento deve ser verdadeiro ou falso.")
+        politica["monitoramento_ativo"] = corpo["monitoramento_ativo"]
+
+    if "sites_ativos" in corpo:
+        politica["sites_ativos"] = validar_sites_ativos(corpo["sites_ativos"])
+
+    if politica["monitoramento_ativo"] and not politica["sites_ativos"]:
+        raise ErroValidacao("Selecione ao menos um site para ativar o monitoramento.")
 
     conexao_aberta = conexao()
     try:
-        conexao_aberta.execute(
-            """
-            INSERT INTO configuracoes (chave, valor) VALUES ('limiar_gargalo', ?)
-            ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor
-            """,
-            (str(limiar),),
-        )
+        valores = {
+            "limiar_gargalo": str(limiar),
+            "monitoramento_ativo": "1" if politica["monitoramento_ativo"] else "0",
+            "sites_ativos": json.dumps(politica["sites_ativos"]),
+        }
+        for chave, valor in valores.items():
+            conexao_aberta.execute(
+                """
+                INSERT INTO configuracoes (chave, valor) VALUES (?, ?)
+                ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor
+                """,
+                (chave, valor),
+            )
         conexao_aberta.commit()
-        return jsonify({"limiar_gargalo": limiar, "mensagem": "Tolerância de risco atualizada."})
     finally:
         conexao_aberta.close()
+
+    invalidar_cache_config()
+    return jsonify(
+        {
+            "limiar_gargalo": limiar,
+            **politica,
+            "sites_disponiveis": db.SITES_MONITORADOS,
+            "mensagem": "Configurações atualizadas.",
+        }
+    )
+
+
+@app.post("/api/admin/configuracoes/sincronizar")
+@exigir_sessao_api
+def api_sincronizar_dispositivos():
+    """Marca a configuração como nova para todos os dispositivos.
+
+    Não há conexão aberta com cada navegador. A extensão consulta a versão a
+    cada minuto e baixa a matriz quando percebe a mudança, sem botão manual.
+    """
+    invalidar_cache_config()
+    return jsonify(
+        {
+            "versao_config": db.versao_config(),
+            "dispositivos": db.contar_dispositivos(),
+            "mensagem": "Sincronização solicitada. As extensões aplicam em até 1 minuto.",
+        }
+    )
 
 
 # ---------------------------------------------------------------------------

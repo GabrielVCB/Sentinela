@@ -367,6 +367,10 @@ button {
 
 /* ------------------------------ Controles ------------------------------- */
 
+.botao[hidden] {
+  display: none;
+}
+
 .botao {
   appearance: none;
   display: inline-flex;
@@ -508,6 +512,48 @@ textarea:focus {
   accent-color: var(--tinta);
 }
 
+.sites-painel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 8px;
+}
+
+.site-painel {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid var(--linha);
+  padding: 12px;
+  cursor: pointer;
+}
+
+.site-painel input {
+  margin-top: 3px;
+  accent-color: var(--tinta);
+}
+
+.site-painel-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.site-painel-texto strong {
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.site-painel-texto small {
+  color: var(--cinza-claro);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+
+.acoes-monitoramento {
+  justify-content: flex-start;
+}
+
 /* ------------------------------ Dashboard ------------------------------- */
 
 .metricas {
@@ -561,6 +607,65 @@ textarea:focus {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 44px;
+}
+
+.grade-tres {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px;
+}
+
+.grafico-donut {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 132px;
+}
+
+.grafico-donut svg {
+  width: 112px;
+  height: 112px;
+  flex: 0 0 112px;
+}
+
+.donut-legenda {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.donut-legenda p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 10px;
+  color: var(--cinza);
+}
+
+.donut-legenda i {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  display: inline-block;
+}
+
+.donut-legenda strong {
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--tinta);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.barra-site .barra-item {
+  grid-template-columns: minmax(0, 1fr) 1fr 44px;
+  gap: 10px;
+}
+
+.barra-site .barra-item .nome {
+  font-size: 10px;
 }
 
 .grafico svg {
@@ -1273,6 +1378,13 @@ textarea:focus {
   }
 }
 
+@media (max-width: 900px) {
+  .grade-tres {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
 @media (max-width: 620px) {
   .conteudo {
     padding: 0 18px 40px;
@@ -1337,12 +1449,40 @@ textarea:focus {
     gap: 24px;
   }
 
+  .grafico-donut {
+    align-items: flex-start;
+  }
+
   .barra-item {
     grid-template-columns: 100px 1fr 44px;
   }
 }
 
 /* 2.2 · Instalação */
+.tabela-dispositivos {
+  min-width: 860px;
+}
+
+.tabela-dispositivos .id-dispositivo {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--cinza);
+  max-width: 210px;
+  overflow-wrap: anywhere;
+}
+
+.codigo-dispositivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--baixo);
+}
+
+.codigo-dispositivo.anterior {
+  color: var(--medio);
+}
+
 .token-valor {
   display: inline-block;
   max-width: 100%;

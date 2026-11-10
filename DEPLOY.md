@@ -88,12 +88,16 @@ visita demora cerca de 1 minuto.
 
 1. Abra `https://SEU-SERVICO.onrender.com/painel`.
 2. Entre com `SENTINELA_ADMIN_USUARIO` e a senha informada.
-3. Confira **06 · Instalação**:
+3. Em **07 · Monitoramento**, ative o monitoramento e escolha os sites.
+4. Confira **06 · Instalação**:
    - a URL pública;
    - o código de instalação;
-   - a versão **2.9**.
-4. Confira **04 · Regras**: devem existir 44 regras iniciais.
-5. Crie/edite uma regra e recarregue o painel para confirmar que o Postgres é a fonte.
+   - a versão **2.9**;
+   - o administrador inicial marcado como **Superadmin**.
+5. Confira **04 · Regras**: devem existir 44 regras iniciais.
+6. Crie/edite uma regra e confirme que a extensão recebe a nova versão automaticamente; use
+   **Sincronizar todos agora** em **07 · Monitoramento** se quiser forçar a consulta.
+7. Instale a extensão e confirme que ela aparece em **06 · Instalação → Dispositivos conectados**.
 
 ## 6. Instalar a extensão
 
@@ -131,6 +135,7 @@ No painel:
 - [ ] um alerta de teste aparece com site, departamento, colaborador, IP, nível, tipos e origem;
 - [ ] texto + imagem no mesmo prompt gera detecções das duas origens;
 - [ ] **06 · Instalação** mostra o endereço e o código corretos;
+- [ ] **07 · Monitoramento** ativa e desativa o aviso nos sites escolhidos;
 - [ ] a extensão mostra **2.9** em `chrome://extensions`;
 - [ ] desligar a rede, gerar um alerta e religar: a fila reenvia em até 1 minuto;
 - [ ] o mesmo `evento_id` não duplica o alerta na auditoria.

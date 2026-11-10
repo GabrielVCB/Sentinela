@@ -12,38 +12,28 @@
  */
 "use strict";
 
-// 30 minutos, não 5: com 500 extensões, 5 minutos geram ~4,3 milhões de
-// requisições/mês e podem esgotar a cota do Render/Neon. O botão
-// "Sincronizar agora" força a atualização.
-const INTERVALO_SYNC = 30 * 60 * 1000;
+// A extensão consulta só a versão da configuração a cada minuto. A matriz
+// completa (regras, mensagens, áreas) só é baixada quando essa versão muda.
+// Isso mantém a atualização transparente sem multiplicar o tráfego.
+const INTERVALO_SYNC = 60 * 1000;
+const VERSAO_EXTENSAO = chrome.runtime.getManifest().version;
 const LIMITE_TEXTO_ANEXO = 60000;
-const TIMEOUT_MS = 6000;
+// O Render Free pode acordar devagar; 20 s evita "Failed to fetch" em cold start.
+const TIMEOUT_MS = 20000;
 const TENTATIVAS = 2;
 const LIMITE_FILA = 100;
 const ALARME_SYNC = "sentinela-sync";
 const ALARME_FILA = "sentinela-fila";
 
-// Endereço do servidor da empresa. Fica fixo aqui para que uma instalação nova
-// já nasça apontada para a nuvem, sem ninguém precisar digitar o endereço.
-// Troque pelo endereço do Render (ou pelo domínio no Cloudflare) antes de
-// gerar o ZIP. O endereço também pode ser alterado em Opções, por computador.
-const SERVIDOR_PADRAO = "https://sentinela.suaempresa.com";
+// Sem endereço local: a extensão só fala com o servidor publicado na nuvem.
+// A URL real é copiada do painel em 06 · Instalação e salva em Opções.
+const SERVIDOR_PADRAO = "";
 
 const CONFIGURACAO_PADRAO = {
   serverUrl: SERVIDOR_PADRAO,
   apiToken: "",
   departamento: "",
   colaborador: "",
-  monitoramentoAtivo: true,
-  sitesAtivos: [
-    "chatgpt.com",
-    "chat.openai.com",
-    "gemini.google.com",
-    "claude.ai",
-    "copilot.cloud.microsoft",
-    "copilot.microsoft.com",
-    "copilot.com",
-  ],
 };
 
 const CHAVES = {
@@ -52,8 +42,9 @@ const CHAVES = {
   status: "statusConexao",
   fila: "filaAlertasPendentes",
   filaAntiga: "filaAlertas",
-  migracaoServidor: "migracaoServidorNuvem",
   ultimoAlerta: "ultimoAlerta",
+  dispositivo: "dispositivoId",
+  registroDispositivo: "ultimoRegistroDispositivo",
 };
 
 // ---------------------------------------------------------------------------
@@ -67,6 +58,37 @@ async function lerArmazenado(chave, valorPadrao) {
 
 async function salvarArmazenado(chave, valor) {
   await chrome.storage.local.set({ [chave]: valor });
+}
+
+let promessaDispositivo = null;
+
+/**
+ * Identificador aleatório desta instalação. Não é o nome da pessoa e não
+ * identifica o colaborador: serve para o painel listar e desconectar um
+ * navegador específico sem renovar o código de todos os outros.
+ */
+async function obterDispositivoId() {
+  if (promessaDispositivo) return promessaDispositivo;
+  promessaDispositivo = (async function () {
+    const salvo = String(await lerArmazenado(CHAVES.dispositivo, "")).trim();
+    if (/^[A-Za-z0-9_-]{8,80}$/.test(salvo)) return salvo;
+    let id = "";
+    try {
+      if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        id = "dev-" + crypto.randomUUID();
+      }
+    } catch (erro) {
+      /* ambientes sem randomUUID */
+    }
+    if (!id) {
+      id = "dev-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 12);
+    }
+    await salvarArmazenado(CHAVES.dispositivo, id);
+    return id;
+  })().finally(function () {
+    promessaDispositivo = null;
+  });
+  return promessaDispositivo;
 }
 
 function criarEventoId() {
@@ -104,7 +126,7 @@ async function enfileirarAlerta(alerta) {
 }
 
 async function garantirAlarmeSync() {
-  await chrome.alarms.create(ALARME_SYNC, { periodInMinutes: 30 });
+  await chrome.alarms.create(ALARME_SYNC, { periodInMinutes: 1 });
 }
 
 async function garantirAlarmeFila() {
@@ -154,13 +176,24 @@ async function processarFila() {
 
 async function obterConfiguracao() {
   const salva = await lerArmazenado(CHAVES.configuracao, {});
-  return { ...CONFIGURACAO_PADRAO, ...salva };
+  // A política de monitoramento não mora mais na configuração local. Campos
+  // antigos são descartados para não voltarem a valer depois de uma migração.
+  const { monitoramentoAtivo, sitesAtivos, ...resto } = salva || {};
+  return { ...CONFIGURACAO_PADRAO, ...resto };
 }
 
 function normalizarUrl(url) {
-  return String(url || CONFIGURACAO_PADRAO.serverUrl)
-    .trim()
-    .replace(/\/+$/, "");
+  const texto = String(url || CONFIGURACAO_PADRAO.serverUrl).trim();
+  if (!texto) return "";
+  try {
+    const endereco = new URL(texto);
+    // A extensão só fala com o servidor publicado em https.
+    if (endereco.protocol !== "https:") return "";
+    // Mesmo que a pessoa cole a URL do painel com /painel no fim, usa só a origem.
+    return endereco.origin;
+  } catch (erro) {
+    return "";
+  }
 }
 
 async function registrarStatus(conectado, mensagem) {
@@ -177,6 +210,11 @@ async function registrarStatus(conectado, mensagem) {
 
 async function requisitar(caminho, opcoes, configuracaoExplicita) {
   const configuracao = configuracaoExplicita || (await obterConfiguracao());
+  const base = normalizarUrl(configuracao.serverUrl);
+  if (!base) {
+    throw new Error("Configure a URL do servidor nas Opções. Copie o endereço do painel em 06 · Instalação.");
+  }
+
   const controlador = new AbortController();
   const temporizador = setTimeout(() => controlador.abort(), TIMEOUT_MS);
 
@@ -185,9 +223,13 @@ async function requisitar(caminho, opcoes, configuracaoExplicita) {
     // Código de instalação copiado do painel, guardado nas Opções.
     const codigo = (configuracao.apiToken || "").trim();
     if (codigo) cabecalhos["X-API-Token"] = codigo;
+    // O painel usa este identificador para listar e desconectar um dispositivo
+    // sem afetar os demais.
+    cabecalhos["X-Device-ID"] = await obterDispositivoId();
 
-    const resposta = await fetch(`${normalizarUrl(configuracao.serverUrl)}${caminho}`, {
+    const resposta = await fetch(`${base}${caminho}`, {
       ...opcoes,
+      cache: "no-store",
       headers: cabecalhos,
       signal: controlador.signal,
     });
@@ -206,6 +248,18 @@ async function requisitar(caminho, opcoes, configuracaoExplicita) {
       throw new Error(detalhe);
     }
     return await resposta.json();
+  } catch (erro) {
+    if (erro && erro.name === "AbortError") {
+      throw new Error(
+        "Tempo esgotado ao conectar em " + base + ". O servidor pode estar acordando; tente novamente.",
+      );
+    }
+    if (erro instanceof TypeError) {
+      throw new Error(
+        "Não foi possível conectar a " + base + ". Confira a URL, a permissão de acesso do navegador e se o servidor está online.",
+      );
+    }
+    throw erro;
   } finally {
     clearTimeout(temporizador);
   }
@@ -318,10 +372,48 @@ function areasDaConfiguracao(config) {
   return areasDasRegras(config.regras);
 }
 
-async function sincronizarConfig(forcar) {
+async function registrarDispositivo(configuracao) {
+  const id = await obterDispositivoId();
+  return requisitar(
+    "/api/dispositivos/registrar",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: id,
+        setor: String(configuracao.departamento || "").trim(),
+        versao: VERSAO_EXTENSAO,
+      }),
+    },
+    configuracao,
+  );
+}
+
+/**
+ * Mantém o último contato do painel atualizado sem uma escrita por minuto.
+ * O poll de versão continua sendo a operação leve; o cadastro do dispositivo
+ * é renovado a cada dez minutos e logo depois de uma mudança de configuração.
+ */
+async function registrarPeriodicamente(configuracao) {
+  const ultimo = Number(await lerArmazenado(CHAVES.registroDispositivo, 0)) || 0;
+  if (ultimo && Date.now() - ultimo < 10 * 60 * 1000) return;
+  try {
+    await registrarDispositivo(configuracao);
+    await salvarArmazenado(CHAVES.registroDispositivo, Date.now());
+  } catch (erro) {
+    const texto = erro instanceof Error ? erro.message : "Falha ao registrar dispositivo.";
+    await registrarStatus(false, texto);
+  }
+}
+
+/**
+ * Atualiza o cache de regras. Com `verificarRemoto`, consulta primeiro só a
+ * versão da configuração; se nada mudou, nem abre a matriz completa.
+ */
+async function sincronizarConfig(forcar, verificarRemoto) {
   const cache = await lerArmazenado(CHAVES.cache, null);
 
-  if (!forcar && cache && Date.now() - cache.atualizadoEm < INTERVALO_SYNC) {
+  if (!forcar && !verificarRemoto && cache && Date.now() - cache.atualizadoEm < INTERVALO_SYNC) {
     return cache;
   }
 
@@ -336,6 +428,17 @@ async function sincronizarConfig(forcar) {
       );
     }
 
+    if (!forcar && verificarRemoto && cache) {
+      const versao = await requisitar("/api/config/versao", { method: "GET" });
+      if (
+        versao &&
+        String(versao.versao_config || "") === String(cache.versaoConfig || "")
+      ) {
+        await registrarPeriodicamente(configuracao);
+        return cache;
+      }
+    }
+
     const resposta = await requisitar("/api/config", { method: "GET" });
     if (!resposta || !Array.isArray(resposta.regras) || !resposta.mensagens) {
       throw new Error("Resposta de configuração inválida.");
@@ -345,14 +448,43 @@ async function sincronizarConfig(forcar) {
       regras: resposta.regras,
       mensagens: resposta.mensagens,
       areas: areasDaConfiguracao(resposta),
+      // Política global definida no painel; a extensão não a edita localmente.
+      monitoramentoAtivo: resposta.monitoramento_ativo !== false,
+      sitesAtivos: Array.isArray(resposta.sites_ativos)
+        ? resposta.sites_ativos.slice()
+        : ["chatgpt", "gemini", "claude", "copilot"],
+      versaoConfig: String(resposta.versao_config || ""),
+      codigoVersao: Number(resposta.codigo_versao) || 1,
       atualizadoEm: Date.now(),
     };
     await salvarArmazenado(CHAVES.cache, novoCache);
     await registrarStatus(true, "Configuração sincronizada.");
+
+    // O registro é feito depois de a configuração ser aceita. Se o painel
+    // desconectou este navegador, a chamada de /api/config já retorna 403.
+    await registrarDispositivo(configuracao);
+    await salvarArmazenado(CHAVES.registroDispositivo, Date.now());
     return novoCache;
   } catch (erro) {
     const mensagem = erro instanceof Error ? erro.message : "Falha de conexão.";
     await registrarStatus(false, `Sem conexão: ${mensagem}`);
+    // Um dispositivo desconectado não deve continuar aplicando a última cópia
+    // da matriz. O painel é a fonte de verdade; a extensão só volta depois de
+    // ser reinstalada e registrar um novo identificador.
+    if (/desconectado/i.test(mensagem)) {
+      const vazio = {
+        regras: [],
+        mensagens: {},
+        areas: [],
+        monitoramentoAtivo: false,
+        sitesAtivos: [],
+        versaoConfig: "",
+        codigoVersao: 0,
+        atualizadoEm: Date.now(),
+      };
+      await salvarArmazenado(CHAVES.cache, vazio);
+      return vazio;
+    }
     return cache; // cache offline, quando existir
   }
 }
@@ -393,7 +525,7 @@ function sanearAlerta(alerta) {
 }
 
 function erroDefinitivo(mensagem) {
-  return /Código de instalação|Departamento não|Colaborador não|HTTP 400|HTTP 401|HTTP 403/.test(
+  return /Código de instalação|Departamento não|Colaborador não|desconectado|HTTP 400|HTTP 401|HTTP 403/.test(
     String(mensagem || ""),
   );
 }
@@ -494,7 +626,8 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
   (async function () {
     try {
       if (mensagem.tipo === "OBTER_CONFIG") {
-        const cache = await sincronizarConfig(false);
+        // A página aberta também participa da atualização transparente.
+        const cache = await sincronizarConfig(false, true);
         responder({ ok: true, cache: cache });
         return;
       }
@@ -524,7 +657,9 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
       }
 
       if (mensagem.tipo === "SINCRONIZAR_AGORA") {
-        const cache = await sincronizarConfig(true);
+        // Usado apenas pelo clique em Salvar das Opções; não há mais botão
+        // manual de sincronização na interface.
+        const cache = await sincronizarConfig(true, false);
         responder({ ok: Boolean(cache), cache: cache });
         return;
       }
@@ -542,9 +677,28 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
       if (mensagem.tipo === "TESTAR_CONEXAO") {
         try {
           const inicio = Date.now();
-          // /api/config também confere o código de instalação: se o endereço
-          // estiver certo mas o código errado, o erro aparece aqui.
+          const configuracao = await obterConfiguracao();
+          const base = normalizarUrl(configuracao.serverUrl);
+          if (!base) {
+            throw new Error(
+              "Configure a URL do servidor nas Opções. Copie o endereço do painel em 06 · Instalação.",
+            );
+          }
+          if (chrome.permissions && chrome.permissions.contains) {
+            const autorizado = await chrome.permissions.contains({ origins: [base + "/*"] });
+            if (!autorizado) {
+              throw new Error(
+                "O navegador não autorizou acesso a " +
+                  base +
+                  ". Salve as Opções e escolha Permitir quando o Chrome perguntar.",
+              );
+            }
+          }
+          // /api/ping prova que a rede e a URL funcionam; /api/config também
+          // confere o código de instalação.
+          await requisitar("/api/ping", { method: "GET" });
           const resposta = await requisitar("/api/config", { method: "GET" });
+          await registrarDispositivo(configuracao);
           const totalRegras = resposta && Array.isArray(resposta.regras) ? resposta.regras.length : 0;
           await registrarStatus(true, "Conexão estabelecida.");
           responder({
@@ -567,11 +721,20 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
           lerArmazenado(CHAVES.cache, null),
           lerArmazenado(CHAVES.ultimoAlerta, null),
         ]);
+        // O popup mostra a política do servidor, não uma preferência local.
+        const politica = cache
+          ? {
+              monitoramentoAtivo: cache.monitoramentoAtivo !== false,
+              sitesAtivos: Array.isArray(cache.sitesAtivos) ? cache.sitesAtivos : [],
+            }
+          : {};
         responder({
           ok: true,
-          configuracao: configuracao,
+          configuracao: { ...configuracao, ...politica },
           status: status,
           ultimoAlerta: ultimoAlerta,
+          versao: VERSAO_EXTENSAO,
+          dispositivoId: await obterDispositivoId(),
           cache: cache
             ? {
                 totalRegras: cache.regras ? cache.regras.length : 0,
@@ -602,29 +765,13 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
 // Ciclo de vida
 // ---------------------------------------------------------------------------
 
-/**
- * Quem já tinha a extensão salva com o endereço antigo de teste (localhost) é
- * movido uma única vez para o servidor da empresa, para não continuar enviando
- * alertas para a própria máquina. A marca fica gravada: se a pessoa voltar a
- * usar http://localhost:5000 de propósito, o valor dela é respeitado.
- */
-async function migrarServidorPadrao() {
-  if (await lerArmazenado(CHAVES.migracaoServidor, false)) return;
-  const salva = await lerArmazenado(CHAVES.configuracao, null);
-  const endereco = String((salva && salva.serverUrl) || "").trim();
-  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/?$/i.test(endereco)) {
-    await salvarArmazenado(CHAVES.configuracao, { ...salva, serverUrl: SERVIDOR_PADRAO });
-  }
-  await salvarArmazenado(CHAVES.migracaoServidor, true);
-}
-
 chrome.runtime.onInstalled.addListener(async function () {
   const salva = await lerArmazenado(CHAVES.configuracao, null);
   if (!salva) await salvarArmazenado(CHAVES.configuracao, CONFIGURACAO_PADRAO);
-  await migrarServidorPadrao();
   // A chave antiga era usada por uma versão que descartava a fila; a fila nova
   // só é removida quando o servidor confirma o registro.
   await chrome.storage.local.remove(CHAVES.filaAntiga);
+  await obterDispositivoId();
   await garantirAlarmeSync();
   await processarFila();
 
@@ -645,7 +792,7 @@ chrome.runtime.onStartup.addListener(function () {
 });
 
 chrome.alarms.onAlarm.addListener(function (alarme) {
-  if (alarme.name === ALARME_SYNC) void sincronizarConfig(false);
+  if (alarme.name === ALARME_SYNC) void sincronizarConfig(false, true);
   if (alarme.name === ALARME_FILA) void processarFila();
 });
 

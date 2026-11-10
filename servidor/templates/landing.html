@@ -2,7 +2,7 @@
 {% block titulo %}Sentinela · o aviso chega antes do envio{% endblock %}
 
 {% block estilos %}
-<link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}?v={{ versao }}" />
+<link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}?v={{ versao_assets }}" />
 {% endblock %}
 
 {% block corpo %}
@@ -224,8 +224,8 @@
           </tbody>
         </table>
       </div>
-      <p class="lp-nota-matriz">          Regras editáveis no painel · a extensão sincroniza a matriz a cada 30 minutos. A matriz
-          nasce em <code>servidor/dados/regras.json</code> e vive no Postgres, a fonte única.
+      <p class="lp-nota-matriz">          Regras editáveis no painel · a extensão recebe a matriz automaticamente quando ela muda.
+          A matriz nasce em <code>servidor/dados/regras.json</code> e vive no Postgres, a fonte única.
       </p>
     </section>
 
@@ -290,7 +290,7 @@
           <div class="lp-recurso">
             <span class="lp-recurso-marca">Lista</span>
             <h3>Departamento em lista</h3>
-            <p>As Opções da extensão só mostram os departamentos cadastrados no painel. Departamento e colaborador são obrigatórios.</p>
+            <p>As Opções da extensão só mostram os departamentos cadastrados no painel. A ativação e os sites monitorados também são definidos no painel; departamento e colaborador são obrigatórios.</p>
           </div>
           <div class="lp-recurso">
             <span class="lp-recurso-marca">Código</span>
@@ -400,6 +400,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('detectores_js') }}?v={{ versao }}"></script>
-<script src="{{ url_for('static', filename='landing.js') }}?v={{ versao }}"></script>
+<script src="{{ url_for('detectores_js') }}?v={{ versao_assets }}"></script>
+<script src="{{ url_for('static', filename='landing.js') }}?v={{ versao_assets }}"></script>
 {% endblock %}

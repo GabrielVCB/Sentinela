@@ -34,6 +34,10 @@
         <span class="numero">06</span>
         <span><strong>Instalação</strong><small>Extensões e acessos</small></span>
       </button>
+      <button class="item" type="button" data-ir="monitoramento">
+        <span class="numero">07</span>
+        <span><strong>Monitoramento</strong><small>Sites e ativação</small></span>
+      </button>
     </nav>
 
     <div class="menu-rodape">
@@ -93,6 +97,24 @@
         </div>
         <div id="grafico-evolucao" class="grafico"></div>
       </section>
+
+      <div class="grade-tres">
+        <section class="bloco-painel">
+          <h2>Distribuição por risco</h2>
+          <p class="micro">Participação de cada nível no total.</p>
+          <div id="grafico-risco" class="grafico-donut"></div>
+        </section>
+        <section class="bloco-painel">
+          <h2>Decisão do colaborador</h2>
+          <p class="micro">Enviou mesmo assim ou cancelou após o aviso.</p>
+          <div id="grafico-acao" class="grafico-donut"></div>
+        </section>
+        <section class="bloco-painel">
+          <h2>Sites com mais alertas</h2>
+          <p class="micro">Onde a extensão encontrou conteúdo sensível.</p>
+          <div id="barras-sites"></div>
+        </section>
+      </div>
 
       <div class="grade-duas">
         <section class="bloco-painel">
@@ -160,8 +182,8 @@
           <p class="rotulo">02 · Regras</p>
           <h1>Detectores editáveis</h1>
           <p class="subtitulo">
-            Cada regra pertence a uma área e carrega um nível de risco. A extensão baixa esta
-            lista a cada 30 minutos e aplica tudo localmente, no navegador.
+            Cada regra pertence a uma área e carrega um nível de risco. A extensão recebe esta
+            lista automaticamente quando a matriz muda e aplica tudo localmente, no navegador.
           </p>
         </div>
         <button type="button" class="botao primario" id="nova-regra">Nova regra</button>
@@ -220,7 +242,7 @@
           <h1>Mensagens educativas</h1>
           <p class="subtitulo">
             É o texto exibido no aviso da extensão, abaixo dos tipos detectados. A alteração chega
-            aos navegadores na próxima sincronização.
+            aos navegadores automaticamente em até 1 minuto.
           </p>
         </div>
       </header>
@@ -348,6 +370,10 @@
             <dd id="instalacao-exigencia">—</dd>
           </div>
           <div>
+            <dt>Dispositivos conectados</dt>
+            <dd id="instalacao-dispositivos">—</dd>
+          </div>
+          <div>
             <dt>Origem desta conexão</dt>
             <dd id="instalacao-origem">—</dd>
           </div>
@@ -362,8 +388,44 @@
         </div>
 
         <p class="nota">
-          O mesmo código vale para todos os computadores. Se ele for renovado, as extensões
-          precisam ser atualizadas nas Opções para voltar a registrar alertas.
+          O mesmo código vale para todos os computadores. Ao renovar, o painel avisa quantos
+          dispositivos ainda estão vinculados ao código anterior.
+        </p>
+      </section>
+
+      <section class="bloco-painel">
+        <div class="linha-titulo">
+          <div>
+            <h2>Dispositivos conectados</h2>
+            <p class="micro">
+              Cada instalação da extensão recebe um identificador aleatório. O setor vem das
+              Opções; o IP é o endereço de rede visto pelo servidor.
+            </p>
+          </div>
+          <button type="button" class="botao" id="atualizar-dispositivos">Atualizar</button>
+        </div>
+
+        <div id="resumo-dispositivos" class="micro">—</div>
+
+        <div class="tabela-rolagem">
+          <table class="tabela tabela-dispositivos">
+            <thead>
+              <tr>
+                <th>Identificador</th>
+                <th>Setor</th>
+                <th>IP</th>
+                <th>Versão</th>
+                <th>Código</th>
+                <th>Último contato</th>
+                <th class="direita">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-dispositivos"></tbody>
+          </table>
+        </div>
+        <p class="nota">
+          Desconectar remove o dispositivo da lista e bloqueia novas regras e alertas até que a
+          extensão seja reinstalada e vinculada novamente.
         </p>
       </section>
 
@@ -372,18 +434,21 @@
           <div>
             <h2>Administradores</h2>
             <p class="micro">
-              Cada pessoa entra com o próprio usuário e senha e vê os mesmos relatórios. Nenhuma
-              conta pode remover a si mesma nem deixar o painel sem administrador.
+              O superadmin inicial é criado pelo servidor e não pode ser excluído. Ele cria e
+              remove contas comuns; cada pessoa troca a própria senha.
             </p>
           </div>
-          <button type="button" class="botao primario" id="novo-admin">Novo administrador</button>
+          <button type="button" class="botao primario" id="novo-admin"{% if not superadmin %} hidden{% endif %}>Novo administrador</button>
         </div>
+
+        <p class="nota" id="admin-nota"></p>
 
         <div class="tabela-rolagem">
           <table class="tabela">
             <thead>
               <tr>
                 <th>Usuário</th>
+                <th>Perfil</th>
                 <th>Criado em</th>
                 <th class="direita">Ações</th>
               </tr>
@@ -391,6 +456,56 @@
             <tbody id="tabela-admins"></tbody>
           </table>
         </div>
+      </section>
+    </section>
+
+    <!-- 07 · Monitoramento -->
+    <section class="secao" data-painel="monitoramento">
+      <header class="secao-cabecalho">
+        <div>
+          <p class="rotulo">07 · Monitoramento</p>
+          <h1>Onde a extensão atua</h1>
+          <p class="subtitulo">
+            A política abaixo vale para todas as extensões conectadas a este servidor. As regras
+            e a política são aplicadas automaticamente em até 1 minuto, sem botão nas Opções.
+          </p>
+        </div>
+      </header>
+
+      <section class="bloco-painel">
+        <div class="linha-titulo">
+          <div>
+            <h2>Ativação global</h2>
+            <p class="micro">
+              Desligar interrompe a análise em todos os chats. Os sites escolhidos continuam
+              gravados para quando o monitoramento voltar.
+            </p>
+          </div>
+          <label class="caixa-ativa">
+            <input type="checkbox" id="monitoramento-ativo" />
+            <span>Monitoramento ativo</span>
+          </label>
+        </div>
+
+        <div class="sites-painel" id="sites-monitorados"></div>
+
+        <div class="acoes-cabecalho acoes-monitoramento">
+          <button type="button" class="botao primario" id="salvar-monitoramento">
+            Salvar monitoramento
+          </button>
+          <button type="button" class="botao" id="sincronizar-todos">
+            Sincronizar todos agora
+          </button>
+        </div>
+        <p class="micro" id="sincronizacao-monitoramento">
+          A sincronização automática consulta o servidor a cada minuto e aplica a versão mais
+          recente em todos os dispositivos conectados.
+        </p>
+
+        <p class="nota">
+          A extensão ainda analisa o conteúdo localmente; esta configuração só define se o
+          aviso aparece e em quais chats. Texto, imagens e PDFs nunca são enviados ao servidor.
+        </p>
       </section>
     </section>
   </main>
@@ -593,5 +708,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='painel.js') }}?v={{ versao }}" defer></script>
+<script src="{{ url_for('static', filename='painel.js') }}?v={{ versao_assets }}" defer></script>
 {% endblock %}

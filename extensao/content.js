@@ -127,11 +127,12 @@
   };
 
   var CONFIGURACAO_PADRAO = {
-    serverUrl: "https://sentinela.suaempresa.com",
+    serverUrl: "",
     departamento: "",
     colaborador: "",
+    // Fallback offline. A política real vem do painel em /api/config.
     monitoramentoAtivo: true,
-    sitesAtivos: Object.keys(SITES),
+    sitesAtivos: ["chatgpt", "gemini", "claude", "copilot"],
   };
 
   var ROTULOS = { baixo: "Baixo", medio: "Médio", alto: "Alto" };
@@ -210,17 +211,22 @@
     return null;
   }
 
+  function grupoDoSite(host) {
+    if (host === "chatgpt.com" || host.endsWith(".chatgpt.com") || host === "chat.openai.com") {
+      return "chatgpt";
+    }
+    if (host === "gemini.google.com") return "gemini";
+    if (host === "claude.ai" || host.endsWith(".claude.ai")) return "claude";
+    if (host === "copilot.com" || host.endsWith(".copilot.com") || host.indexOf("copilot.") === 0) {
+      return "copilot";
+    }
+    return null;
+  }
+
   function siteAutorizado() {
-    var host = hostNormalizado();
+    var grupo = grupoDoSite(hostNormalizado());
     var ativos = estado.settings.sitesAtivos || [];
-    // Liberar um endereço do Copilot libera os três (a extensão pode ter sido
-    // configurada antes de copilot.com existir).
-    var ehCopilot = host === "copilot.com" || host.endsWith(".copilot.com") ||
-      host.indexOf("copilot.") === 0;
-    return ativos.some(function (item) {
-      if (host === item || host.endsWith("." + item)) return true;
-      return ehCopilot && item.indexOf("copilot.") === 0;
-    });
+    return Boolean(grupo) && ativos.indexOf(grupo) >= 0;
   }
 
   function monitoramentoAtivo() {
@@ -280,15 +286,23 @@
     return texto.indexOf("context invalidated") >= 0 || texto.indexOf("message port closed") >= 0;
   }
 
+  function configuracaoLocal(valor) {
+    var copia = Object.assign({}, valor || {});
+    // A política de monitoramento agora é global, definida no painel.
+    delete copia.monitoramentoAtivo;
+    delete copia.sitesAtivos;
+    return Object.assign({}, CONFIGURACAO_PADRAO, copia);
+  }
+
   function iniciar() {
     if (!contextoAtivo()) return;
     estado.site = detectarSite();
     if (!estado.site) return;
 
     chrome.storage.local.get(["configuracao", "cacheConfig"], function (dados) {
-      estado.settings = Object.assign({}, CONFIGURACAO_PADRAO, dados.configuracao || {});
+      estado.settings = configuracaoLocal(dados.configuracao);
       if (dados.cacheConfig && dados.cacheConfig.mensagens) {
-        estado.config = dados.cacheConfig;
+        aplicarConfig(dados.cacheConfig);
       }
       if (!monitoramentoAtivo()) return;
 
@@ -316,7 +330,22 @@
     estado.config = {
       regras: Array.isArray(cache.regras) ? cache.regras : [],
       mensagens: Object.assign({}, MENSAGENS_PADRAO, cache.mensagens || {}),
+      // Ativação e sites vêm do painel. O cache mantém a última política mesmo
+      // quando o servidor está dormindo ou a rede falha.
+      monitoramentoAtivo:
+        typeof cache.monitoramentoAtivo === "boolean"
+          ? cache.monitoramentoAtivo
+          : estado.config.monitoramentoAtivo,
+      sitesAtivos: Array.isArray(cache.sitesAtivos)
+        ? cache.sitesAtivos.slice()
+        : estado.config.sitesAtivos,
     };
+    if (typeof estado.config.monitoramentoAtivo === "boolean") {
+      estado.settings.monitoramentoAtivo = estado.config.monitoramentoAtivo;
+    }
+    if (Array.isArray(estado.config.sitesAtivos)) {
+      estado.settings.sitesAtivos = estado.config.sitesAtivos.slice();
+    }
     if (estado.textoAnalisado || estado.anexos.length) analisar();
   }
 
@@ -1666,11 +1695,15 @@
     if (area !== "local") return;
 
     if (mudancas.configuracao) {
-      estado.settings = Object.assign(
-        {},
-        CONFIGURACAO_PADRAO,
-        mudancas.configuracao.newValue || {},
-      );
+      estado.settings = configuracaoLocal(mudancas.configuracao.newValue);
+      // Preserva a política do último cache, já que ela não está mais no
+      // armazenamento local editável.
+      if (estado.config.monitoramentoAtivo !== undefined) {
+        estado.settings.monitoramentoAtivo = estado.config.monitoramentoAtivo;
+      }
+      if (Array.isArray(estado.config.sitesAtivos)) {
+        estado.settings.sitesAtivos = estado.config.sitesAtivos.slice();
+      }
       if (!monitoramentoAtivo()) {
         // Desligar o monitoramento fecha o aviso e o modal na hora, inclusive
         // com a página já aberta; nada mais é bloqueado no envio.
@@ -1689,6 +1722,19 @@
 
     if (mudancas.cacheConfig && mudancas.cacheConfig.newValue) {
       aplicarConfig(mudancas.cacheConfig.newValue);
+      if (!monitoramentoAtivo()) {
+        estado.textoAnalisado = "";
+        estado.analise = { nivel: "baixo", deteccoes: [], totalOcorrencias: 0 };
+        estado.snapshotPendente = null;
+        estado.anexos = [];
+        estado.colagem = null;
+        estado.bannerOculto = false;
+        esconderInterface();
+        return;
+      }
+      if (estado.host) estado.host.style.display = "";
+      criarInterface();
+      localizarCampo();
     }
   });
 
