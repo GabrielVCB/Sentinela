@@ -1,9 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { motion } from "framer-motion";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { useAuth } from "@/hooks/use-auth";
 import { useAnaliseComDebounce } from "@/hooks/use-analise";
 import { BannerRisco } from "@/components/painel/BannerRisco";
 import { BaixarProjetoLink } from "@/components/BaixarProjeto";
@@ -17,6 +14,20 @@ import {
 } from "@/lib/dados";
 import type { RegraEntrada } from "@/lib/detectores";
 import { ArrowRight, ArrowUpRight, Download } from "lucide-react";
+
+// A prévia não tem login próprio: o painel real é servido pelo Flask.
+// Configure VITE_SENTINELA_URL com a URL pública do servidor.
+const URL_PAINEL = (
+  (import.meta.env.VITE_SENTINELA_URL as string | undefined) ||
+  "https://sentinela.suaempresa.com"
+).replace(/\/+$/, "");
+const REGRAS_DEMO: RegraEntrada[] = AREAS_SEED.flatMap((area) =>
+  area.regras.map((regra) => ({
+    ...regra,
+    area: area.nome,
+    ativo: true,
+  })),
+);
 
 const TEXTO_INICIAL =
   "Preciso revisar o orçamento interno do trimestre e o cronograma do projeto Atlas antes da reunião de segunda.";
@@ -62,7 +73,8 @@ const ETAPAS = [
   {
     numero: "04",
     titulo: "Auditoria sem conteúdo",
-    texto:                    "Só o alerta chega ao servidor: site, departamento, IP de origem, nível, tipos e a decisão do colaborador. Nunca o texto.",
+    texto:
+      "Só o alerta chega ao servidor: site, departamento, IP de origem, nível, tipos e a decisão do colaborador. Nunca o texto.",
   },
 ];
 
@@ -74,22 +86,11 @@ const fade = {
 };
 
 export default function Landing() {
-  const { isAuthenticated } = useAuth();
-  const config = useQuery(api.painel.config);
-  const garantirSeed = useMutation(api.seed.garantirSeed);
-
   const [texto, setTexto] = useState(TEXTO_INICIAL);
-  const regras = useMemo<RegraEntrada[]>(() => config?.regras ?? [], [config]);
+  const regras = useMemo<RegraEntrada[]>(() => REGRAS_DEMO, []);
   const { analise, analisando } = useAnaliseComDebounce(texto, regras);
-  const mensagem = config?.mensagens[analise.nivel] ?? MENSAGENS_PADRAO[analise.nivel];
-
-  useEffect(() => {
-    void garantirSeed({}).catch(() => {
-      /* a demonstração continua funcionando com os detectores embutidos */
-    });
-  }, [garantirSeed]);
-
-  const destino = isAuthenticated ? "/dashboard" : "/auth";
+  const mensagem = MENSAGENS_PADRAO[analise.nivel];
+  const destino = `${URL_PAINEL}/painel`;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -128,10 +129,10 @@ export default function Landing() {
           </nav>
 
           <Button asChild variant="outline" className="rounded-sm">
-            <Link to={destino}>
-              {isAuthenticated ? "Abrir painel" : "Entrar"}
+            <a href={destino}>
+              Abrir painel
               <ArrowUpRight className="size-3.5" />
-            </Link>
+            </a>
           </Button>
         </div>
       </header>
@@ -158,10 +159,10 @@ export default function Landing() {
 
               <div className="mt-9 flex flex-wrap items-center gap-3">
                 <Button asChild className="rounded-sm">
-                  <Link to={destino}>
-                    {isAuthenticated ? "Abrir o painel" : "Começar pelo painel"}
+                  <a href={destino}>
+                    Abrir o painel
                     <ArrowRight className="size-4" />
-                  </Link>
+                  </a>
                 </Button>
                 <Button asChild variant="ghost" className="rounded-sm">
                   <a href="#matriz">Ver a matriz de risco</a>
@@ -450,7 +451,7 @@ export default function Landing() {
           </div>
 
           <p className="mt-4 text-[11px] text-muted-foreground">
-            Regras editáveis no painel · a extensão sincroniza a matriz a cada cinco minutos.
+            Regras editáveis no painel · a extensão sincroniza a matriz a cada 30 minutos.
           </p>
         </motion.section>
 
@@ -470,7 +471,8 @@ export default function Landing() {
               </div>
               <p className="max-w-xs text-xs leading-6 text-muted-foreground">
                 Extensão Manifest V3 (Chrome ou Edge), servidor Flask na nuvem (Render) com banco
-                Postgres (Neon) e painel servido pela mesma aplicação, 24 horas por dia.
+                Postgres (Neon) e painel servido pela mesma aplicação. No plano gratuito o serviço
+                hiberna sem tráfego; o UptimeRobot mantém o health check ativo.
               </p>
             </div>
 
@@ -547,15 +549,20 @@ export default function Landing() {
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Button asChild className="rounded-sm">
-                <Link to={destino}>
-                  {isAuthenticated ? "Abrir o painel" : "Entrar no painel"}
+                <a href={destino}>
+                  Entrar no painel
                   <ArrowRight className="size-4" />
-                </Link>
+                </a>
               </Button>
               <Button asChild variant="outline" className="rounded-sm">
-                <Link to="/dashboard?secao=laboratorio">Testar o laboratório</Link>
+                <a href="#matriz">Ver a matriz de risco</a>
               </Button>
             </div>
+            <p className="mt-4 max-w-md text-[11px] leading-5 text-muted-foreground">
+              Esta prévia é somente leitura. O painel real, com login e auditoria, é servido pelo
+              Flask — configure <code className="font-mono">VITE_SENTINELA_URL</code> para apontar
+              para o endereço público.
+            </p>
           </div>
         </motion.section>
       </main>
@@ -569,28 +576,31 @@ export default function Landing() {
             </Link>
             <p className="mt-3 max-w-sm text-[11px] leading-5 text-muted-foreground">
               Painel de governança, auditoria e letramento em IA. Extensão MV3 (Chrome e Edge) +
-              servidor Flask com Postgres, publicado na nuvem.
+              servidor Flask com Postgres. A prévia React é somente leitura; o painel real é Flask.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-x-14 gap-y-6 text-[11px]">
             <div className="flex flex-col gap-2">
-              <span className="rotulo">Painel</span>
-              <Link to="/dashboard" className="text-muted-foreground hover:text-foreground">
+              <span className="rotulo">Painel real</span>
+              <a
+                href={`${URL_PAINEL}/painel`}
+                className="text-muted-foreground hover:text-foreground"
+              >
                 Visão geral
-              </Link>
-              <Link
-                to="/dashboard?secao=alertas"
+              </a>
+              <a
+                href={`${URL_PAINEL}/painel`}
                 className="text-muted-foreground hover:text-foreground"
               >
                 Auditoria
-              </Link>
-              <Link
-                to="/dashboard?secao=regras"
+              </a>
+              <a
+                href={`${URL_PAINEL}/painel`}
                 className="text-muted-foreground hover:text-foreground"
               >
                 Regras
-              </Link>
+              </a>
             </div>
             <div className="flex flex-col gap-2">
               <span className="rotulo">Projeto</span>
@@ -600,12 +610,12 @@ export default function Landing() {
               <a href="#principio" className="text-muted-foreground hover:text-foreground">
                 Princípio de privacidade
               </a>
-              <Link
-                to="/dashboard?secao=laboratorio"
+              <a
+                href={`${URL_PAINEL}/painel`}
                 className="text-muted-foreground hover:text-foreground"
               >
                 Laboratório
-              </Link>
+              </a>
               <BaixarProjetoLink className="text-muted-foreground hover:text-foreground">
                 Baixar projeto (.zip)
               </BaixarProjetoLink>
@@ -618,7 +628,7 @@ export default function Landing() {
         <div className="border-t border-border/70">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-5 py-4 text-[10px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-8">
             <span>© {new Date().getFullYear()} Sentinela</span>
-            <span className="tabular">Chrome/Edge MV3 · Flask · Postgres · nuvem 24 h</span>
+            <span className="tabular">Chrome/Edge MV3 · Flask · Postgres · Render Free</span>
           </div>
         </div>
       </footer>

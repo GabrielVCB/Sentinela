@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Instalar dependências da prévia
+        run: bun install
+
+      - name: Typecheck da prévia
+        run: bun tsc -b --noEmit
+
+      - name: Sintaxe da extensão
+        run: for arquivo in extensao/*.js; do node --check "$arquivo"; done
+
+      - name: Testes do motor compartilhado
+        run: bun run test
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sintaxe do servidor
+        run: python -m py_compile servidor/*.py
+
+      - name: Testes da matriz
+        run: python -m unittest discover -s tests -p "test_*.py" -v

@@ -127,7 +127,7 @@
   };
 
   var CONFIGURACAO_PADRAO = {
-    serverUrl: "https://sentinela-r7ge.onrender.com",
+    serverUrl: "https://sentinela.suaempresa.com",
     departamento: "",
     colaborador: "",
     monitoramentoAtivo: true,
@@ -138,7 +138,7 @@
   var ROTULOS_ANEXO = { imagem: "Imagem", pdf: "PDF" };
   var LIMITE_ARQUIVO = 6 * 1024 * 1024; // 6 MB em base64 é seguro para a mensagem
   var DEBOUNCE = 250;
-  var INTERVALO_VIGIA = 300; // rede de segurança para editores que não avisam mudanças
+  var INTERVALO_VIGIA = 1000; // rede de segurança para editores que não avisam mudanças
 
   var estado = {
     settings: CONFIGURACAO_PADRAO,
@@ -166,6 +166,7 @@
     anexos: [],
     raizesSombra: [],
     varreduraEm: 0,
+    urlAtual: location.href,
     observador: null,
     localizarTimer: null,
     posicaoTimer: null,
@@ -335,8 +336,8 @@
     // Alguns sites montam o editor apenas após interação do usuário.
     estado.vigias.push(setInterval(localizarCampo, 1500));
     // Gemini e Copilot às vezes trocam o conteúdo do editor sem disparar
-    // "input" na janela. Este vigia curto compara o texto a cada 300 ms e
-    // garante que colar, apagar e substituir o prompt sejam vistos na hora.
+    // "input" na janela. Este vigia compara o texto a cada 1 s; o evento
+    // input/MutationObserver continua sendo o caminho rápido.
     estado.vigias.push(setInterval(vigiarTexto, INTERVALO_VIGIA));
     window.addEventListener("resize", agendarPosicao, { passive: true });
     window.addEventListener("scroll", agendarPosicao, { passive: true });
@@ -438,17 +439,29 @@
     return null;
   }
 
+  function textoDoElemento(elemento) {
+    if (!elemento) return "";
+    if (elemento.tagName === "TEXTAREA" || elemento.tagName === "INPUT") {
+      return elemento.value || "";
+    }
+    return elemento.innerText || elemento.textContent || "";
+  }
+
   function escolherCampo(candidatos) {
     var escolhido = null;
-    var menorTopo = -Infinity;
+    var melhor = -Infinity;
     for (var i = 0; i < candidatos.length; i++) {
       var elemento = candidatos[i];
       if (!elementoVisivel(elemento)) continue;
-      // O compositor fica na parte de baixo da página: o candidato mais
-      // próximo do rodapé é o campo que o usuário está usando.
-      var topo = elemento.getBoundingClientRect().top;
-      if (topo > menorTopo) {
-        menorTopo = topo;
+      // Ao anexar imagem, alguns sites criam um campo de legenda no rodapé.
+      // Se escolhêssemos só o candidato mais abaixo, o texto do prompt seria
+      // ignorado. Preferimos quem já tem texto e, depois, a maior área visível.
+      var retangulo = elemento.getBoundingClientRect();
+      var area = Math.max(0, retangulo.width) * Math.max(0, retangulo.height);
+      var temTexto = textoDoElemento(elemento).trim().length > 0;
+      var pontuacao = (temTexto ? 1e12 : 0) + Math.min(area, 1e9) + retangulo.top;
+      if (pontuacao > melhor) {
+        melhor = pontuacao;
         escolhido = elemento;
       }
     }
@@ -457,6 +470,22 @@
 
   function localizarCampo() {
     if (!estado.site || !monitoramentoAtivo()) return;
+
+    // Nova conversa (SPA muda a URL sem recarregar): o texto e os anexos da
+    // conversa anterior não valem mais. A troca de nó do compositor, sozinha,
+    // não limpa os anexos — é o que permite analisar texto + imagem juntos.
+    if (estado.urlAtual !== location.href) {
+      estado.urlAtual = location.href;
+      estado.anexos = [];
+      estado.colagem = null;
+      estado.colagemEm = null;
+      estado.snapshotPendente = null;
+      estado.textoAnalisado = "";
+      estado.analise = { nivel: "baixo", deteccoes: [], totalOcorrencias: 0 };
+      estado.bannerOculto = false;
+      if (estado.modalAberto) fecharModal();
+      renderizarBanner();
+    }
 
     var seletor = estado.site.campos.join(",");
     var escolhido = escolherCampo(consultarCampo(seletor));
@@ -486,7 +515,9 @@
       var trocou = estado.campo !== null;
       estado.campo = escolhido;
       if (trocou) {
-        estado.anexos = [];
+        // O compositor troca de nó quando uma imagem é anexada. Os anexos já
+        // analisados continuam valendo; antes, esta linha os apagava e o texto
+        // ficava sem a imagem (ou a imagem sem o texto).
         estado.colagem = null;
         estado.snapshotPendente = null;
         estado.bannerOculto = false;
@@ -540,11 +571,7 @@
   }
 
   function lerTexto() {
-    if (!estado.campo) return "";
-    if (estado.campo.tagName === "TEXTAREA" || estado.campo.tagName === "INPUT") {
-      return estado.campo.value || "";
-    }
-    return estado.campo.innerText || estado.campo.textContent || "";
+    return textoDoElemento(estado.campo);
   }
 
   // -------------------------------------------------------------------------
@@ -569,27 +596,8 @@
     }
 
     var texto = lerTexto();
-    var anterior = estado.textoAnalisado;
     estado.textoAnalisado = texto;
     var engine = motor();
-
-    // Campo esvaziado: o aviso e os anexos do conteúdo anterior deixam de
-    // valer. Assim, apagar o prompt (ou trocar texto por imagem) reinicia a
-    // análise sem depender do envio nem do botão ×. Logo após um envio, o que
-    // foi colado/anexado depois é preservado.
-    if (!texto.trim() && anterior.trim()) {
-      var enviadoEm = estado.ultimoRegistro ? estado.ultimoRegistro.em : 0;
-      var logoAposEnvio = enviadoEm && Date.now() - enviadoEm < 6000;
-      if (logoAposEnvio) {
-        estado.anexos = estado.anexos.filter(function (anexo) {
-          return anexo.criadoEm >= enviadoEm;
-        });
-        if (estado.colagem && estado.colagem.em < enviadoEm) estado.colagem = null;
-      } else {
-        estado.anexos = [];
-        estado.colagem = null;
-      }
-    }
 
     // Colagem: a marca vale por 2 s depois do evento paste e é recalculada
     // com o texto que está no campo agora — colar por cima do conteúdo
@@ -625,29 +633,20 @@
       return;
     }
 
-    var base = { nivel: "baixo", deteccoes: [], totalOcorrencias: 0 };
-    if (engine && texto.trim()) {
+    // Texto + imagem/PDF + colagem em uma única análise. A função mescla as
+    // detecções, então nunca há um caminho que analise só a imagem.
+    if (engine && typeof engine.analisarConteudo === "function") {
       try {
-        base = engine.analisarTexto(texto, estado.config.regras || []);
+        estado.analise = engine.analisarConteudo(
+          texto,
+          estado.anexos,
+          estado.colagem,
+          estado.config.regras || []
+        );
       } catch (erro) {
-        console.warn("[Sentinela] falha ao analisar texto:", erro);
+        console.warn("[Sentinela] falha ao analisar conteúdo:", erro);
+        estado.analise = { nivel: "baixo", deteccoes: [], totalOcorrencias: 0 };
       }
-    }
-
-    var extras = [];
-    estado.anexos.forEach(function (anexo) {
-      if (anexo.deteccoes && anexo.deteccoes.length) {
-        extras = extras.concat(anexo.deteccoes);
-      }
-    });
-    if (estado.colagem && estado.colagem.deteccao) {
-      extras.push(estado.colagem.deteccao);
-    }
-
-    if (engine && extras.length) {
-      estado.analise = engine.mesclarDeteccoes(base.deteccoes.concat(extras));
-    } else if (engine) {
-      estado.analise = base;
     } else {
       estado.analise = { nivel: "baixo", deteccoes: [], totalOcorrencias: 0 };
     }

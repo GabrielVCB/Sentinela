@@ -59,7 +59,9 @@ async function carregar() {
     elementos.ultimoAlerta.textContent = "nenhum ainda";
   }
   if (ultimo && ultimo.ok === false) {
-    elementos.detalheAlerta.textContent = "Falha ao registrar: " + (ultimo.mensagem || "servidor recusou o alerta.");
+    elementos.detalheAlerta.textContent = ultimo.enfileirado
+      ? "Alerta na fila para reenvio. " + (ultimo.mensagem || "")
+      : "Falha ao registrar: " + (ultimo.mensagem || "servidor recusou o alerta.");
     elementos.detalheAlerta.hidden = false;
   } else {
     elementos.detalheAlerta.hidden = true;

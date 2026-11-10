@@ -27,8 +27,11 @@ import io
 import os
 import re
 import time
+from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from functools import wraps
+from pathlib import Path
+from threading import Lock
 
 from flask import (
     Flask,
@@ -37,6 +40,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_from_directory,
     session,
     url_for,
 )
@@ -47,7 +51,8 @@ from werkzeug.security import check_password_hash
 import db
 import pdf
 
-VERSAO = "2.7"
+VERSAO = "2.9"
+RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------------------
 # Configuração (sempre por variáveis de ambiente, com padrão de desenvolvimento)
@@ -56,6 +61,15 @@ VERSAO = "2.7"
 ADMIN_USUARIO = os.environ.get("SENTINELA_ADMIN_USUARIO", "admin")
 ADMIN_SENHA = os.environ.get("SENTINELA_ADMIN_SENHA", "admin123")
 SECRET_KEY = os.environ.get("SENTINELA_SECRET_KEY", "dev-secret-mude-isto")
+AMBIENTE = os.environ.get("SENTINELA_AMBIENTE", "dev").strip().lower()
+
+if AMBIENTE == "producao":
+    if not SECRET_KEY or SECRET_KEY == "dev-secret-mude-isto":
+        raise RuntimeError("Defina SENTINELA_SECRET_KEY em produção.")
+    if not ADMIN_SENHA or ADMIN_SENHA == "admin123":
+        raise RuntimeError("Defina SENTINELA_ADMIN_SENHA em produção.")
+    if len(ADMIN_SENHA) < 8:
+        raise RuntimeError("SENTINELA_ADMIN_SENHA deve ter pelo menos 8 caracteres.")
 
 app = Flask(__name__)
 app.config.update(
@@ -66,17 +80,54 @@ app.config.update(
     SESSION_COOKIE_SECURE=os.environ.get("SENTINELA_COOKIE_SEGURO", "1") == "1",
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
     MAX_CONTENT_LENGTH=256 * 1024,
+    PREFERRED_URL_SCHEME="https",
 )
 
-# Atrás do proxy do Render: recupera o IP real do colaborador e o esquema https.
-app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+# Render/Cloud Run + Cloudflare: o ProxyFix recupera o IP real e o https.
+# Ajuste SENTINELA_PROXY_HOPS=2 quando houver Cloudflare na frente do serviço.
+PROXY_HOPS = max(1, int(os.environ.get("SENTINELA_PROXY_HOPS", "1")))
+app.wsgi_app = ProxyFix(
+    app.wsgi_app, x_for=PROXY_HOPS, x_proto=PROXY_HOPS, x_host=PROXY_HOPS
+)
 
+ORIGENS_CORS = os.environ.get("SENTINELA_CORS_ORIGINS", "*").strip() or "*"
+if ORIGENS_CORS != "*":
+    ORIGENS_CORS = [origem.strip() for origem in ORIGENS_CORS.split(",") if origem.strip()]
 CORS(
     app,
-    resources={r"/api/*": {"origins": "*"}},
+    resources={r"/api/*": {"origins": ORIGENS_CORS}},
     allow_headers=["Content-Type", "X-API-Token"],
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
 )
+
+# Cache curto só do /api/config. É derivado do banco e invalidado em toda
+# alteração; existe para 500 extensões não consultarem o Postgres a cada poll.
+_CACHE_CONFIG = {"expira": 0.0, "dados": None}
+_CACHE_CONFIG_TTL = max(0, int(os.environ.get("SENTINELA_CONFIG_CACHE", "30")))
+
+
+def invalidar_cache_config() -> None:
+    _CACHE_CONFIG["expira"] = 0.0
+    _CACHE_CONFIG["dados"] = None
+
+
+# Limite em memória por instância. Para o volume de um único Render/Cloud Run
+# é suficiente; o login também tem lockout persistido no Postgres.
+_LIMITES = defaultdict(deque)
+_LIMITES_LOCK = Lock()
+
+
+def _permitir_requisicao(chave: str, maximo: int, janela: float) -> bool:
+    agora = time.monotonic()
+    with _LIMITES_LOCK:
+        fila = _LIMITES[chave]
+        while fila and agora - fila[0] > janela:
+            fila.popleft()
+        if len(fila) >= maximo:
+            return False
+        fila.append(agora)
+        return True
+
 
 db.inicializar_banco(ADMIN_USUARIO, ADMIN_SENHA)
 
@@ -85,7 +136,7 @@ db.inicializar_banco(ADMIN_USUARIO, ADMIN_SENHA)
 def variaveis_globais():
     """Deixa a versão disponível em todos os templates.
 
-    Ela entra no endereço dos arquivos estáticos (?v=2.7), então o navegador não
+    Ela entra no endereço dos arquivos estáticos (?v=2.9), então o navegador não
     reaproveita um painel.js ou um CSS de uma publicação anterior.
     """
     return {"versao": VERSAO}
@@ -398,12 +449,61 @@ def cabecalhos_de_seguranca(resposta):
         "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
         "script-src 'self'; connect-src 'self'; frame-ancestors 'none'",
     )
+    resposta.headers.setdefault(
+        "Permissions-Policy", "camera=(), microphone=(), geolocation=()"
+    )
+    if request.is_secure:
+        resposta.headers.setdefault(
+            "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
+        )
     return resposta
+
+
+@app.before_request
+def redirecionar_para_https():
+    """Força https em navegação; APIs e health check continuam respondendo."""
+    if os.environ.get("SENTINELA_FORCAR_HTTPS", "0") != "1":
+        return None
+    if request.is_secure or request.method not in ("GET", "HEAD"):
+        return None
+    if request.path.startswith("/api/"):
+        return None
+    if not request.accept_mimetypes.accept_html:
+        return None
+    return redirect(request.url.replace("http://", "https://", 1), code=308)
+
+
+@app.before_request
+def limitar_requisicoes():
+    """Freia abuso no login e no endpoint de alertas."""
+    if request.method == "POST" and request.path == "/api/alertas":
+        if not _permitir_requisicao(f"alertas:{ip_do_cliente()}", 120, 60):
+            return jsonify({"erro": "Muitos alertas enviados. Aguarde um instante."}), 429
+    if request.method == "POST" and request.path == "/login":
+        if not _permitir_requisicao(f"login:{ip_do_cliente()}", 20, 15 * 60):
+            return render_template(
+                "login.html",
+                erro="Muitas tentativas. Aguarde 15 minutos.",
+                usuario="",
+            ), 429
+    return None
 
 
 # ---------------------------------------------------------------------------
 # Rotas públicas / extensão
 # ---------------------------------------------------------------------------
+
+@app.get("/detectores.js")
+def detectores_js():
+    """Serve o MESMO motor carregado pela extensão, sem uma cópia estática."""
+    resposta = send_from_directory(
+        RAIZ_PROJETO / "extensao",
+        "detectores.js",
+        mimetype="application/javascript",
+    )
+    resposta.headers["Cache-Control"] = "public, max-age=3600"
+    return resposta
+
 
 @app.get("/api/ping")
 def api_ping():
@@ -419,9 +519,24 @@ def api_ping():
     )
 
 
+@app.get("/api/health")
+def api_health():
+    """Health check completo: só responde 200 se o Postgres também estiver ok."""
+    try:
+        db.verificar_conexao()
+    except Exception:
+        return jsonify({"ok": False, "versao": VERSAO}), 503
+    return jsonify({"ok": True, "versao": VERSAO})
+
+
 @app.get("/api/config")
 @exigir_token_api
 def api_config():
+    if _CACHE_CONFIG["dados"] is not None and time.monotonic() < _CACHE_CONFIG["expira"]:
+        resposta = jsonify(_CACHE_CONFIG["dados"])
+        resposta.headers["Cache-Control"] = f"private, max-age={_CACHE_CONFIG_TTL}"
+        return resposta
+
     conexao_aberta = conexao()
     try:
         regras = conexao_aberta.execute(
@@ -447,28 +562,31 @@ def api_config():
                 "SELECT nome FROM areas ORDER BY id"
             ).fetchall()
         ]
-        return jsonify(
-            {
-                "regras": [
-                    {
-                        "id": linha["id"],
-                        "nome": linha["nome"],
-                        "tipo": linha["tipo"],
-                        "padrao": linha["padrao"],
-                        "risco": linha["risco"],
-                        "ativo": bool(linha["ativo"]),
-                        "area": linha["area"],
-                    }
-                    for linha in regras
-                ],
-                "mensagens": {
-                    nivel: mensagens.get(nivel, db.MENSAGENS_PADRAO[nivel])
-                    for nivel in db.NIVEIS
-                },
-                "areas": areas,
-                "atualizado_em": agora_iso(),
-            }
-        )
+        dados = {
+            "regras": [
+                {
+                    "id": linha["id"],
+                    "nome": linha["nome"],
+                    "tipo": linha["tipo"],
+                    "padrao": linha["padrao"],
+                    "risco": linha["risco"],
+                    "ativo": bool(linha["ativo"]),
+                    "area": linha["area"],
+                }
+                for linha in regras
+            ],
+            "mensagens": {
+                nivel: mensagens.get(nivel, db.MENSAGENS_PADRAO[nivel])
+                for nivel in db.NIVEIS
+            },
+            "areas": areas,
+            "atualizado_em": agora_iso(),
+        }
+        _CACHE_CONFIG["dados"] = dados
+        _CACHE_CONFIG["expira"] = time.monotonic() + _CACHE_CONFIG_TTL
+        resposta = jsonify(dados)
+        resposta.headers["Cache-Control"] = f"private, max-age={_CACHE_CONFIG_TTL}"
+        return resposta
     finally:
         conexao_aberta.close()
 
@@ -636,7 +754,11 @@ def areas_para_landing() -> list:
 
 
 def contexto_landing() -> dict:
-    return {"areas": areas_para_landing(), "ano": datetime.now(FUSO).year}
+    return {
+        "areas": areas_para_landing(),
+        "mensagens": db.MENSAGENS_PADRAO,
+        "ano": datetime.now(FUSO).year,
+    }
 
 
 @app.get("/")
@@ -650,16 +772,28 @@ def login():
         usuario = (request.form.get("usuario") or "").strip()
         senha = request.form.get("senha") or ""
 
-        conexao_aberta = conexao()
-        try:
-            linha = conexao_aberta.execute(
-                "SELECT id, usuario, senha_hash FROM usuarios_admin WHERE usuario = ?",
-                (usuario,),
-            ).fetchone()
-        finally:
-            conexao_aberta.close()
+        linha = db.buscar_admin_login(usuario)
+
+        # O bloqueio é persistido no Postgres: reiniciar a instância não zera.
+        if linha and linha.get("bloqueado_ate"):
+            try:
+                bloqueado_ate = int(linha["bloqueado_ate"])
+            except (TypeError, ValueError):
+                bloqueado_ate = 0
+            if bloqueado_ate > int(time.time()):
+                time.sleep(0.3)
+                return (
+                    render_template(
+                        "login.html",
+                        erro="Muitas tentativas. Aguarde 15 minutos.",
+                        usuario=usuario,
+                    ),
+                    429,
+                )
 
         if linha is None or not check_password_hash(linha["senha_hash"], senha):
+            if linha is not None:
+                db.registrar_falha_login(linha["id"])
             time.sleep(0.3)  # atraso simples contra tentativa em massa
             return (
                 render_template(
@@ -670,6 +804,7 @@ def login():
                 401,
             )
 
+        db.limpar_falhas_login(linha["id"])
         session.clear()
         session["admin_id"] = linha["id"]
         session["admin_usuario"] = linha["usuario"]
@@ -1344,6 +1479,7 @@ def api_criar_area():
             (nome, descricao),
         )
         conexao_aberta.commit()
+        invalidar_cache_config()
         return jsonify({"id": novo_id, "mensagem": "Área criada."}), 201
     finally:
         conexao_aberta.close()
@@ -1368,6 +1504,7 @@ def api_atualizar_area(area_id: int):
             (nome, descricao, area_id),
         )
         conexao_aberta.commit()
+        invalidar_cache_config()
         return jsonify({"mensagem": "Área atualizada."})
     finally:
         conexao_aberta.close()
@@ -1385,6 +1522,7 @@ def api_remover_area(area_id: int):
         conexao_aberta.commit()
         if cursor.rowcount == 0:
             return jsonify({"erro": "Área não encontrada."}), 404
+        invalidar_cache_config()
         return jsonify({"mensagem": "Área removida.", "regras_removidas": total_regras})
     finally:
         conexao_aberta.close()
@@ -1483,15 +1621,7 @@ def api_criar_regra():
             ),
         )
         conexao_aberta.commit()
-        # A regra também entra na lista do crud.py, que é o cadastro de origem.
-        db.criar_na_memoria(
-            dados["nome"],
-            db.nome_da_area(conexao_aberta, dados["area_id"]),
-            dados["tipo"],
-            dados["padrao"],
-            dados["risco"],
-            bool(dados["ativo"]),
-        )
+        invalidar_cache_config()
         return jsonify({"id": novo_id, "mensagem": "Regra criada."}), 201
     finally:
         conexao_aberta.close()
@@ -1503,16 +1633,9 @@ def api_atualizar_regra(regra_id: int):
     dados = validar_regra(ler_corpo())
     conexao_aberta = conexao()
     try:
-        anterior = conexao_aberta.execute(
-            """
-            SELECT r.nome, a.nome AS area
-            FROM regras r
-            JOIN areas a ON a.id = r.area_id
-            WHERE r.id = ?
-            """,
-            (regra_id,),
-        ).fetchone()
-        if anterior is None:
+        if not conexao_aberta.execute(
+            "SELECT id FROM regras WHERE id = ?", (regra_id,)
+        ).fetchone():
             return jsonify({"erro": "Regra não encontrada."}), 404
         if not area_existe(conexao_aberta, dados["area_id"]):
             raise ErroValidacao("Selecione uma área válida.")
@@ -1533,18 +1656,7 @@ def api_atualizar_regra(regra_id: int):
             ),
         )
         conexao_aberta.commit()
-        # Mesma edição na lista do crud.py: a regra é procurada pelo nome e
-        # pela área antigos e sai de lá já com os dados novos.
-        db.atualizar_na_memoria(
-            anterior["nome"],
-            anterior["area"],
-            dados["nome"],
-            db.nome_da_area(conexao_aberta, dados["area_id"]),
-            dados["tipo"],
-            dados["padrao"],
-            dados["risco"],
-            bool(dados["ativo"]),
-        )
+        invalidar_cache_config()
         return jsonify({"mensagem": "Regra atualizada."})
     finally:
         conexao_aberta.close()
@@ -1555,23 +1667,11 @@ def api_atualizar_regra(regra_id: int):
 def api_remover_regra(regra_id: int):
     conexao_aberta = conexao()
     try:
-        anterior = conexao_aberta.execute(
-            """
-            SELECT r.nome, a.nome AS area
-            FROM regras r
-            JOIN areas a ON a.id = r.area_id
-            WHERE r.id = ?
-            """,
-            (regra_id,),
-        ).fetchone()
-        if anterior is None:
-            return jsonify({"erro": "Regra não encontrada."}), 404
         cursor = conexao_aberta.execute("DELETE FROM regras WHERE id = ?", (regra_id,))
         conexao_aberta.commit()
         if cursor.rowcount == 0:
             return jsonify({"erro": "Regra não encontrada."}), 404
-        # A regra também sai da lista do crud.py.
-        db.excluir_da_memoria(anterior["nome"], anterior["area"])
+        invalidar_cache_config()
         return jsonify({"mensagem": "Regra removida."})
     finally:
         conexao_aberta.close()
@@ -1618,6 +1718,7 @@ def api_atualizar_mensagem(nivel: str):
             (nivel, texto),
         )
         conexao_aberta.commit()
+        invalidar_cache_config()
         return jsonify({"mensagem": "Mensagem atualizada."})
     finally:
         conexao_aberta.close()

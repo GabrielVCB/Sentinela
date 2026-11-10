@@ -448,6 +448,28 @@
     return { nivel: classificar(deteccoes), deteccoes: deteccoes, totalOcorrencias: total };
   }
 
+  /**
+   * Analisa, na mesma chamada, o texto digitado e os anexos (imagem/PDF).
+   *
+   * O content script usa esta função em vez de escolher "texto OU imagem":
+   * assim, um prompt com imagem e texto sempre soma as duas listas de
+   * detecções, independentemente da ordem em que o DOM foi atualizado.
+   */
+  function analisarConteudo(texto, anexos, colagem, regras) {
+    var base = analisarTexto(texto, regras);
+    var extras = [];
+
+    (Array.isArray(anexos) ? anexos : []).forEach(function (anexo) {
+      if (anexo && Array.isArray(anexo.deteccoes)) {
+        extras = extras.concat(anexo.deteccoes);
+      }
+    });
+
+    if (colagem && colagem.deteccao) extras.push(colagem.deteccao);
+    if (!extras.length) return base;
+    return mesclarDeteccoes(base.deteccoes.concat(extras));
+  }
+
   var API = {
     normalizar: normalizar,
     validarCPF: validarCPF,
@@ -462,6 +484,7 @@
     consolidar: consolidar,
     mesclarDeteccoes: mesclarDeteccoes,
     analisarTexto: analisarTexto,
+    analisarConteudo: analisarConteudo,
   };
 
   if (typeof module !== "undefined" && module.exports) {

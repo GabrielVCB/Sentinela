@@ -4,5 +4,5 @@ flask-cors>=4.0,<6.0
 # Banco Postgres externo (Neon ou Supabase).
 psycopg[binary]>=3.1,<4.0
 
-# Servidor de produção usado na Render.
+# Servidor de produção usado no Render (e em qualquer container Linux).
 gunicorn>=22.0,<24.0 ; platform_system != "Windows"

@@ -18,14 +18,13 @@
   if (!motor || !campo || !caixa || !nivel || !contagem || !tipos || !mensagem) return;
 
   var ROTULOS = { baixo: "Baixo", medio: "Médio", alto: "Alto" };
-  var MENSAGENS = {
-    baixo:
-      "Nenhum dado de risco médio ou alto foi identificado neste conteúdo. Revise antes de compartilhar: o envio fica registrado no painel de governança.",
-    medio:
-      "Esta informação contém dados internos que podem apresentar riscos à empresa. Evite compartilhar informações desnecessárias e verifique as regras de uso de IA da empresa antes do compartilhamento.",
-    alto:
-      "Esta informação contém dados confidenciais, pessoais, estratégicos ou relacionados à segurança da empresa. Não compartilhe com uma IA pública. Remova os dados sensíveis ou utilize uma ferramenta de IA corporativa autorizada.",
-  };
+  var MENSAGENS = {};
+  try {
+    var dados = document.getElementById("dados-sentinela");
+    MENSAGENS = JSON.parse(dados ? dados.dataset.mensagens : "{}");
+  } catch (erro) {
+    console.warn("Mensagens padrão indisponíveis.", erro);
+  }
 
   // Esta página é pública: a prévia usa os detectores embutidos, sem pedir ao
   // servidor a matriz da empresa (que agora exige o código de instalação).
@@ -60,7 +59,7 @@
       tipos.appendChild(item);
     });
 
-    mensagem.textContent = (window.__mensagensSentinela || MENSAGENS)[resultado.nivel];
+    mensagem.textContent = MENSAGENS[resultado.nivel] || "";
 
     // Reinicia a animação de entrada apenas quando o conteúdo muda.
     if (assinatura !== ultimo) {

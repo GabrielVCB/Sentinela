@@ -1,21 +1,28 @@
 """
-Acesso ao banco Postgres (Neon).
+Sentinela — acesso ao banco Postgres (Neon/Supabase).
 
-Cria as tabelas, copia para o banco as regras de regras.py (a matriz do
-projeto), semeia as mensagens educativas e garante o administrador inicial.
+Cria as tabelas, copia para o banco as regras de `dados/regras.json` (a matriz
+do projeto), semeia as mensagens educativas e garante o administrador inicial.
+
+A string de conexão vem de SENTINELA_DB_URL (ou DATABASE_URL), definida nas
+variáveis de ambiente do serviço. Sem ela o servidor não inicia: não existe
+mais banco local.
 
 Todo acesso é feito com consultas parametrizadas por quem usa este módulo.
 """
+import json
 import os
 import secrets
+import time
 from datetime import datetime
+from pathlib import Path
 
 import psycopg
 from psycopg.rows import dict_row
 from werkzeug.security import generate_password_hash
 
-import crud
-import regras  # as chamadas criar() de regras.py preenchem a lista de crud.py
+import regras  # regras.AREAS e a semente vêm de dados/regras.json
+import seed
 
 # Banco da nuvem. Aceita também o nome DATABASE_URL, usado por vários painéis
 # de hospedagem.
@@ -25,52 +32,30 @@ URL_BANCO = (
 
 ERROS_INTEGRIDADE = (psycopg.errors.IntegrityError,)
 
+
+def hash_senha(senha: str) -> str:
+    """Gera o hash scrypt da senha; o texto puro nunca vai para o banco."""
+    return generate_password_hash(senha, method="scrypt")
+
+
+def senha_ja_hasheada(valor: str) -> bool:
+    """Reconhece os formatos de hash aceitos pelo Werkzeug."""
+    return str(valor or "").startswith(("scrypt:", "pbkdf2:", "argon2:"))
+
+
 NIVEIS = ("baixo", "medio", "alto")
 ACOES = ("enviou", "cancelou")
 TIPOS_REGRA = ("regex", "palavra-chave")
 ORIGENS = ("texto", "colagem", "imagem", "pdf", "anexo")
 
-# Versão da matriz de risco. Ao subir a versão, as regras semeadas são
-# atualizadas (padrão, tipo e risco), preservando regras criadas no painel.
-VERSAO_MATRIZ = "2"
+# Versão da matriz. Ao subir a versão, o seed atualiza regras existentes sem
+# apagar regras criadas no painel.
+VERSAO_MATRIZ = "3"
 
-# As áreas são só o agrupamento das regras. As regras em si ficam em
-# regras.py, em Python puro; aqui elas ganham tabela para o painel e a
-# extensão usarem.
-# As regras de palavra-chave são bilíngues: português e inglês no mesmo campo,
-# separados por vírgula. A busca ignora acentos e maiúsculas.
-AREAS = [
-    {
-        "nome": "RH",
-        "descricao": (
-            "Dados pessoais, documentos, remuneração e vínculos de colaboradores. "
-            "Acesso restrito ao time de pessoas."
-        ),
-    },
-    {
-        "nome": "Financeiro",
-        "descricao": "Valores, orçamento e resultados da companhia. Publicação somente em canais aprovados.",
-    },
-    {
-        "nome": "TI",
-        "descricao": "Infraestrutura, credenciais e código proprietário. Nunca deve ser colado em ferramentas externas.",
-    },
-    {
-        "nome": "Segurança da Informação",
-        "descricao": (
-            "As causas mais comuns de incidentes: credenciais expostas, backups, "
-            "dados de clientes e informação marcada como confidencial."
-        ),
-    },
-    {
-        "nome": "Jurídico",
-        "descricao": "Contratos, fornecedores e cláusulas. Compartilhamento exige revisão da área jurídica.",
-    },
-    {
-        "nome": "Projetos e Estratégias",
-        "descricao": "Roadmap, lançamentos e movimentos competitivos. Informação estratégica antes do anúncio oficial.",
-    },
-]
+# A fonte única da matriz e das mensagens é `dados/`; o React importa os mesmos
+# arquivos, então não existe uma segunda cópia para divergir.
+AREAS = regras.AREAS
+CAMINHO_MENSAGENS = Path(__file__).resolve().parent / "dados" / "mensagens.json"
 
 # Texto usado pela versão 2.1. Bancos antigos são atualizados para a mensagem
 # nova apenas enquanto o administrador não tiver editado o texto.
@@ -79,22 +64,7 @@ MENSAGEM_BAIXO_ANTERIOR = (
     "Ainda assim, revise o conteúdo antes de compartilhá-lo."
 )
 
-MENSAGENS_PADRAO = {
-    "baixo": (
-        "Nenhum dado de risco médio ou alto foi identificado neste conteúdo. Revise antes de "
-        "compartilhar: o envio fica registrado no painel de governança."
-    ),
-    "medio": (
-        "Esta informação contém dados internos que podem apresentar riscos à empresa. Evite "
-        "compartilhar informações desnecessárias e verifique as regras de uso de IA da empresa "
-        "antes do compartilhamento."
-    ),
-    "alto": (
-        "Esta informação contém dados confidenciais, pessoais, estratégicos ou relacionados à "
-        "segurança da empresa. Não compartilhe com uma IA pública. Remova os dados sensíveis ou "
-        "utilize uma ferramenta de IA corporativa autorizada."
-    ),
-}
+MENSAGENS_PADRAO = json.loads(CAMINHO_MENSAGENS.read_text(encoding="utf-8"))
 
 # Esquema do banco, no dialeto do Postgres. O servidor cria as tabelas sozinho
 # no primeiro acesso: não é preciso rodar SQL na mão.
@@ -138,8 +108,6 @@ CREATE TABLE IF NOT EXISTS alertas (
 CREATE INDEX IF NOT EXISTS idx_alertas_data ON alertas(data_hora DESC);
 CREATE INDEX IF NOT EXISTS idx_alertas_departamento ON alertas(departamento);
 CREATE INDEX IF NOT EXISTS idx_alertas_nivel ON alertas(nivel_risco);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_alertas_evento ON alertas(evento_id)
-    WHERE evento_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS alerta_itens (
     id integer GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
@@ -155,7 +123,14 @@ CREATE TABLE IF NOT EXISTS usuarios_admin (
     id integer GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     usuario text NOT NULL UNIQUE,
     senha_hash text NOT NULL,
-    criado_em text NOT NULL
+    criado_em text NOT NULL,
+    tentativas_falhas integer NOT NULL DEFAULT 0,
+    bloqueado_ate text
+);
+
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    versao text PRIMARY KEY,
+    aplicada_em text NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS configuracoes (
@@ -167,6 +142,7 @@ CREATE TABLE IF NOT EXISTS configuracoes (
 
 def _traduzir_sql(texto: str, parametros) -> str:
     """Ajusta o SQL do projeto para o dialeto do Postgres.
+
     Só duas construções precisam de tradução: `GROUP_CONCAT(x, sep)` vira
     `string_agg(x, sep)` e o marcador `?` vira `%s`. Em consultas com
     parâmetros, o sinal `%` literal do texto (por exemplo em um LIKE '%termo%')
@@ -259,20 +235,73 @@ def inserir_id(conexao_aberta: _Conexao, sql: str, parametros) -> int:
     return linha["id"] if linha else None
 
 
-def _atualizar_colunas(conexao_aberta: _Conexao) -> None:
-    """Adiciona colunas novas em bancos criados por uma versão anterior."""
-    conexao_aberta.execute("ALTER TABLE alertas ADD COLUMN IF NOT EXISTS evento_id text")
-    conexao_aberta.execute(
-        "ALTER TABLE alertas ADD COLUMN IF NOT EXISTS origem text NOT NULL DEFAULT 'texto'"
-    )
-    conexao_aberta.execute("ALTER TABLE alertas ADD COLUMN IF NOT EXISTS ip text")
+# Migrações versionadas. O esquema base é idempotente; as seguintes cobrem
+# bancos criados por versões anteriores. Nunca edite uma migração já publicada:
+# acrescente uma nova.
+MIGRACOES = [
+    (
+        "002_alertas_evento_origem_ip",
+        """
+        ALTER TABLE alertas ADD COLUMN IF NOT EXISTS evento_id text;
+        ALTER TABLE alertas ADD COLUMN IF NOT EXISTS origem text NOT NULL DEFAULT 'texto';
+        ALTER TABLE alertas ADD COLUMN IF NOT EXISTS ip text;
+        DELETE FROM alertas a
+            USING alertas b
+            WHERE a.evento_id IS NOT NULL
+              AND a.evento_id = b.evento_id
+              AND a.id > b.id;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_alertas_evento ON alertas(evento_id)
+            WHERE evento_id IS NOT NULL;
+        """,
+    ),
+    (
+        "003_login_lockout",
+        """
+        ALTER TABLE usuarios_admin ADD COLUMN IF NOT EXISTS tentativas_falhas integer NOT NULL DEFAULT 0;
+        ALTER TABLE usuarios_admin ADD COLUMN IF NOT EXISTS bloqueado_ate text;
+        """,
+    ),
+]
+
+
+def _aplicar_migracoes(conexao_aberta: _Conexao) -> None:
+    """Aplica migrações uma única vez, registrando a versão no banco.
+
+    O esquema base é sempre idempotente; as migrações cobrem colunas que não
+    existiam em bancos antigos. A versão 001 é registrada à parte para não
+    executar o esquema duas vezes.
+    """
+    conexao_aberta.executescript(ESQUEMA_POSTGRES)
+    base = conexao_aberta.execute(
+        "SELECT 1 FROM schema_migrations WHERE versao = ?", ("001_esquema_base",)
+    ).fetchone()
+    if base is None:
+        conexao_aberta.execute(
+            "INSERT INTO schema_migrations (versao, aplicada_em) VALUES (?, ?)",
+            ("001_esquema_base", datetime.utcnow().isoformat(timespec="seconds")),
+        )
+    for versao, sql in MIGRACOES:
+        existente = conexao_aberta.execute(
+            "SELECT 1 FROM schema_migrations WHERE versao = ?", (versao,)
+        ).fetchone()
+        if existente:
+            continue
+        conexao_aberta.executescript(sql)
+        conexao_aberta.execute(
+            "INSERT INTO schema_migrations (versao, aplicada_em) VALUES (?, ?)",
+            (versao, datetime.utcnow().isoformat(timespec="seconds")),
+        )
 
 
 def _semear_matriz(conexao_aberta: _Conexao, forcar_atualizacao: bool) -> None:
-    """Copia para o banco as áreas daqui e as regras que nascem em regras.py."""
-    regras_de_crud = {}
-    for regra in crud.listar():
-        regras_de_crud.setdefault(regra["area"], []).append(regra)
+    """Copia para o banco as áreas e regras que nascem em dados/regras.json.
+
+    A semente é descartada depois da publicação, para o processo não guardar
+    uma segunda cópia da matriz: a tabela regras é a fonte única.
+    """
+    regras_de_seed = {}
+    for regra in seed.listar():
+        regras_de_seed.setdefault(regra["area"], []).append(regra)
 
     for area in AREAS:
         linha = conexao_aberta.execute(
@@ -292,7 +321,7 @@ def _semear_matriz(conexao_aberta: _Conexao, forcar_atualizacao: bool) -> None:
                     (area["descricao"], area_id),
                 )
 
-        for regra in regras_de_crud.get(area["nome"], []):
+        for regra in regras_de_seed.get(area["nome"], []):
             existente = conexao_aberta.execute(
                 "SELECT id FROM regras WHERE area_id = ? AND nome = ?",
                 (area_id, regra["nome"]),
@@ -312,73 +341,40 @@ def _semear_matriz(conexao_aberta: _Conexao, forcar_atualizacao: bool) -> None:
                 )
 
 
-# ---------------------------------------------------------------------------
-# Espelho em memória do crud.py
-#
-# As regras nascem em regras.py e ficam na lista de crud.py enquanto o servidor
-# está rodando. O banco é a cópia publicada dessa lista. Quando o painel cria,
-# edita ou exclui uma regra, a mesma operação é feita primeiro na lista do
-# crud.py e só depois gravada no banco, para as duas nunca divergirem.
-# ---------------------------------------------------------------------------
+def _migrar_senhas_em_texto(conexao_aberta: _Conexao) -> None:
+    """Converte senhas antigas gravadas sem hash para scrypt.
 
-
-def regra_em_memoria(nome: str, area: str):
-    """Devolve a regra da lista do crud.py com este nome e esta área."""
-    for regra in crud.listar():
-        if regra["nome"] == nome and regra["area"] == area:
-            return regra
-    return None
-
-
-def criar_na_memoria(nome, area, tipo, padrao, risco, ativo=True):
-    """CRIA na lista do crud.py a regra que o painel acabou de cadastrar."""
-    return crud.criar(nome, area, tipo, padrao, risco, bool(ativo))
-
-
-def atualizar_na_memoria(
-    nome_anterior, area_anterior, nome, area, tipo, padrao, risco, ativo=True
-):
-    """ATUALIZA na lista do crud.py a regra que o painel editou.
-
-    Se a regra não estiver na memória (criada no painel depois que o servidor
-    subiu), ela é criada, porque a lista é o cadastro e o banco é a cópia.
+    O sistema sempre criou hash, mas esta migration cobre bancos importados de
+    versões anteriores ou de outro sistema. Depois dela, nenhuma linha guarda
+    a senha legível.
     """
-    existente = regra_em_memoria(nome_anterior, area_anterior)
-    if existente is None:
-        return criar_na_memoria(nome, area, tipo, padrao, risco, ativo)
-    return crud.atualizar(
-        existente["id"], nome, area, tipo, padrao, risco, bool(ativo)
-    )
-
-
-def excluir_da_memoria(nome: str, area: str) -> bool:
-    """EXCLUI da lista do crud.py a regra que o painel removeu."""
-    existente = regra_em_memoria(nome, area)
-    if existente is None:
-        return False
-    return crud.excluir(existente["id"])
-
-
-def nome_da_area(conexao_aberta: _Conexao, area_id: int) -> str:
-    """Nome da área usada na lista do crud.py (que guarda o nome, não o id)."""
-    linha = conexao_aberta.execute(
-        "SELECT nome FROM areas WHERE id = ?", (area_id,)
-    ).fetchone()
-    return linha["nome"] if linha else ""
+    linhas = conexao_aberta.execute(
+        "SELECT id, senha_hash FROM usuarios_admin"
+    ).fetchall()
+    for linha in linhas:
+        valor = linha["senha_hash"] or ""
+        if valor and not senha_ja_hasheada(valor):
+            conexao_aberta.execute(
+                "UPDATE usuarios_admin SET senha_hash = ? WHERE id = ?",
+                (hash_senha(valor), linha["id"]),
+            )
 
 
 def inicializar_banco(usuario: str, senha: str) -> None:
     """Cria o esquema, sincroniza a matriz e garante o administrador inicial."""
     conexao_aberta = conectar()
     try:
-        conexao_aberta.executescript(ESQUEMA_POSTGRES)
-        _atualizar_colunas(conexao_aberta)
+        # Serializa a inicialização entre instâncias do Render/Cloud Run. Sem isso,
+        # dois cold starts poderiam tentar semear o banco ao mesmo tempo.
+        conexao_aberta.execute("SELECT pg_advisory_xact_lock(728028)")
+        _aplicar_migracoes(conexao_aberta)
 
         versao = conexao_aberta.execute(
             "SELECT valor FROM configuracoes WHERE chave = 'matriz_versao'"
         ).fetchone()
         atualizar = versao is None or versao["valor"] != VERSAO_MATRIZ
         _semear_matriz(conexao_aberta, atualizar)
+        seed.limpar()
 
         if atualizar:
             conexao_aberta.execute(
@@ -429,10 +425,21 @@ def inicializar_banco(usuario: str, senha: str) -> None:
         if not existente:
             conexao_aberta.execute(
                 "INSERT INTO usuarios_admin (usuario, senha_hash, criado_em) VALUES (?, ?, ?)",
-                (usuario, generate_password_hash(senha), datetime.now().isoformat(timespec="seconds")),
+                (usuario, hash_senha(senha), datetime.now().isoformat(timespec="seconds")),
             )
 
+        _migrar_senhas_em_texto(conexao_aberta)
         conexao_aberta.commit()
+    finally:
+        conexao_aberta.close()
+
+
+def verificar_conexao() -> bool:
+    """Confirma que o Postgres responde; usado pelo health check completo."""
+    conexao_aberta = conectar()
+    try:
+        conexao_aberta.execute("SELECT 1").fetchone()
+        return True
     finally:
         conexao_aberta.close()
 
@@ -475,6 +482,71 @@ def renovar_token_api() -> str:
     return novo
 
 
+LIMITE_TENTATIVAS_LOGIN = 5
+BLOQUEIO_LOGIN_SEGUNDOS = 15 * 60
+
+
+def buscar_admin_login(usuario: str):
+    """Busca a conta para o login, sem comparar a senha no banco."""
+    conexao_aberta = conectar()
+    try:
+        return conexao_aberta.execute(
+            """
+            SELECT id, usuario, senha_hash, tentativas_falhas, bloqueado_ate
+            FROM usuarios_admin
+            WHERE LOWER(usuario) = LOWER(?)
+            """,
+            (usuario,),
+        ).fetchone()
+    finally:
+        conexao_aberta.close()
+
+
+def registrar_falha_login(admin_id: int) -> None:
+    """Incrementa a falha e bloqueia a conta após cinco tentativas.
+
+    O cálculo é atômico no banco: duas tentativas simultâneas não podem
+    reiniciar o contador uma da outra.
+    """
+    conexao_aberta = conectar()
+    try:
+        conexao_aberta.execute(
+            """
+            UPDATE usuarios_admin
+            SET tentativas_falhas = CASE
+                    WHEN tentativas_falhas + 1 >= ? THEN 0
+                    ELSE tentativas_falhas + 1
+                END,
+                bloqueado_ate = CASE
+                    WHEN tentativas_falhas + 1 >= ? THEN ?
+                    ELSE bloqueado_ate
+                END
+            WHERE id = ?
+            """,
+            (
+                LIMITE_TENTATIVAS_LOGIN,
+                LIMITE_TENTATIVAS_LOGIN,
+                str(int(time.time()) + BLOQUEIO_LOGIN_SEGUNDOS),
+                admin_id,
+            ),
+        )
+        conexao_aberta.commit()
+    finally:
+        conexao_aberta.close()
+
+
+def limpar_falhas_login(admin_id: int) -> None:
+    conexao_aberta = conectar()
+    try:
+        conexao_aberta.execute(
+            "UPDATE usuarios_admin SET tentativas_falhas = 0, bloqueado_ate = NULL WHERE id = ?",
+            (admin_id,),
+        )
+        conexao_aberta.commit()
+    finally:
+        conexao_aberta.close()
+
+
 def listar_admins() -> list:
     conexao_aberta = conectar()
     try:
@@ -492,7 +564,7 @@ def criar_admin(usuario: str, senha: str) -> int:
         novo_id = inserir_id(
             conexao_aberta,
             "INSERT INTO usuarios_admin (usuario, senha_hash, criado_em) VALUES (?, ?, ?)",
-            (usuario, generate_password_hash(senha), datetime.now().isoformat(timespec="seconds")),
+            (usuario, hash_senha(senha), datetime.now().isoformat(timespec="seconds")),
         )
         conexao_aberta.commit()
         return novo_id
@@ -517,7 +589,7 @@ def trocar_senha_admin(admin_id: int, senha: str) -> int:
     try:
         cursor = conexao_aberta.execute(
             "UPDATE usuarios_admin SET senha_hash = ? WHERE id = ?",
-            (generate_password_hash(senha), admin_id),
+            (hash_senha(senha), admin_id),
         )
         conexao_aberta.commit()
         return cursor.rowcount

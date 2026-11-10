@@ -13,7 +13,7 @@ const SITES_DISPONIVEIS = [
 
 // Endereço padrão: o servidor da empresa na nuvem.
 const PADROES = {
-  serverUrl: "https://sentinela-r7ge.onrender.com",
+  serverUrl: "https://sentinela.suaempresa.com",
   apiToken: "",
   departamento: "",
   colaborador: "",

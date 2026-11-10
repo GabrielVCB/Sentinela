@@ -1,3 +1,7 @@
+# Caminho de custo zero: Render + Neon + UptimeRobot.
+# Passo a passo completo em DEPLOY.md. O Dockerfile continua disponível
+# para quem quiser Cloud Run ou outra plataforma de containers.
+#
 # Sentinela — publicação na Render (https://render.com), plano gratuito.
 #
 # Arquitetura:
@@ -20,11 +24,10 @@ services:
     name: sentinela
     runtime: python
     plan: free
-    rootDir: servidor
-    buildCommand: pip install -r requirements.txt
-    # Um processo com várias threads, suficiente para o plano gratuito. Com o
-    # banco externo, dá para aumentar o número de workers depois.
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 60
+    buildCommand: pip install -r servidor/requirements.txt
+    # O diretório de trabalho é a raiz para o Flask servir o detector
+    # compartilhado em extensao/detectores.js. O processo fica em servidor/.
+    startCommand: cd servidor && gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 60
     healthCheckPath: /api/ping
     envVars:
       - key: PYTHON_VERSION
@@ -41,3 +44,12 @@ services:
         sync: false
       - key: SENTINELA_COOKIE_SEGURO
         value: "1"
+      - key: SENTINELA_AMBIENTE
+        value: producao
+      - key: SENTINELA_FORCAR_HTTPS
+        value: "1"
+      # A Render tem um proxy na frente; o ProxyFix recupera o esquema https.
+      - key: SENTINELA_PROXY_HOPS
+        value: "1"
+      - key: SENTINELA_CONFIG_CACHE
+        value: "30"

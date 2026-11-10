@@ -6,20 +6,28 @@
  *
  * Cada pedido leva X-API-Token com o código de instalação copiado do painel
  * (06 · Instalação). Sem o código, o servidor recusa o envio — e o popup
- * mostra o aviso em vez de falhar em silêncio. Sem fila e sem alarmes de
- * reenvio: o cache de regras existe só para o aviso continuar funcionando
- * quando o servidor estiver fora do ar.
+ * mostra o aviso em vez de falhar em silêncio. Alertas que falham por rede
+ * entram em uma fila persistente e são reenviados por alarme; o cache de regras
+ * mantém o aviso funcionando enquanto o servidor estiver fora do ar.
  */
 "use strict";
 
-const CINCO_MINUTOS = 5 * 60 * 1000;
+// 30 minutos, não 5: com 500 extensões, 5 minutos geram ~4,3 milhões de
+// requisições/mês e podem esgotar a cota do Render/Neon. O botão
+// "Sincronizar agora" força a atualização.
+const INTERVALO_SYNC = 30 * 60 * 1000;
 const LIMITE_TEXTO_ANEXO = 60000;
 const TIMEOUT_MS = 6000;
 const TENTATIVAS = 2;
+const LIMITE_FILA = 100;
+const ALARME_SYNC = "sentinela-sync";
+const ALARME_FILA = "sentinela-fila";
 
 // Endereço do servidor da empresa. Fica fixo aqui para que uma instalação nova
 // já nasça apontada para a nuvem, sem ninguém precisar digitar o endereço.
-const SERVIDOR_PADRAO = "https://sentinela-r7ge.onrender.com";
+// Troque pelo endereço do Render (ou pelo domínio no Cloudflare) antes de
+// gerar o ZIP. O endereço também pode ser alterado em Opções, por computador.
+const SERVIDOR_PADRAO = "https://sentinela.suaempresa.com";
 
 const CONFIGURACAO_PADRAO = {
   serverUrl: SERVIDOR_PADRAO,
@@ -42,6 +50,7 @@ const CHAVES = {
   configuracao: "configuracao",
   cache: "cacheConfig",
   status: "statusConexao",
+  fila: "filaAlertasPendentes",
   filaAntiga: "filaAlertas",
   migracaoServidor: "migracaoServidorNuvem",
   ultimoAlerta: "ultimoAlerta",
@@ -58,6 +67,89 @@ async function lerArmazenado(chave, valorPadrao) {
 
 async function salvarArmazenado(chave, valor) {
   await chrome.storage.local.set({ [chave]: valor });
+}
+
+function criarEventoId() {
+  try {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      return crypto.randomUUID();
+    }
+  } catch (erro) {
+    /* ambientes sem randomUUID */
+  }
+  return "evt-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+}
+
+async function lerFila() {
+  const valor = await lerArmazenado(CHAVES.fila, []);
+  return Array.isArray(valor) ? valor : [];
+}
+
+async function salvarFila(fila) {
+  await salvarArmazenado(CHAVES.fila, fila.slice(-LIMITE_FILA));
+}
+
+async function enfileirarAlerta(alerta) {
+  const fila = await lerFila();
+  const id = alerta.evento_id;
+  if (id && fila.some(function (item) { return item.evento_id === id; })) return;
+  fila.push({
+    ...alerta,
+    evento_id: id || criarEventoId(),
+    tentativas: Number(alerta.tentativas || 0),
+    criadoEm: Date.now(),
+  });
+  await salvarFila(fila);
+  await garantirAlarmeFila();
+}
+
+async function garantirAlarmeSync() {
+  await chrome.alarms.create(ALARME_SYNC, { periodInMinutes: 30 });
+}
+
+async function garantirAlarmeFila() {
+  await chrome.alarms.create(ALARME_FILA, { delayInMinutes: 1, periodInMinutes: 1 });
+}
+
+let promessaFila = null;
+
+/** Reenvia a fila em série; o evento_id mantém a operação idempotente. */
+async function processarFila() {
+  if (promessaFila) return promessaFila;
+  promessaFila = (async function () {
+    const fila = await lerFila();
+    if (!fila.length) {
+      await chrome.alarms.clear(ALARME_FILA);
+      return;
+    }
+    const configuracao = await obterConfiguracao();
+    if (!(configuracao.apiToken || "").trim()) return;
+
+    const restantes = [];
+    for (const alerta of fila) {
+      try {
+        await requisitar("/api/alertas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(alerta),
+        });
+      } catch (erro) {
+        const mensagem = erro instanceof Error ? erro.message : "Falha ao reenviar.";
+        // Código/token inválido não melhora com retry: descarta e avisa no popup.
+        if (erroDefinitivo(mensagem)) {
+          await registrarStatus(false, `Alerta descartado: ${mensagem}`);
+          continue;
+        }
+        restantes.push({ ...alerta, tentativas: Number(alerta.tentativas || 0) + 1 });
+      }
+    }
+    await salvarFila(restantes);
+    if (restantes.length) await garantirAlarmeFila();
+    else await chrome.alarms.clear(ALARME_FILA);
+  })().finally(function () {
+    promessaFila = null;
+  });
+  return promessaFila;
 }
 
 async function obterConfiguracao() {
@@ -229,7 +321,7 @@ function areasDaConfiguracao(config) {
 async function sincronizarConfig(forcar) {
   const cache = await lerArmazenado(CHAVES.cache, null);
 
-  if (!forcar && cache && Date.now() - cache.atualizadoEm < CINCO_MINUTOS) {
+  if (!forcar && cache && Date.now() - cache.atualizadoEm < INTERVALO_SYNC) {
     return cache;
   }
 
@@ -291,11 +383,19 @@ function sanearAlerta(alerta) {
       };
     }),
     acao: alerta.acao === "cancelou" ? "cancelou" : "enviou",
-    evento_id: alerta.evento_id ? String(alerta.evento_id).slice(0, 64) : undefined,
+    evento_id: alerta.evento_id
+      ? String(alerta.evento_id).slice(0, 64)
+      : criarEventoId(),
     origem: ["texto", "colagem", "imagem", "pdf", "anexo"].indexOf(alerta.origem) >= 0
       ? alerta.origem
       : "texto",
   };
+}
+
+function erroDefinitivo(mensagem) {
+  return /Código de instalação|Departamento não|Colaborador não|HTTP 400|HTTP 401|HTTP 403/.test(
+    String(mensagem || ""),
+  );
 }
 
 async function enviarAlerta(alerta) {
@@ -337,8 +437,8 @@ async function enviarAlerta(alerta) {
 
   let ultimaFalha = "Falha ao registrar.";
 
-  // Uma repetição imediata cobre o intervalo em que o Flask está iniciando.
-  // Não há fila: o alerta é gravado na hora ou o erro aparece no popup.
+  // Uma repetição imediata cobre o intervalo em que o Flask está iniciando;
+  // se ainda falhar, a fila persistente tenta de novo via alarme.
   for (let tentativa = 1; tentativa <= TENTATIVAS; tentativa++) {
     try {
       const resultado = await requisitar("/api/alertas", {
@@ -366,13 +466,22 @@ async function enviarAlerta(alerta) {
     }
   }
 
-  await registrarStatus(false, `Alerta não registrado: ${ultimaFalha}`);
+  // Erros de configuração não melhoram com retry. Falhas de rede, timeout,
+  // 429 e 5xx entram na fila.
+  const definitivo = erroDefinitivo(ultimaFalha);
+  if (!definitivo) await enfileirarAlerta(limpo);
+
+  await registrarStatus(
+    false,
+    definitivo ? `Alerta não registrado: ${ultimaFalha}` : `Alerta na fila para reenvio: ${ultimaFalha}`,
+  );
   await salvarArmazenado(CHAVES.ultimoAlerta, {
     ok: false,
     mensagem: ultimaFalha,
+    enfileirado: !definitivo,
     em: Date.now(),
   });
-  return { ok: false, mensagem: ultimaFalha };
+  return { ok: false, mensagem: ultimaFalha, enfileirado: !definitivo };
 }
 
 // ---------------------------------------------------------------------------
@@ -513,8 +622,11 @@ chrome.runtime.onInstalled.addListener(async function () {
   const salva = await lerArmazenado(CHAVES.configuracao, null);
   if (!salva) await salvarArmazenado(CHAVES.configuracao, CONFIGURACAO_PADRAO);
   await migrarServidorPadrao();
-  // Versões antigas guardavam alertas numa fila; a 2.1 envia direto.
+  // A chave antiga era usada por uma versão que descartava a fila; a fila nova
+  // só é removida quando o servidor confirma o registro.
   await chrome.storage.local.remove(CHAVES.filaAntiga);
+  await garantirAlarmeSync();
+  await processarFila();
 
   // Primeira instalação (ou reinstalação, que apaga as Opções): abre a tela
   // para colar o código, em vez de ficar recusando alertas em silêncio.
@@ -527,7 +639,18 @@ chrome.runtime.onInstalled.addListener(async function () {
   await sincronizarConfig(true);
 });
 
+chrome.runtime.onStartup.addListener(function () {
+  void garantirAlarmeSync();
+  void processarFila();
+});
+
+chrome.alarms.onAlarm.addListener(function (alarme) {
+  if (alarme.name === ALARME_SYNC) void sincronizarConfig(false);
+  if (alarme.name === ALARME_FILA) void processarFila();
+});
+
 chrome.storage.onChanged.addListener(function (mudancas, area) {
   if (area !== "local" || !mudancas[CHAVES.configuracao]) return;
+  void garantirAlarmeSync();
   void sincronizarConfig(true);
 });

@@ -6,6 +6,7 @@
 {% endblock %}
 
 {% block corpo %}
+<div id="dados-sentinela" data-mensagens="{{ mensagens|tojson|forceescape }}" hidden></div>
 <div class="landing">
   <header class="lp-topo">
     <div class="lp-limite lp-topo-linha">
@@ -223,9 +224,8 @@
           </tbody>
         </table>
       </div>
-      <p class="lp-nota-matriz">
-        Regras editáveis no painel · a extensão sincroniza a matriz a cada cinco minutos. A matriz
-        nasce em <code>crud.py</code>, em Python puro.
+      <p class="lp-nota-matriz">          Regras editáveis no painel · a extensão sincroniza a matriz a cada 30 minutos. A matriz
+          nasce em <code>servidor/dados/regras.json</code> e vive no Postgres, a fonte única.
       </p>
     </section>
 
@@ -238,7 +238,8 @@
           </div>
           <p>
             Extensão Manifest V3 (Chrome ou Edge), servidor Flask na nuvem (Render) com banco
-            Postgres (Neon) e painel servido pela mesma aplicação, 24 horas por dia.
+            Postgres (Neon) e painel servido pela mesma aplicação. No plano gratuito o serviço
+            hiberna sem tráfego; o UptimeRobot mantém o health check ativo.
           </p>
         </div>
 
@@ -302,9 +303,9 @@
             <p>Os alertas filtrados saem em CSV ou em PDF, com os mesmos filtros de data, área, nível e departamento.</p>
           </div>
           <div class="lp-recurso">
-            <span class="lp-recurso-marca">Python</span>
-            <h3>Regras em Python puro</h3>
-            <p>As regras nascem em um CRUD em Python puro, sem banco e sem JSON. O banco é só a cópia que o painel e a extensão usam.</p>
+            <span class="lp-recurso-marca">JSON</span>
+            <h3>Uma matriz só</h3>
+            <p>As 44 regras nascem em <code>servidor/dados/regras.json</code>; o seed do Postgres e a prévia React leem o mesmo arquivo. O banco é a fonte do painel e da extensão.</p>
           </div>
         </div>
       </div>
@@ -391,7 +392,7 @@
     <div class="lp-rodape-base">
       <div class="lp-limite">
         <span>© {{ ano }} Sentinela</span>
-        <span class="lp-mono">Chrome/Edge MV3 · Flask · Postgres · nuvem 24 h</span>
+        <span class="lp-mono">Chrome/Edge MV3 · Flask · Postgres · Render Free</span>
       </div>
     </div>
   </footer>
@@ -399,6 +400,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='detectores.js') }}?v={{ versao }}"></script>
+<script src="{{ url_for('detectores_js') }}?v={{ versao }}"></script>
 <script src="{{ url_for('static', filename='landing.js') }}?v={{ versao }}"></script>
 {% endblock %}

@@ -1,228 +1,190 @@
 # Sentinela — Governança e Letramento em IA
 
-Painel de governança e letramento em IA. O objetivo é reduzir o vazamento de informações
-corporativas para IAs públicas (ChatGPT, Gemini, Claude e Copilot) por falta de letramento,
-sem vigiar o conteúdo das conversas.
+Painel de governança e letramento em IA para reduzir o vazamento de informações corporativas
+para IAs públicas (ChatGPT, Gemini, Claude e Copilot) sem vigiar o conteúdo das conversas.
 
-A extensão lê o campo de texto no navegador do colaborador, avisa antes do envio e registra
-apenas o alerta no painel. O texto nunca é enviado nem guardado: o alerta tem site,
-departamento, colaborador, IP de origem, nível de risco, tipos detectados e a
-decisão (`enviou` ou `cancelou`).
+A extensão lê o campo de texto no navegador, avisa antes do envio e registra apenas o alerta no
+painel. O texto nunca é enviado nem guardado. O alerta contém site, departamento, colaborador,
+IP de origem, nível de risco, tipos detectados, origem e a decisão (`enviou` ou `cancelou`).
 
-**Versão atual: 2.7** — servidor e extensão. A mesma versão aparece no painel, em
-**06 · Instalação**.
+**Versão atual: 2.9** — servidor, extensão e prévia.
 
-## Como está organizado
+## Uma arquitetura só
 
-O projeto tem quatro partes, e todas giram em volta de uma só ideia: **as regras de risco**.
+O produto é **Flask + Postgres + extensão Manifest V3**. O app em `src/` é uma **prévia visual
+somente leitura**: não tem Convex, não tem login, não grava alertas e não é uma segunda
+implementação do produto. O painel real é servido pelo Flask em `/painel`.
 
 ```
-crud.py     as quatro funções do CRUD, em Python 
-regras.py   a matriz: chama criar() uma vez para cada regra
-db.py       grava essas regras no banco Postgres
-app.py      serve o painel e a API que a extensão consulta
-painel      mostra e edita as regras, com login de administrador
-extensao/   aplica a cópia das regras no que o colaborador digita
+servidor/dados/regras.json    fonte única das 44 regras e das áreas
+servidor/dados/mensagens.json fonte única das mensagens educativas
+extensao/detectores.js        fonte única do motor de detecção
+servidor/                     Flask, seed, APIs, painel Jinja e exportações
+extensao/                     extensão MV3 usada no Chrome e no Edge
+src/                          prévia React somente leitura
 ```
 
-| Pasta / arquivo | O que é |
-| --- | --- |
-| `servidor/crud.py` | CRUD em Python: cria, lista, edita e exclui regras. |
-| `servidor/regras.py` | A matriz de risco: as 44 chamadas de `criar()`, agrupadas por área. |
-| `servidor/db.py` | Copia as regras de `regras.py` para o Postgres e guarda alertas, áreas, mensagens e administradores. |
-| `servidor/app.py` | Servidor Flask: landing, login, API da extensão e API administrativa. |
-| `servidor/templates/` e `servidor/static/` | Landing, login e painel administrativo (HTML, CSS e JS puros). |
-| `servidor/pdf.py` | Gera o PDF da exportação de alertas, em memória. |
-| `extensao/` | Extensão Manifest V3 para Chrome e Microsoft Edge. |
-| `render.yaml` | Descrição do serviço web publicado na Render. |
-| `src/` | Prévia web do painel (React + Convex), usada para visualizar o projeto no navegador. |
+O Flask serve `extensao/detectores.js` em `/detectores.js` para a landing. A extensão carrega o
+mesmo arquivo como content script. A prévia React importa esse arquivo. Não existe uma terceira
+cópia do detector para divergir.
 
-O painel do produto é o Flask, em `servidor/templates/painel.html`. O app em `src/` é uma
-prévia visual, com os mesmos dados de exemplo, e não participa do registro de alertas.
+Se o seu ambiente ainda tiver `VITE_CONVEX_URL`, `VITE_CONVEX_SITE_URL` ou
+`CONVEX_DEPLOYMENT`, pode removê-las: nenhum arquivo do projeto as lê nesta versão.
 
-## crud.py e regras.py
+## O que mudou na 2.9
 
-Todo o sistema parte de uma lista de regras. O CRUD fica em `servidor/crud.py`, em
-Python, com quatro funções:
+- **Convex eliminado.** O app React não tem mais autenticação, banco, seed público ou mutações.
+- **Uma fonte para regras e mensagens.** O seed do Python e a prévia leem
+  `servidor/dados/*.json`; a extensão recebe a matriz do Postgres via `/api/config`.
+- **Sincronização real de 30 minutos.** `chrome.alarms` acorda o service worker e atualiza a
+  configuração mesmo com a aba aberta por horas.
+- **Fila persistente de alertas.** Falhas de rede, timeout, 429 e 5xx vão para
+  `chrome.storage.local` e são reenviadas a cada minuto; `evento_id` mantém a gravação
+  idempotente.
+- **Watchdog mais leve.** A verificação de editores que não disparam `input` caiu de 300 ms para
+  1 s; `input` e `MutationObserver` continuam sendo o caminho rápido.
+- **Login com lockout.** Cinco falhas bloqueiam a conta por 15 minutos no Postgres, não apenas
+  em memória.
+- **Rate limit.** `/api/alertas` aceita até 120 envios por minuto por IP; `/login` aceita até 20
+  tentativas por 15 minutos por IP.
+- **Migrações versionadas.** `schema_migrations` registra o esquema aplicado; não há mais
+  alteração de coluna solta na subida.
+- **Textos corrigidos.** A landing não promete “24 h” no plano gratuito nem “sem token”.
 
-```python
-criar(nome, area, tipo, padrao, risco)   # CRIA
-listar()                                 # LÊ
-atualizar(id, nome, area, tipo, padrao, risco)   # ATUALIZA
-excluir(id)                              # EXCLUI
+## Como funciona
+
+1. A extensão observa o campo de texto e os anexos no navegador.
+2. O motor local aplica detectores técnicos + as regras editáveis do painel.
+3. O aviso aparece em Shadow DOM; risco médio/alto pede confirmação antes do envio.
+4. Só o alerta é enviado. Se o servidor estiver dormindo ou a rede falhar, ele entra na fila
+   local e é reenviado depois.
+5. O painel mostra auditoria, relatórios por departamento e exportação CSV/PDF.
+
+O colaborador não faz login. O painel é restrito a administradores, com senha scrypt e sessão
+`HttpOnly`, `SameSite=Lax` e `Secure` em produção.
+
+## Rodar localmente
+
+O servidor não inicia sem Postgres, porque a subida aplica migrações e cria o administrador.
+
+```bash
+cd servidor
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+export SENTINELA_DB_URL="postgresql://usuario:senha@host/banco?sslmode=require"
+export SENTINELA_SECRET_KEY="uma-chave-local"
+export SENTINELA_ADMIN_USUARIO="admin"
+export SENTINELA_ADMIN_SENHA="uma-senha-forte"
+export SENTINELA_AMBIENTE="dev"
+export SENTINELA_COOKIE_SEGURO="0"
+export SENTINELA_FORCAR_HTTPS="0"
+
+gunicorn --bind 127.0.0.1:8080 --workers 1 --threads 4 app:app
 ```
 
-Cada regra é um dicionário com `id`, `nome`, `area`, `tipo`, `padrao`, `risco` e `ativo`.
-A lista `REGRAS` guarda tudo na memória enquanto o programa está rodando — não há classe,
-banco nem JSON nesse arquivo.
+Abra `http://127.0.0.1:8080/` para a landing e `http://127.0.0.1:8080/painel` para o painel.
+O detector é servido em `http://127.0.0.1:8080/detectores.js`.
 
-A matriz em si fica em `servidor/regras.py`, que só chama `criar()` uma vez para cada uma
-das 44 regras, separadas por área. Exemplo de uma regra de verdade:
+Para a prévia React:
 
-```python
-crud.criar("CPF", "RH", "regex", r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b", "alto")
+```bash
+bun install
+bun run dev
 ```
 
-Cada regra diz **o que procurar** (`padrao`), **em qual área** (`area`), **como procurar**
-(`tipo`, `regex` ou `palavra-chave`) e **qual a gravidade** (`risco`: `baixo`, `medio` ou
-`alto`). As regras de palavra-chave são bilíngues (“senha” e “password” acionam a mesma
-regra) e a busca ignora acentos e letras maiúsculas.
+Defina `VITE_SENTINELA_URL` no ambiente da prévia para que os botões “Abrir painel” apontem para
+o Flask. Sem essa variável, a prévia usa `https://sentinela.suaempresa.com` como exemplo.
 
-O caminho até o uso real é curto:
+## Publicar no Render Free + Neon
 
-1. importar `regras.py` executa as 44 chamadas `criar()` e enche a lista `REGRAS`;
-2. quando o servidor sobe, `db.py` copia essa lista para as tabelas `areas` e `regras`;
-3. `app.py` entrega as regras para a extensão em `/api/config` e mostra a matriz no painel;
-4. a extensão sincroniza essa cópia a cada cinco minutos e classifica o texto digitado.
+O caminho recomendado para custo zero é **Render Free** para o Flask e **Neon Free** para o
+Postgres. O passo a passo está em [DEPLOY.md](DEPLOY.md). Resumo:
 
-O painel usa exatamente as mesmas quatro funções. Criar, editar ou excluir uma regra em
-**04 · Regras** chama `criar()`, `atualizar()` ou `excluir()` do `crud.py`, e a mesma operação
-é gravada no banco: a lista em memória e a tabela `regras` nunca divergem.
+1. Crie o Postgres no Neon e copie a connection string com `sslmode=require`.
+2. Suba o repositório no GitHub.
+3. Na Render, use **New → Blueprint** com o `render.yaml`.
+4. Informe `SENTINELA_DB_URL` e `SENTINELA_ADMIN_SENHA`.
+5. Depois do deploy, abra `/painel` → **06 · Instalação**.
 
-| Ação no painel | Função do `crud.py` |
-| --- | --- |
-| cadastrar uma regra | `criar()` |
-| ver a matriz de risco | `listar()`, que alimentou o banco na inicialização |
-| salvar uma edição | `atualizar()` |
-| remover uma regra | `excluir()` |
+O `render.yaml` roda a partir da raiz para que `extensao/detectores.js` exista no container e
+seja servido em `/detectores.js`.
 
-### Onde cada função é chamada
+### UptimeRobot e a limitação real do plano gratuito
 
-As quatro funções têm um ponto de chamada no caminho que o sistema percorre de verdade — não
-existe lista de regras em outro lugar do projeto.
+O Render Free **hiberna após 15 minutos sem tráfego** e tem **750 horas por workspace/mês**.
+Um serviço ligado 24/7 consome cerca de 720 h em um mês de 30 dias e 744 h em um mês de 31 —
+sobra pouca margem. O UptimeRobot pode chamar `GET /api/ping` a cada 5 minutos para manter o
+serviço acordado, mas isso consome a cota e não transforma o plano em uma garantia de 24/7.
 
-| Função | Chamada em | Quando acontece |
-| --- | --- | --- |
-| `criar()` | `regras.py`, 44 vezes | ao importar a matriz, na subida do servidor |
-| `criar()` | `db.criar_na_memoria()`, pela rota `POST /api/admin/regras` | ao cadastrar uma regra no painel |
-| `listar()` | `db._semear_matriz()` | na subida do servidor, para copiar a matriz para o Postgres |
-| `listar()` | `db.regra_em_memoria()`, usada pela edição e pela exclusão | para achar a regra que o painel está alterando |
-| `atualizar()` | `db.atualizar_na_memoria()`, pela rota `PUT /api/admin/regras/<id>` | ao salvar uma edição no painel |
-| `excluir()` | `db.excluir_da_memoria()`, pela rota `DELETE /api/admin/regras/<id>` | ao remover uma regra no painel |
+O Neon Free também tem limites e pode suspender por inatividade. Para um portfólio, isso é
+aceitável desde que a página e a documentação digam “demo”, não “produção 24/7”. Para uso real
+contínuo, a alternativa é uma instância sempre ligada (própria ou paga) ou Cloud Run com
+`min-instances=1`, que também tem custo.
 
-O caminho de uma edição, por exemplo, não tem atalho: o painel envia o formulário para
-`PUT /api/admin/regras/<id>`; a rota grava no banco e chama `db.atualizar_na_memoria()`; essa
-função procura a regra com `listar()` e altera com `atualizar()`. Cadastro e exclusão seguem o
-mesmo desenho, com `criar()` e `excluir()`.
+O UptimeRobot **não deve** ser usado para esconder a hibernação de um produto que promete
+disponibilidade; ele serve para manter a demo acordada e para avisar quando o health check
+falhar.
 
-### Os parâmetros
+## Instalar a extensão
 
-`criar()` e `atualizar()` recebem os mesmos dados de uma regra:
+Use a pasta `extensao/` ou o ZIP `public/sentinela-extensao.zip`.
 
-| Parâmetro | O que é | Exemplo |
-| --- | --- | --- |
-| `nome` | como a regra aparece no painel | `"CPF"`, `"Salário"` |
-| `area` | nome do departamento, em texto | `"RH"`, `"TI"` |
-| `tipo` | como o padrão é aplicado | `"regex"` ou `"palavra-chave"` |
-| `padrao` | o que a regra procura | `r"\b\d{3}\.\d{3}\.\d{3}-\d{2}\b"` ou `"senha, password"` |
-| `risco` | gravidade do achado | `"baixo"`, `"medio"`, `"alto"` |
-| `ativo` | nasce ligada ou desligada | `True` (quando não vem, é `True`) |
+1. Abra `chrome://extensions` ou `edge://extensions`.
+2. Ative o **Modo do desenvolvedor**.
+3. Clique em **Carregar sem compactação** e escolha `extensao/`.
+4. Abra **Opções**.
+5. Informe a URL do servidor, o código de instalação de **06 · Instalação**, o departamento e o
+   colaborador.
+6. Salve e use **Testar conexão** e **Sincronizar regras agora**.
+7. Abra o ChatGPT/Gemini/Claude/Copilot e teste um texto com risco e um anexo.
 
-A área é texto, não o número do banco, porque a lista é Python puro e não conhece tabelas. A
-ponte em `db.py` converte o id escolhido no painel para o nome da área antes de chamar a
-função.
+A extensão 2.9 pede a permissão `alarms`, usada para sincronizar a matriz a cada 30 minutos e
+reenviar a fila. Ela não lê o conteúdo das conversas além do campo de texto e dos anexos que o
+usuário coloca no compositor.
 
-O `id` aparece em `atualizar()` e `excluir()` e é o número da regra **dentro da lista**, não o
-número do banco: as duas numerações são independentes. Por isso a ligação entre a lista e a
-tabela é feita pelo par **nome + área**, que é o que `regra_em_memoria()` procura.
+## Banco e matriz
 
-Os retornos completam a prova: `criar()` calcula o `id` sozinho (o maior existente mais um) e
-devolve a regra pronta; `atualizar()` devolve a regra alterada ou `None`; `excluir()` devolve
-`True` ou `False`; `listar()` devolve a própria lista, então o que as outras três mudam
-aparece nela na hora.
+A tabela `regras` é a fonte do painel e da extensão. A semente vem de
+`servidor/dados/regras.json`; `db.inicializar_banco()` aplica as migrações, copia o que falta e
+descarta a semente. Alterar uma regra no painel invalida o cache de `/api/config`.
 
-Para conferir que a matriz vem mesmo daí, a conta é direta: rodando de dentro de `servidor/`,
-`import regras, crud; print(len(crud.listar()))` devolve **44**, o mesmo número de chamadas de
-`criar()` em `regras.py`. Cadastre uma regra no painel e a contagem vai a 45; exclua e volta a
-44.
+As migrações ficam em `MIGRACOES`, dentro de `servidor/db.py`, e são registradas em
+`schema_migrations`. Nunca edite uma migração já publicada: acrescente outra.
 
-## O que o sistema faz hoje
+## Segurança e privacidade
 
-- **Análise no navegador:** texto digitado, colagem (Ctrl+V), prints/imagens (OCR local) e
-  PDFs anexados são analisados pela extensão. Nada disso sai da máquina.
-- **Aviso antes do envio:** o painel do aviso mostra o nível de risco e os tipos detectados,
-  inclusive quando o resultado é risco baixo. Risco alto pede confirmação antes de enviar.
-- **Monitoramento com interruptor:** ligar o monitoramento marca todas as IAs; desligar
-  desmarca todas e encerra o aviso e a confirmação de envio na hora.
-- **Regras editáveis:** CRUD de áreas, regras e mensagens educativas no painel. A extensão
-  sincroniza a matriz a cada cinco minutos e continua funcionando com a última cópia em cache.
-- **Auditoria sem conteúdo:** cada alerta registra site, departamento, colaborador, IP de
-  origem, nível, tipos, origem do conteúdo (`texto`, `colagem`, `imagem`, `pdf`, `anexo`) e a
-  decisão do colaborador.
-- **Relatórios de letramento:** comparação entre envios e cancelamentos por departamento, com
-  tolerância de risco configurável e filtro de departamento (inclui “Não informado”).
-  Departamento que atinge a tolerância aparece marcado como **crítico**.
-- **Exportação:** CSV e PDF, com os mesmos filtros da tela.
-- **Chrome e Microsoft Edge:** a mesma extensão roda nos dois navegadores.
-- **Departamento em lista:** as Opções da extensão mostram apenas as áreas cadastradas no
-  painel, já carregadas ao abrir a tela, para não gravar um departamento que não existe.
-- **Identificação obrigatória:** código de instalação, departamento e identificador do
-  colaborador são todos obrigatórios. Sem os três, o alerta não é registrado — não há alerta
-  anônimo.
-- **Código de instalação:** cada extensão precisa do código exibido no painel para registrar
-  alertas; sem ele, o servidor recusa o envio e o popup avisa em vez de falhar em silêncio.
+- Senhas com `scrypt`; nenhuma senha em texto puro.
+- Cookie `HttpOnly`, `SameSite=Lax` e `Secure`; HSTS, CSP, `X-Frame-Options` e
+  `Permissions-Policy`.
+- Login com atraso, lockout persistido e rate limit por IP.
+- Código de instalação obrigatório para a extensão; rotação em **06 · Instalação**.
+- `evento_id` único para evitar alerta duplicado.
+- Nenhum texto de conversa é transmitido. OCR e extração de PDF são locais.
+- O painel não tem cadastro público de administrador; novos usuários são criados por um
+  administrador autenticado.
 
-## Onde o sistema roda
+## Testes
 
-O servidor Flask fica publicado na **Render**, com um endereço público. O
-banco é um Postgres externo da **Neon**, porque o plano gratuito da Render não tem disco
-permanente — sem banco externo, os alertas seriam apagados a cada reinício do serviço.
+```bash
+bun tsc -b --noEmit
+bun run test
+python -m py_compile servidor/*.py
+python -m unittest discover -s tests -p "test_*.py" -v
+```
 
-A Render hiberna o serviço depois de um tempo sem acesso, e a primeira visita seguinte demora
-alguns segundos para responder. Para evitar isso, o **UptimeRobot** chama `/api/ping` a cada
-cinco minutos e mantém o servidor acordado.
+O CI em `.github/workflows/ci.yml` roda os mesmos comandos.
 
-As configurações sensíveis (conexão do banco, senha inicial do painel e chave da sessão)
-ficam nas variáveis do serviço de hospedagem, não no código. O servidor não inicia sem a
-conexão do banco.
+## Limitações conhecidas
 
-## Baixar e instalar a extensão
+- A demo não foi testada em uma conta real de ChatGPT/Gemini/Claude/Copilot neste ambiente; os
+  seletores podem mudar quando os sites mudarem.
+- O Render Free hiberna; a primeira requisição depois disso pode demorar.
+- O código de instalação é único para o workspace. Para muitas extensões, o próximo passo é
+  token por dispositivo com revogação individual.
+- A prévia React é somente leitura e não substitui o painel Flask.
 
-Para instalar em um computador, basta a pasta `extensao/`:
+## Licença
 
-- **[sentinela-extensao.zip](public/sentinela-extensao.zip)** — a extensão pronta para carregar
-  no navegador. No GitHub, use o botão **Download raw file** para baixar o arquivo. Descompacte o arquivo.zip. 
-
-**Google Chrome**
-
-1. Abra `chrome://extensions`.
-2. Ligue o **Modo do desenvolvedor/programador**.
-3. Clique em **Carregar sem compactação / expandida** e escolha a pasta `extensao/`.
-4. Clique em **Detalhes**.
-4. Abra **Opções de extensão**.
-
-**Microsoft Edge**
-
-1. Abra `edge://extensions`.
-2. Ligue o **Modo do desenvolvedor**.
-3. Clique em **Carregar descompactada / sem pacote** e escolha a mesma pasta `extensao/`.
-4. Clique em **Detalhes**.
-4. Abra **Opções de extensão**.
-
-**Configurar em Opções (igual nos dois)**
-
-5. **URL do servidor:** já vem preenchida com o endereço do servidor da empresa.
-6. **Código de instalação (obrigatório):** copie em **06 · Instalação** e cole nas Opções. Ele
-   não dá acesso ao painel: só autoriza a extensão a registrar alertas. Assim que o código é
-   digitado, a lista de departamentos carrega sozinha — não é preciso salvar antes.
-7. **Departamento (obrigatório):** escolha na lista, que são exatamente as áreas do painel.
-8. **Colaborador (obrigatório):** informe o identificador da pessoa que usa aquele computador.
-9. Clique em **Salvar configurações** uma única vez, no fim, autorize o acesso ao endereço do
-   servidor quando o navegador perguntar, e use **Testar conexão** e **Sincronizar regras agora**.
-
-A versão instalada aparece na própria página de extensões do navegador, ao lado do nome
-Sentinela.
-
-## Painel: só para administradores
-
-O painel é a área da empresa, não do colaborador: **o acesso é restrito a administradores**,
-com usuário e senha criados na seção **06 · Instalação**. É possível cadastrar vários
-administradores, cada um com o seu login. Para trocar uma senha, o administrador logado
-precisa confirmar a própria senha atual — a sessão aberta sozinha não autoriza a troca.
-
-O colaborador não faz login em lugar nenhum. Ele só tem a extensão instalada, com o
-departamento escolhido e o código de instalação colado uma vez nas Opções.
-
-Os horários aparecem no relógio de quem abre o painel: o banco guarda em UTC e o navegador
-converte para o fuso da máquina, então um alerta das 14h em Brasília é exibido às 14h em
-qualquer computador que esteja no mesmo fuso.
+Projeto pessoal de portfólio. Ajuste a licença antes de reutilizar comercialmente.
