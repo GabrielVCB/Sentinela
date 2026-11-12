@@ -116,14 +116,92 @@
   SITES["copilot.cloud.microsoft"] = SITES["copilot.microsoft.com"];
   SITES["copilot.com"] = SITES["copilot.microsoft.com"];
 
+  // O servidor manda o catálogo atualizado (inclusive chats adicionados no
+  // painel). Os seletores padrão ficam aqui como fallback offline.
+  var SITES_POR_HOST = {};
+  var CAMPOS_GENERICOS = [
+    "textarea",
+    'div[contenteditable="true"]',
+    '[role="textbox"]',
+  ];
+  var ENVIAR_GENERICOS = [
+    'button[type="submit"]',
+    'button[data-testid*="send"]',
+    'button[data-test-id*="send"]',
+    'button[aria-label*="Send"]',
+    'button[aria-label*="Enviar"]',
+  ];
+
+  function montarMapaDeSites(sites) {
+    var mapa = {};
+    var configurados = Array.isArray(sites) ? sites : [];
+
+    if (!configurados.length) {
+      Object.keys(SITES).forEach(function (host) {
+        mapa[host] = SITES[host];
+      });
+      return mapa;
+    }
+
+    configurados.forEach(function (site) {
+      if (!site || !site.id || !Array.isArray(site.hosts)) return;
+      var base = null;
+      for (var i = 0; i < site.hosts.length; i++) {
+        if (SITES[site.hosts[i]]) {
+          base = SITES[site.hosts[i]];
+          break;
+        }
+      }
+      var definicao = {
+        id: String(site.id),
+        nome: String(site.nome || site.id),
+        // Chats adicionados pelo painel não têm um DOM conhecido para
+        // confirmar a remoção visual de anexos.
+        custom: site.padrao === false,
+        campos:
+          Array.isArray(site.campos) && site.campos.length
+            ? site.campos.slice()
+            : base
+              ? base.campos.slice()
+              : CAMPOS_GENERICOS.slice(),
+        enviar:
+          Array.isArray(site.enviar) && site.enviar.length
+            ? site.enviar.slice()
+            : base
+              ? base.enviar.slice()
+              : ENVIAR_GENERICOS.slice(),
+      };
+      site.hosts.forEach(function (host) {
+        var limpo = String(host || "")
+          .trim()
+          .toLowerCase()
+          .replace(/^www\./, "");
+        if (limpo) mapa[limpo] = definicao;
+      });
+    });
+
+    // Mantém os chats conhecidos mesmo se o servidor antigo não mandar o campo
+    // `sites`; a política de ativação continua vindo de sitesAtivos.
+    Object.keys(SITES).forEach(function (host) {
+      if (!mapa[host]) mapa[host] = SITES[host];
+    });
+    return mapa;
+  }
+
+  function aplicarCatalogo(sites) {
+    SITES_POR_HOST = montarMapaDeSites(sites);
+  }
+
+  aplicarCatalogo(null);
+
   // Espelho local das mensagens padrão (fallback quando o servidor nunca respondeu).
   var MENSAGENS_PADRAO = {
     baixo:
-      "Nenhum dado de risco médio ou alto foi identificado neste conteúdo. Revise antes de compartilhar: o envio fica registrado no painel de governança.",
+      "Foram identificados dados de baixo risco. Revise o conteúdo e compartilhe apenas o necessário.",
     medio:
-      "Esta informação contém dados internos que podem apresentar riscos à empresa. Evite compartilhar informações desnecessárias e verifique as regras de uso de IA da empresa antes do compartilhamento.",
+      "Este conteúdo contém dados internos da empresa. Compartilhe apenas o necessário e consulte a política de uso de IA antes de enviar.",
     alto:
-      "Esta informação contém dados confidenciais, pessoais, estratégicos ou relacionados à segurança da empresa. Não compartilhe com uma IA pública. Remova os dados sensíveis ou utilize uma ferramenta de IA corporativa autorizada.",
+      "Este conteúdo contém dados confidenciais ou sensíveis. Não envie para uma IA pública. Remova as informações sensíveis ou use uma ferramenta corporativa autorizada.",
   };
 
   var CONFIGURACAO_PADRAO = {
@@ -137,6 +215,10 @@
 
   var ROTULOS = { baixo: "Baixo", medio: "Médio", alto: "Alto" };
   var ROTULOS_ANEXO = { imagem: "Imagem", pdf: "PDF" };
+
+  function plural(total, singular, plural) {
+    return total + " " + (Number(total) === 1 ? singular : plural);
+  }
   var LIMITE_ARQUIVO = 6 * 1024 * 1024; // 6 MB em base64 é seguro para a mensagem
   var DEBOUNCE = 250;
   var INTERVALO_VIGIA = 1000; // rede de segurança para editores que não avisam mudanças
@@ -173,6 +255,12 @@
     posicaoTimer: null,
     vigias: [],
     encerrado: false,
+    interfaceIniciada: false,
+    eventosRegistrados: false,
+    limpandoPrompt: null,
+    promptVazioEm: 0,
+    textoIgnorado: "",
+    ignorarTextoAte: 0,
   };
 
   // -------------------------------------------------------------------------
@@ -202,29 +290,26 @@
     return location.hostname.replace(/^www\./, "");
   }
 
-  function detectarSite() {
-    var host = hostNormalizado();
-    var chaves = Object.keys(SITES);
+  function siteParaHost(host) {
+    var chaves = Object.keys(SITES_POR_HOST);
     for (var i = 0; i < chaves.length; i++) {
-      if (host === chaves[i] || host.endsWith("." + chaves[i])) return SITES[chaves[i]];
+      if (host === chaves[i] || host.endsWith("." + chaves[i])) return SITES_POR_HOST[chaves[i]];
     }
     return null;
+  }
+
+  function detectarSite() {
+    return siteParaHost(hostNormalizado());
   }
 
   function grupoDoSite(host) {
-    if (host === "chatgpt.com" || host.endsWith(".chatgpt.com") || host === "chat.openai.com") {
-      return "chatgpt";
-    }
-    if (host === "gemini.google.com") return "gemini";
-    if (host === "claude.ai" || host.endsWith(".claude.ai")) return "claude";
-    if (host === "copilot.com" || host.endsWith(".copilot.com") || host.indexOf("copilot.") === 0) {
-      return "copilot";
-    }
-    return null;
+    var site = siteParaHost(host);
+    return site ? String(site.id || "") : null;
   }
 
   function siteAutorizado() {
-    var grupo = grupoDoSite(hostNormalizado());
+    var site = detectarSite();
+    var grupo = site ? String(site.id || "") : "";
     var ativos = estado.settings.sitesAtivos || [];
     return Boolean(grupo) && ativos.indexOf(grupo) >= 0;
   }
@@ -294,21 +379,35 @@
     return Object.assign({}, CONFIGURACAO_PADRAO, copia);
   }
 
+  /**
+   * Liga a infraestrutura uma única vez. Pode ser chamada de novo quando o
+   * painel ativa um chat que estava desligado; antes, isso só funcionava depois
+   * de recarregar a página.
+   */
+  function garantirMonitoramento() {
+    if (estado.encerrado) return false;
+    estado.site = detectarSite();
+    if (!estado.site) return false;
+    criarInterface();
+    if (!estado.eventosRegistrados) {
+      registrarEventos();
+      estado.eventosRegistrados = true;
+    }
+    if (!estado.observador) observarCampo();
+    return true;
+  }
+
   function iniciar() {
     if (!contextoAtivo()) return;
-    estado.site = detectarSite();
-    if (!estado.site) return;
 
     chrome.storage.local.get(["configuracao", "cacheConfig"], function (dados) {
       estado.settings = configuracaoLocal(dados.configuracao);
-      if (dados.cacheConfig && dados.cacheConfig.mensagens) {
+      if (dados.cacheConfig) {
         aplicarConfig(dados.cacheConfig);
       }
-      if (!monitoramentoAtivo()) return;
-
-      criarInterface();
-      observarCampo();
-      registrarEventos();
+      garantirMonitoramento();
+      // Mesmo sem o site ativo, consulta a política: o painel pode ativá-lo
+      // enquanto a aba já está aberta.
       solicitarConfig();
     });
   }
@@ -327,6 +426,8 @@
 
   function aplicarConfig(cache) {
     if (!cache) return;
+    aplicarCatalogo(cache.sites);
+    estado.site = detectarSite();
     estado.config = {
       regras: Array.isArray(cache.regras) ? cache.regras : [],
       mensagens: Object.assign({}, MENSAGENS_PADRAO, cache.mensagens || {}),
@@ -346,6 +447,16 @@
     if (Array.isArray(estado.config.sitesAtivos)) {
       estado.settings.sitesAtivos = estado.config.sitesAtivos.slice();
     }
+    if (!estado.site) {
+      esconderInterface();
+      return;
+    }
+    if (!monitoramentoAtivo()) {
+      esconderInterface();
+      return;
+    }
+    garantirMonitoramento();
+    localizarCampo();
     if (estado.textoAnalisado || estado.anexos.length) analisar();
   }
 
@@ -370,10 +481,57 @@
     estado.vigias.push(setInterval(vigiarTexto, INTERVALO_VIGIA));
     window.addEventListener("resize", agendarPosicao, { passive: true });
     window.addEventListener("scroll", agendarPosicao, { passive: true });
+    // Ao voltar para a aba, confere a versão na hora em vez de esperar o
+    // próximo alarme de 30 segundos. O painel continua sendo a fonte da verdade.
+    window.addEventListener("focus", function () {
+      if (!estado.encerrado) solicitarConfig();
+    });
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden && !estado.encerrado) solicitarConfig();
+    });
+  }
+
+  /**
+   * Quando o colaborador remove o print/PDF pelo botão do próprio chat, não há
+   * evento de arquivo. Esta heurística confirma se ainda existe um preview no
+   * compositor; se não existe, o risco do anexo anterior é esquecido.
+   */
+  function compositorTemAnexoVisivel() {
+    if (!estado.campo) return false;
+    var area = estado.campo.closest("form") || estado.campo.parentElement;
+    if (!area) return false;
+    try {
+      var seletor =
+        'img[src^="blob:"], img[src^="data:"], [data-testid*="attachment"], ' +
+        '[data-testid*="file"], [data-test-id*="attachment"], ' +
+        '[class*="attachment"], [class*="file-chip"], [aria-label*="Remove file"], ' +
+        '[aria-label*="Remover arquivo"]';
+      if (area.querySelector(seletor)) return true;
+      var entradas = area.querySelectorAll('input[type="file"]');
+      for (var i = 0; i < entradas.length; i++) {
+        if (entradas[i].files && entradas[i].files.length) return true;
+      }
+    } catch (erro) {
+      return true;
+    }
+    return false;
+  }
+
+  function sincronizarAnexosComCompositor() {
+    if (!estado.anexos.length || !estado.site || estado.site.custom) return;
+    var processando = estado.anexos.some(function (anexo) {
+      return anexo.status === "lendo" || anexo.status === "analisando";
+    });
+    if (processando || compositorTemAnexoVisivel()) return;
+    estado.anexos = [];
+    estado.colagem = null;
+    estado.colagemEm = null;
+    agendarAnalise(0);
   }
 
   function vigiarTexto() {
     if (!estado.campo || !monitoramentoAtivo()) return;
+    sincronizarAnexosComCompositor();
     if (estado.timer) return; // já existe uma análise agendada
     // isConnected também vale para elementos dentro de Shadow DOM.
     if (!estado.campo.isConnected) {
@@ -510,6 +668,7 @@
       estado.colagemEm = null;
       estado.snapshotPendente = null;
       estado.textoAnalisado = "";
+      estado.promptVazioEm = 0;
       estado.analise = { nivel: "baixo", deteccoes: [], totalOcorrencias: 0 };
       estado.bannerOculto = false;
       if (estado.modalAberto) fecharModal();
@@ -614,6 +773,52 @@
     estado.timer = setTimeout(analisar, typeof atraso === "number" ? atraso : DEBOUNCE);
   }
 
+  function esquecerConteudoAtual() {
+    estado.textoAnalisado = "";
+    estado.analise = { nivel: "baixo", deteccoes: [], totalOcorrencias: 0 };
+    estado.anexos = [];
+    estado.colagem = null;
+    estado.colagemEm = null;
+    estado.promptVazioEm = 0;
+    estado.snapshotPendente = null;
+    estado.bannerOculto = false;
+    estado.assinaturaBanner = "";
+    if (estado.modalAberto) fecharModal();
+    esconderInterface();
+  }
+
+  /**
+   * Se o campo ficou vazio, os riscos do prompt anterior não podem continuar
+   * no aviso. Anexos novos (criados depois do esvaziamento) são preservados.
+   * O pequeno atraso evita apagar um anexo no instante em que o site move o
+   * foco entre o compositor e o seletor de arquivo.
+   */
+  function agendarLimpezaDePromptVazio() {
+    clearTimeout(estado.limpandoPrompt);
+    estado.limpandoPrompt = null;
+    if (lerTexto().trim()) return;
+    var marcador = Date.now();
+    estado.limpandoPrompt = setTimeout(function () {
+      estado.limpandoPrompt = null;
+      if (estado.encerrado || lerTexto().trim()) return;
+      // Se o print/PDF continua no compositor, o risco dele continua válido.
+      if (!estado.site || !estado.site.custom) {
+        if (compositorTemAnexoVisivel()) return;
+      }
+      estado.anexos = estado.anexos.filter(function (anexo) {
+        return anexo.criadoEm > marcador;
+      });
+      estado.colagem = null;
+      estado.colagemEm = null;
+      estado.snapshotPendente = null;
+      estado.textoAnalisado = "";
+      estado.analise = { nivel: "baixo", deteccoes: [], totalOcorrencias: 0 };
+      estado.bannerOculto = false;
+      if (estado.modalAberto) fecharModal();
+      renderizarBanner();
+    }, 700);
+  }
+
   function analisar() {
     if (estado.encerrado) return;
     clearTimeout(estado.timer);
@@ -625,6 +830,34 @@
     }
 
     var texto = lerTexto();
+    // Depois de um envio aceito, o site pode demorar alguns instantes para
+    // limpar o editor. O mesmo texto não deve gerar um segundo aviso.
+    if (
+      estado.textoIgnorado &&
+      texto === estado.textoIgnorado &&
+      Date.now() < estado.ignorarTextoAte
+    ) {
+      return;
+    }
+    if (texto !== estado.textoIgnorado) {
+      estado.textoIgnorado = "";
+      estado.ignorarTextoAte = 0;
+    }
+    if (texto.trim()) {
+      clearTimeout(estado.limpandoPrompt);
+      estado.limpandoPrompt = null;
+      // O prompt ficou vazio e agora começou outro: anexos criados antes do
+      // vazio pertenciam ao prompt anterior e não podem contaminar este.
+      if (estado.promptVazioEm) {
+        estado.anexos = estado.anexos.filter(function (anexo) {
+          return anexo.criadoEm > estado.promptVazioEm;
+        });
+        estado.promptVazioEm = 0;
+      }
+    } else {
+      if (!estado.promptVazioEm) estado.promptVazioEm = Date.now();
+      agendarLimpezaDePromptVazio();
+    }
     estado.textoAnalisado = texto;
     var engine = motor();
 
@@ -925,7 +1158,9 @@
     var contagem = document.createElement("span");
     contagem.className = "contagem";
     contagem.textContent = analise.deteccoes.length
-      ? analise.deteccoes.length + " tipo(s)"
+      ? plural(analise.deteccoes.length, "tipo", "tipos") +
+        " · " +
+        plural(analise.totalOcorrencias, "ocorrência", "ocorrências")
       : "sem detecções";
     cabecalho.appendChild(nivel);
     cabecalho.appendChild(contagem);
@@ -972,7 +1207,7 @@
         var remover = document.createElement("button");
         remover.type = "button";
         remover.textContent = "×";
-        remover.setAttribute("aria-label", "Remover anexo " + anexo.nome);
+        remover.setAttribute("aria-label", "Excluir anexo " + anexo.nome);
         remover.addEventListener("click", function () {
           estado.anexos = estado.anexos.filter(function (atual) {
             return atual.id !== anexo.id;
@@ -997,10 +1232,7 @@
     rodape.className = "rodape";
     var local = document.createElement("span");
     local.textContent = "Análise local · o texto não sai do navegador";
-    var total = document.createElement("span");
-    total.textContent = analise.totalOcorrencias + " ocorrência(s)";
     rodape.appendChild(local);
-    rodape.appendChild(total);
     conteudo.appendChild(rodape);
 
     var fechar = document.createElement("button");
@@ -1026,7 +1258,7 @@
     if (anexo.status === "erro") return anexo.erro || "falha";
     if (anexo.status === "vazio") return "sem texto legível";
     if (!anexo.deteccoes || anexo.deteccoes.length === 0) return "nada sensível";
-    return anexo.deteccoes.length + " tipo(s)";
+    return plural(anexo.deteccoes.length, "tipo", "tipos");
   }
 
   function agendarPosicao() {
@@ -1150,7 +1382,7 @@
         var meta = document.createElement("span");
         meta.textContent =
           anexo.deteccoes && anexo.deteccoes.length
-            ? anexo.deteccoes.length + " tipo(s)"
+            ? plural(anexo.deteccoes.length, "tipo", "tipos")
             : "sem dados sensíveis";
         item.appendChild(meta);
         lista.appendChild(item);
@@ -1278,11 +1510,25 @@
    */
   function agendarLimpezaPosEnvio() {
     var marcador = Date.now();
+    var textoEnviado = estado.textoAnalisado;
+    estado.textoIgnorado = textoEnviado;
+    estado.ignorarTextoAte = marcador + 3000;
     setTimeout(function () {
       estado.anexos = estado.anexos.filter(function (anexo) {
         return anexo.criadoEm > marcador;
       });
       if (estado.colagem && estado.colagem.em < marcador) estado.colagem = null;
+      // Se o site ainda não limpou o editor, esconde o aviso do prompt que já
+      // foi enviado. Um prompt novo, diferente, volta a ser analisado.
+      if (lerTexto() === textoEnviado) {
+        estado.textoAnalisado = "";
+        estado.analise = { nivel: "baixo", deteccoes: [], totalOcorrencias: 0 };
+        estado.snapshotPendente = null;
+        estado.bannerOculto = true;
+        if (estado.modalAberto) fecharModal();
+        renderizarBanner();
+        return;
+      }
       analisar();
     }, 900);
   }
@@ -1713,10 +1959,13 @@
         estado.anexos = [];
         estado.colagem = null;
         estado.bannerOculto = false;
+        clearTimeout(estado.limpandoPrompt);
+        estado.limpandoPrompt = null;
         esconderInterface();
         return;
       }
-      criarInterface();
+      if (estado.host) estado.host.style.display = "";
+      garantirMonitoramento();
       localizarCampo();
     }
 
@@ -1729,11 +1978,13 @@
         estado.anexos = [];
         estado.colagem = null;
         estado.bannerOculto = false;
+        clearTimeout(estado.limpandoPrompt);
+        estado.limpandoPrompt = null;
         esconderInterface();
         return;
       }
       if (estado.host) estado.host.style.display = "";
-      criarInterface();
+      garantirMonitoramento();
       localizarCampo();
     }
   });

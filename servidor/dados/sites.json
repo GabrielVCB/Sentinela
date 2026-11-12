@@ -3,17 +3,59 @@
     {
       "id": "chatgpt",
       "nome": "ChatGPT",
-      "hosts": ["chatgpt.com", "chat.openai.com"]
+      "hosts": ["chatgpt.com", "chat.openai.com"],
+      "campos": [
+        "#prompt-textarea",
+        "div[contenteditable=\"true\"]#prompt-textarea",
+        "textarea[data-testid=\"prompt-textarea\"]",
+        "form textarea",
+        "div[contenteditable=\"true\"][role=\"textbox\"]"
+      ],
+      "enviar": [
+        "[data-testid=\"send-button\"]",
+        "#composer-submit-button",
+        "button[aria-label*=\"Send\"]",
+        "button[aria-label*=\"Enviar\"]"
+      ]
     },
     {
       "id": "gemini",
       "nome": "Gemini",
-      "hosts": ["gemini.google.com"]
+      "hosts": ["gemini.google.com"],
+      "campos": [
+        "rich-textarea div[contenteditable=\"true\"]",
+        "rich-textarea .ql-editor",
+        "div.ql-editor[contenteditable=\"true\"]",
+        "div[contenteditable=\"true\"][role=\"textbox\"]",
+        "div[contenteditable=\"true\"][aria-label]",
+        "div[contenteditable=\"true\"]",
+        "textarea"
+      ],
+      "enviar": [
+        "button[aria-label*=\"Send message\"]",
+        "button[aria-label*=\"Enviar mensagem\"]",
+        "button[aria-label*=\"Enviar\"]",
+        "button.send-button",
+        "button[data-test-id=\"send-button\"]",
+        "button[aria-label*=\"Send\"]"
+      ]
     },
     {
       "id": "claude",
       "nome": "Claude",
-      "hosts": ["claude.ai"]
+      "hosts": ["claude.ai"],
+      "campos": [
+        "div[contenteditable=\"true\"].ProseMirror",
+        "fieldset div[contenteditable=\"true\"]",
+        "div[contenteditable=\"true\"]",
+        "textarea"
+      ],
+      "enviar": [
+        "button[aria-label=\"Send Message\"]",
+        "button[aria-label*=\"Send\"]",
+        "button[aria-label*=\"Enviar\"]",
+        "button[type=\"submit\"]"
+      ]
     },
     {
       "id": "copilot",
@@ -22,6 +64,29 @@
         "copilot.microsoft.com",
         "copilot.cloud.microsoft",
         "copilot.com"
+      ],
+      "campos": [
+        "textarea#userInput",
+        "textarea[data-testid=\"composer-input\"]",
+        "textarea[data-test-id=\"composer-input\"]",
+        "textarea[aria-label*=\"Message\"]",
+        "textarea[aria-label*=\"mensagem\"]",
+        "textarea[placeholder*=\"Message\"]",
+        "textarea[placeholder*=\"mensagem\"]",
+        "textarea[placeholder]",
+        "div[contenteditable=\"true\"][role=\"textbox\"]",
+        "div[contenteditable=\"true\"][aria-label]",
+        "div[contenteditable=\"true\"]"
+      ],
+      "enviar": [
+        "button[data-testid=\"submit-button\"]",
+        "button[data-test-id=\"send-button\"]",
+        "button[aria-label*=\"Submit\"]",
+        "button[aria-label*=\"Enviar\"]",
+        "button[aria-label*=\"Send\"]",
+        "button[title*=\"Send\"]",
+        "button[title*=\"Enviar\"]",
+        "button[type=\"submit\"]"
       ]
     }
   ]

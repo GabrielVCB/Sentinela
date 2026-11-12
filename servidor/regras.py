@@ -1,5 +1,5 @@
 """
-Matriz de risco inicial do Sentinela.
+Matriz de risco inicial da Sentinela.
 
 A fonte única é `dados/regras.json`, lida pelo seed do Postgres e pela prévia
 React. Este módulo só converte o JSON para o formato que `seed.py` espera.

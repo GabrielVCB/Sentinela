@@ -1,5 +1,5 @@
 {
-  "baixo": "Nenhum dado de risco médio ou alto foi identificado neste conteúdo. Revise antes de compartilhar: o envio fica registrado no painel de governança.",
-  "medio": "Esta informação contém dados internos que podem apresentar riscos à empresa. Evite compartilhar informações desnecessárias e verifique as regras de uso de IA da empresa antes do compartilhamento.",
-  "alto": "Esta informação contém dados confidenciais, pessoais, estratégicos ou relacionados à segurança da empresa. Não compartilhe com uma IA pública. Remova os dados sensíveis ou utilize uma ferramenta de IA corporativa autorizada."
+  "baixo": "Foram identificados dados de baixo risco. Revise o conteúdo e compartilhe apenas o necessário.",
+  "medio": "Este conteúdo contém dados internos da empresa. Compartilhe apenas o necessário e consulte a política de uso de IA antes de enviar.",
+  "alto": "Este conteúdo contém dados confidenciais ou sensíveis. Não envie para uma IA pública. Remova as informações sensíveis ou use uma ferramenta corporativa autorizada."
 }

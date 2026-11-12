@@ -21,7 +21,8 @@
   padding-right: 22px;
 }
 
-#principio,
+#problema,
+#privacidade,
 #matriz,
 #funciona,
 #letramento {
@@ -470,24 +471,21 @@
   text-wrap: balance;
 }
 
-.lp-lista-numerada {
+.lp-lista-problema {
   border-top: 1px solid var(--linha);
 }
 
-.lp-lista-numerada li {
-  display: grid;
-  grid-template-columns: 2.4rem minmax(0, 1fr);
-  gap: 16px;
+.lp-lista-problema > div {
   padding: 22px 0;
   border-bottom: 1px solid var(--linha);
 }
 
-.lp-lista-numerada h3 {
+.lp-lista-problema h3 {
   font-size: 13px;
   font-weight: 600;
 }
 
-.lp-lista-numerada p {
+.lp-lista-problema p {
   max-width: 34rem;
   margin-top: 6px;
   font-size: 12.5px;
@@ -527,6 +525,138 @@
     justify-content: space-between;
     gap: 48px;
   }
+}
+
+.lp-fluxo-local {
+  display: none;
+  width: 100%;
+  max-width: 22rem;
+  padding: 20px;
+  border: 1px solid var(--linha);
+  background: rgba(251, 251, 249, 0.6);
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .lp-fluxo-local {
+    display: block;
+  }
+}
+
+.lp-fluxo-topo,
+.lp-fluxo-base {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.lp-fluxo-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.lp-fluxo-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--linha-forte);
+}
+
+.lp-fluxo-dots i:first-child {
+  background: var(--baixo);
+}
+
+.lp-fluxo-trilha {
+  position: relative;
+  margin-top: 32px;
+}
+
+.lp-fluxo-trilha::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  left: 16px;
+  height: 1px;
+  background: var(--linha);
+}
+
+.lp-fluxo-grade {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.lp-fluxo-node {
+  position: relative;
+  z-index: 1;
+  padding: 12px 8px;
+  border: 1px solid var(--linha);
+  background: var(--papel);
+  text-align: center;
+}
+
+.lp-fluxo-node strong {
+  display: block;
+  font-family: var(--serif);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.lp-fluxo-node span {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cinza-claro);
+}
+
+.lp-fluxo-sinal {
+  position: absolute;
+  top: 50%;
+  left: 16%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--baixo);
+  transform: translateY(-50%);
+  animation: lp-sinal 5.5s ease-in-out infinite;
+}
+
+@keyframes lp-sinal {
+  0%, 100% {
+    left: 16%;
+  }
+  50% {
+    left: 82%;
+  }
+}
+
+.lp-fluxo-base {
+  align-items: flex-end;
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--linha);
+}
+
+.lp-fluxo-base span {
+  max-width: 9.5rem;
+  font-size: 10px;
+  line-height: 1.7;
+  color: var(--cinza);
+}
+
+.lp-fluxo-base b {
+  font-family: var(--serif);
+  font-size: 2.6rem;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1;
+  color: rgba(27, 27, 26, 0.15);
 }
 
 .lp-tres-colunas {

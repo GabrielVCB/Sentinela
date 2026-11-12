@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sentinela — Opções</title>
+    <title>Sentinela · Opções</title>
     <link rel="stylesheet" href="estilos.css" />
   </head>
   <body class="opcoes">
@@ -13,7 +13,7 @@
         <h1>Configuração da extensão</h1>
         <p class="subtitulo">
           Conecte ao servidor da empresa e informe o departamento e o colaborador. A ativação e
-          os sites monitorados são definidos pelo painel administrativo.
+          os chats monitorados são definidos pelo painel administrativo.
         </p>
         <p class="micro">Extensão versão <strong id="versao-extensao">2.9</strong></p>
       </div>
@@ -23,12 +23,11 @@
     <main class="conteudo-pagina">
       <section class="secao">
         <div class="secao-titulo">
-          <span class="numero">01</span>
           <div>
             <h2>Servidor</h2>
             <p>
-              Copie a URL e o código que aparecem no painel, em <strong>06 · Instalação</strong>.
-              A URL de exemplo não funciona: use o endereço real do Render. Sem o código, o
+              O pacote baixado pelo painel já preenche a URL do servidor. O código de instalação
+              continua obrigatório: copie-o em <strong>Instalação e acesso</strong>. Sem ele, o
               servidor recusa os alertas.
             </p>
           </div>
@@ -36,7 +35,7 @@
         <div class="grade">
           <label class="campo">
             <span class="rotulo">URL do servidor</span>
-            <input id="servidor" type="url" placeholder="https://sua-url.onrender.com" />
+            <input id="servidor" type="url" placeholder="Preenchida automaticamente pelo painel" />
           </label>
           <label class="campo">
             <span class="rotulo">Código de instalação (obrigatório)</span>
@@ -57,12 +56,11 @@
 
       <section class="secao">
         <div class="secao-titulo">
-          <span class="numero">02</span>
           <div>
             <h2>Identificação</h2>
             <p>
-              Os três campos são obrigatórios: sem departamento e sem colaborador o alerta não é
-              registrado, para não haver anonimato na auditoria.
+              Os campos de identificação são obrigatórios: sem departamento e sem colaborador o
+              alerta não é registrado, para não haver anonimato na auditoria.
             </p>
           </div>
         </div>
@@ -80,25 +78,45 @@
           </label>
         </div>
         <p class="dica">
-          A lista vem das áreas cadastradas no painel e aparece assim que o código de instalação
-          está preenchido — não é preciso salvar antes. Basta escolher uma das opções.
+          A lista de departamentos é definida no painel e aparece assim que o código de instalação
+          está preenchido. Não é preciso salvar antes.
         </p>
       </section>
 
       <section class="secao">
         <div class="secao-titulo">
-          <span class="numero">03</span>
           <div>
-            <h2>Cache de regras</h2>
-            <p>As regras e a política são atualizadas automaticamente quando o painel muda. Não há botão manual de sincronização.</p>
+            <h2>Chats monitorados</h2>
+            <p>
+              O painel define quais chats são analisados. Se um chat novo foi adicionado, o
+              navegador precisa autorizar o domínio uma única vez.
+            </p>
           </div>
         </div>
 
-        <dl class="resumo" id="resumo">
-          <div><dt>Regras em cache</dt><dd id="regras">0</dd></div>
-          <div><dt>Última sincronização</dt><dd id="sincronizacao">nunca</dd></div>
-        </dl>
+        <ul id="sites-status" class="sites-status">
+          <li class="micro">Carregando chats…</li>
+        </ul>
+        <p id="permissao-sites" class="dica"></p>
+        <div class="acoes">
+          <button id="autorizar-sites" class="botao" type="button">Autorizar chats configurados</button>
+        </div>
+      </section>
 
+      <section class="secao">
+        <div class="secao-titulo">
+          <div>
+            <h2>Atualização automática</h2>
+            <p>
+              Regras, mensagens e chats são sincronizados automaticamente enquanto o navegador
+              estiver aberto. Não existe botão de sincronização manual aqui.
+            </p>
+          </div>
+        </div>
+        <dl class="resumo" id="resumo">
+          <div><dt>Última verificação automática</dt><dd id="sincronizacao">nunca</dd></div>
+          <div><dt>Política</dt><dd id="politica-monitoramento">—</dd></div>
+        </dl>
       </section>
 
       <div class="barra-salvar">
@@ -107,13 +125,13 @@
       </div>
 
       <p class="nota">
-        A ativação e os sites monitorados ficam no painel, em <strong>07 · Monitoramento</strong>.
-        A extensão lê o campo de texto e os anexos (imagens e PDFs) das IAs monitoradas. O
-        conteúdo analisado nunca é gravado nem transmitido: o alerta contém somente site,
-        departamento, nível de risco, tipos detectados, origem e a ação do colaborador.
+        A ativação e os chats monitorados ficam no painel, em <strong>Monitoramento</strong>. O
+        alerta contém somente site, departamento, colaborador, IP, nível de risco, tipos
+        detectados e decisão. O conteúdo analisado não é gravado nem transmitido.
       </p>
     </main>
 
+    <script src="config.js"></script>
     <script src="options.js" defer></script>
   </body>
 </html>

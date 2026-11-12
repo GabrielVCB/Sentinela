@@ -5,17 +5,25 @@
  * páginas das IAs. Funciona igual no Chrome e no Microsoft Edge.
  *
  * Cada pedido leva X-API-Token com o código de instalação copiado do painel
- * (06 · Instalação). Sem o código, o servidor recusa o envio — e o popup
+ * (Instalação e acesso). Sem o código, o servidor recusa o envio. O popup
  * mostra o aviso em vez de falhar em silêncio. Alertas que falham por rede
  * entram em uma fila persistente e são reenviados por alarme; o cache de regras
  * mantém o aviso funcionando enquanto o servidor estiver fora do ar.
  */
 "use strict";
 
-// A extensão consulta só a versão da configuração a cada minuto. A matriz
-// completa (regras, mensagens, áreas) só é baixada quando essa versão muda.
-// Isso mantém a atualização transparente sem multiplicar o tráfego.
-const INTERVALO_SYNC = 60 * 1000;
+// O ZIP baixado pelo painel injeta aqui a URL pública do servidor. Assim a
+// extensão já chega configurada e o colaborador só informa a identificação.
+try {
+  importScripts("config.js");
+} catch (erro) {
+  /* pacote antigo sem config.js: a URL pode ser informada nas Opções */
+}
+
+// A extensão consulta só a versão da configuração a cada 30 segundos. A matriz
+// completa (regras, mensagens, áreas e chats) só é baixada quando essa versão
+// muda. Isso mantém a atualização transparente sem multiplicar o tráfego.
+const INTERVALO_SYNC = 30 * 1000;
 const VERSAO_EXTENSAO = chrome.runtime.getManifest().version;
 const LIMITE_TEXTO_ANEXO = 60000;
 // O Render Free pode acordar devagar; 20 s evita "Failed to fetch" em cold start.
@@ -26,8 +34,9 @@ const ALARME_SYNC = "sentinela-sync";
 const ALARME_FILA = "sentinela-fila";
 
 // Sem endereço local: a extensão só fala com o servidor publicado na nuvem.
-// A URL real é copiada do painel em 06 · Instalação e salva em Opções.
-const SERVIDOR_PADRAO = "";
+// O pacote baixado pelo painel traz a URL real; no ZIP público ela fica vazia
+// e pode ser informada em Opções.
+const SERVIDOR_PADRAO = String(globalThis.SENTINELA_SERVIDOR_PADRAO || "").trim();
 
 const CONFIGURACAO_PADRAO = {
   serverUrl: SERVIDOR_PADRAO,
@@ -45,6 +54,7 @@ const CHAVES = {
   ultimoAlerta: "ultimoAlerta",
   dispositivo: "dispositivoId",
   registroDispositivo: "ultimoRegistroDispositivo",
+  sitesPendentes: "sitesPendentesPermissao",
 };
 
 // ---------------------------------------------------------------------------
@@ -126,11 +136,108 @@ async function enfileirarAlerta(alerta) {
 }
 
 async function garantirAlarmeSync() {
-  await chrome.alarms.create(ALARME_SYNC, { periodInMinutes: 1 });
+  // O mínimo aceito pelo Chrome atual é 30 segundos. O alarme é só uma rede de
+  // segurança: as páginas abertas também consultam a versão ao ganhar foco.
+  await chrome.alarms.create(ALARME_SYNC, { periodInMinutes: 0.5 });
 }
 
 async function garantirAlarmeFila() {
   await chrome.alarms.create(ALARME_FILA, { delayInMinutes: 1, periodInMinutes: 1 });
+}
+
+// Hosts que já entram pelo content_scripts do manifest. Os demais chats
+// configurados no painel são injetados por chrome.scripting quando o
+// navegador autoriza o domínio.
+const HOSTS_ESTATICOS = [
+  "chatgpt.com",
+  "chat.openai.com",
+  "gemini.google.com",
+  "claude.ai",
+  "copilot.microsoft.com",
+  "copilot.cloud.microsoft",
+  "copilot.com",
+];
+const ID_SCRIPT_DINAMICO = "sentinela-sites-dinamicos";
+
+function hostsDinamicos(sites) {
+  const hosts = [];
+  (Array.isArray(sites) ? sites : []).forEach(function (site) {
+    (Array.isArray(site && site.hosts) ? site.hosts : []).forEach(function (host) {
+      const limpo = String(host || "")
+        .trim()
+        .toLowerCase()
+        .replace(/^www\./, "");
+      if (
+        limpo &&
+        HOSTS_ESTATICOS.indexOf(limpo) < 0 &&
+        hosts.indexOf(limpo) < 0
+      ) {
+        hosts.push(limpo);
+      }
+    });
+  });
+  return hosts;
+}
+
+function origensDosHosts(hosts) {
+  const origens = [];
+  hosts.forEach(function (host) {
+    origens.push("https://" + host + "/*");
+    origens.push("https://*." + host + "/*");
+  });
+  return origens;
+}
+
+/**
+ * Injeta o detector nos chats adicionados pelo painel. O navegador não deixa
+ * uma extensão acessar um domínio novo sem autorização; por isso as Opções
+ * mostram um botão para liberar os hosts configurados. A permissão é lembrada
+ * pelo Chrome e os scripts são registrados de novo a cada sincronização.
+ */
+async function registrarSitesDinamicos(sites) {
+  if (!chrome.scripting || !chrome.permissions) return;
+  const hosts = hostsDinamicos(sites);
+  const origens = origensDosHosts(hosts);
+
+  try {
+    await chrome.scripting.unregisterContentScripts({ ids: [ID_SCRIPT_DINAMICO] });
+  } catch (erro) {
+    /* ainda não havia script registrado */
+  }
+
+  if (!origens.length) {
+    await salvarArmazenado(CHAVES.sitesPendentes, []);
+    return;
+  }
+
+  let autorizados = [];
+  try {
+    autorizados = await chrome.permissions.contains({ origins: origens });
+  } catch (erro) {
+    autorizados = false;
+  }
+  if (!autorizados) {
+    await salvarArmazenado(CHAVES.sitesPendentes, hosts);
+    return;
+  }
+
+  try {
+    await chrome.scripting.registerContentScripts([
+      {
+        id: ID_SCRIPT_DINAMICO,
+        matches: origens,
+        js: ["detectores.js", "content.js"],
+        runAt: "document_idle",
+        persistAcrossSessions: true,
+      },
+    ]);
+    await salvarArmazenado(CHAVES.sitesPendentes, []);
+  } catch (erro) {
+    await salvarArmazenado(
+      CHAVES.sitesPendentes,
+      hosts,
+    );
+  }
 }
 
 let promessaFila = null;
@@ -146,6 +253,8 @@ async function processarFila() {
     }
     const configuracao = await obterConfiguracao();
     if (!(configuracao.apiToken || "").trim()) return;
+    const cache = await lerArmazenado(CHAVES.cache, null);
+    if (cache && cache.monitoramentoAtivo === false) return;
 
     const restantes = [];
     for (const alerta of fila) {
@@ -179,7 +288,11 @@ async function obterConfiguracao() {
   // A política de monitoramento não mora mais na configuração local. Campos
   // antigos são descartados para não voltarem a valer depois de uma migração.
   const { monitoramentoAtivo, sitesAtivos, ...resto } = salva || {};
-  return { ...CONFIGURACAO_PADRAO, ...resto };
+  const configuracao = { ...CONFIGURACAO_PADRAO, ...resto };
+  if (!String(configuracao.serverUrl || "").trim()) {
+    configuracao.serverUrl = SERVIDOR_PADRAO;
+  }
+  return configuracao;
 }
 
 function normalizarUrl(url) {
@@ -212,7 +325,7 @@ async function requisitar(caminho, opcoes, configuracaoExplicita) {
   const configuracao = configuracaoExplicita || (await obterConfiguracao());
   const base = normalizarUrl(configuracao.serverUrl);
   if (!base) {
-    throw new Error("Configure a URL do servidor nas Opções. Copie o endereço do painel em 06 · Instalação.");
+    throw new Error("Configure a URL do servidor nas Opções. Copie o endereço do painel em Instalação e acesso.");
   }
 
   const controlador = new AbortController();
@@ -381,6 +494,7 @@ async function registrarDispositivo(configuracao) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: id,
+        colaborador: String(configuracao.colaborador || "").trim(),
         setor: String(configuracao.departamento || "").trim(),
         versao: VERSAO_EXTENSAO,
       }),
@@ -424,7 +538,7 @@ async function sincronizarConfig(forcar, verificarRemoto) {
     }
     if (!(configuracao.apiToken || "").trim()) {
       throw new Error(
-        "Código de instalação não configurado. Abra Opções e cole o código do painel (06 · Instalação).",
+        "Código de instalação não configurado. Abra Opções e cole o código do painel, em Instalação e acesso.",
       );
     }
 
@@ -453,11 +567,13 @@ async function sincronizarConfig(forcar, verificarRemoto) {
       sitesAtivos: Array.isArray(resposta.sites_ativos)
         ? resposta.sites_ativos.slice()
         : ["chatgpt", "gemini", "claude", "copilot"],
+      sites: Array.isArray(resposta.sites) ? resposta.sites.slice() : [],
       versaoConfig: String(resposta.versao_config || ""),
       codigoVersao: Number(resposta.codigo_versao) || 1,
       atualizadoEm: Date.now(),
     };
     await salvarArmazenado(CHAVES.cache, novoCache);
+    await registrarSitesDinamicos(novoCache.sites);
     await registrarStatus(true, "Configuração sincronizada.");
 
     // O registro é feito depois de a configuração ser aceita. Se o painel
@@ -478,6 +594,7 @@ async function sincronizarConfig(forcar, verificarRemoto) {
         areas: [],
         monitoramentoAtivo: false,
         sitesAtivos: [],
+        sites: [],
         versaoConfig: "",
         codigoVersao: 0,
         atualizadoEm: Date.now(),
@@ -536,6 +653,7 @@ async function enviarAlerta(alerta) {
   // Sem o código, o servidor recusaria o envio. O aviso aparece no popup na
   // hora, em vez de o alerta sumir sem explicação.
   const configuracao = await obterConfiguracao();
+  const cache = await lerArmazenado(CHAVES.cache, null);
 
   async function recusar(mensagem) {
     await registrarStatus(false, mensagem);
@@ -547,9 +665,12 @@ async function enviarAlerta(alerta) {
     return { ok: false, mensagem: mensagem };
   }
 
+  if (cache && cache.monitoramentoAtivo === false) {
+    return recusar("Monitoramento pausado pelo painel. Nenhum alerta será registrado.");
+  }
   if (!(configuracao.apiToken || "").trim()) {
     return recusar(
-      "Código de instalação não configurado. Abra Opções e cole o código do painel (06 · Instalação).",
+      "Código de instalação não configurado. Abra Opções e cole o código do painel, em Instalação e acesso.",
     );
   }
 
@@ -681,7 +802,7 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
           const base = normalizarUrl(configuracao.serverUrl);
           if (!base) {
             throw new Error(
-              "Configure a URL do servidor nas Opções. Copie o endereço do painel em 06 · Instalação.",
+              "Configure a URL do servidor nas Opções. Copie o endereço do painel em Instalação e acesso.",
             );
           }
           if (chrome.permissions && chrome.permissions.contains) {
@@ -703,7 +824,7 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
           await registrarStatus(true, "Conexão estabelecida.");
           responder({
             ok: true,
-            mensagem: `Servidor online · ${totalRegras} regra(s).`,
+            mensagem: `Servidor online · ${totalRegras} ${totalRegras === 1 ? "regra" : "regras"}.`,
             latenciaMs: Date.now() - inicio,
           });
         } catch (erro) {
@@ -715,11 +836,12 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
       }
 
       if (mensagem.tipo === "OBTER_ESTADO") {
-        const [configuracao, status, cache, ultimoAlerta] = await Promise.all([
+        const [configuracao, status, cache, ultimoAlerta, sitesPendentes] = await Promise.all([
           obterConfiguracao(),
           lerArmazenado(CHAVES.status, null),
           lerArmazenado(CHAVES.cache, null),
           lerArmazenado(CHAVES.ultimoAlerta, null),
+          lerArmazenado(CHAVES.sitesPendentes, []),
         ]);
         // O popup mostra a política do servidor, não uma preferência local.
         const politica = cache
@@ -735,6 +857,8 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
           ultimoAlerta: ultimoAlerta,
           versao: VERSAO_EXTENSAO,
           dispositivoId: await obterDispositivoId(),
+          sites: cache && Array.isArray(cache.sites) ? cache.sites : [],
+          sitesPendentes: Array.isArray(sitesPendentes) ? sitesPendentes : [],
           cache: cache
             ? {
                 totalRegras: cache.regras ? cache.regras.length : 0,

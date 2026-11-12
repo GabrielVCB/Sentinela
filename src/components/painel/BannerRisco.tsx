@@ -31,6 +31,10 @@ export function BannerRisco({
 }) {
   const cores = CLASSES_RISCO[nivel];
   const semDeteccoes = deteccoes.length === 0;
+  const totalOcorrencias = deteccoes.reduce(
+    (soma, deteccao) => soma + (deteccao.ocorrencias || 0),
+    0,
+  );
 
   return (
     <section
@@ -50,7 +54,11 @@ export function BannerRisco({
             Risco {ROTULO_RISCO[nivel]}
           </span>
           <span className="rotulo">
-            {analisando ? "analisando…" : semDeteccoes ? "sem detecções" : `${deteccoes.length} tipo(s)`}
+            {analisando
+              ? "analisando…"
+              : semDeteccoes
+                ? "sem detecções"
+                : `${deteccoes.length} ${deteccoes.length === 1 ? "tipo" : "tipos"} · ${totalOcorrencias} ${totalOcorrencias === 1 ? "ocorrência" : "ocorrências"}`}
           </span>
         </div>
 
@@ -115,7 +123,7 @@ export function ModalRisco({
             <span className={cn("font-medium", CLASSES_RISCO[nivel].texto)}>
               {ROTULO_RISCO[nivel].toLowerCase()}
             </span>
-            . Ao enviar, o alerta será registrado no painel de governança — o texto não é
+            . Ao enviar, o alerta será registrado no painel de governança. O prompt não é
             armazenado.
           </DialogDescription>
         </DialogHeader>

@@ -87,7 +87,7 @@ export type Origem = (typeof ORIGENS)[number];
 
 export const ROTULO_ORIGEM: Record<Origem, string> = {
   texto: "Texto digitado",
-  colagem: "Colagem em massa",
+  colagem: "Colagem de texto longo",
   imagem: "Print ou imagem",
   pdf: "Arquivo PDF",
   anexo: "Imagem e PDF",

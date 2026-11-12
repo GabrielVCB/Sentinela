@@ -12,7 +12,8 @@ Rotas públicas:
     GET  /login              formulário de acesso
     GET  /api/ping
     GET  /api/config/versao   (poll leve da extensão)
-    GET  /api/config          (identifica a extensão)
+    GET  /api/config          (regras, chats e política)
+    GET  /downloads/sentinela-extensao.zip (ZIP já com a URL do servidor)
     POST /api/dispositivos/registrar (identifica a extensão)
     POST /api/alertas         (identifica a extensão)
 
@@ -30,11 +31,15 @@ import json
 import os
 import re
 import time
+import unicodedata
+import zipfile
 from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
 from functools import wraps
+from io import BytesIO
 from pathlib import Path
 from threading import Lock
+from urllib.parse import urlparse
 
 from flask import (
     Flask,
@@ -57,9 +62,8 @@ import pdf
 VERSAO = "2.9"
 # A versão do produto continua 2.9; este sufixo invalida o cache dos arquivos
 # estáticos quando a interface muda sem alterar a versão exibida.
-VERSAO_ASSETS = "2.9.2"
+VERSAO_ASSETS = "2.9.6"
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
-SITES_POR_ID = {site["id"]: site for site in db.SITES_MONITORADOS}
 
 # ---------------------------------------------------------------------------
 # Configuração (sempre por variáveis de ambiente, com padrão de desenvolvimento)
@@ -397,7 +401,7 @@ def recusar_dispositivo_revogado():
             jsonify(
                 {
                     "erro": "Este dispositivo foi desconectado pelo painel. "
-                    "Abra as Opções, salve a configuração novamente ou reinstale a extensão."
+                    "Se o código foi renovado, salve o novo código nas Opções para reconectar."
                 }
             ),
             403,
@@ -432,28 +436,68 @@ def nivel_por_itens(itens, fallback: str) -> str:
     return fallback if not riscos else "baixo"
 
 
-def sites_ativos_do_banco(valor) -> list:
+def catalogo_de_sites() -> dict:
+    """Catálogo atual; os chats adicionados no painel entram aqui na hora."""
+    return {site["id"]: site for site in db.listar_sites()}
+
+
+def sites_ativos_do_banco(valor, catalogo=None) -> list:
     """Lê a política salva sem deixar IDs desconhecidos chegarem à extensão."""
+    disponiveis = catalogo if catalogo is not None else catalogo_de_sites()
     if isinstance(valor, str):
         try:
             valor = json.loads(valor)
         except (TypeError, ValueError):
-            return db.SITES_PADRAO[:]
+            return [site_id for site_id in db.SITES_PADRAO if site_id in disponiveis]
     if not isinstance(valor, list):
-        return db.SITES_PADRAO[:]
-    return [site_id for site_id in valor if site_id in SITES_POR_ID]
+        return [site_id for site_id in db.SITES_PADRAO if site_id in disponiveis]
+    return [site_id for site_id in valor if site_id in disponiveis]
 
 
-def validar_sites_ativos(valor) -> list:
+def validar_sites_ativos(valor, catalogo=None) -> list:
     if not isinstance(valor, list):
         raise ErroValidacao("Sites monitorados deve ser uma lista.")
+    disponiveis = catalogo if catalogo is not None else catalogo_de_sites()
     escolhidos = []
     for site_id in valor:
-        if site_id not in SITES_POR_ID:
+        if site_id not in disponiveis:
             raise ErroValidacao("Site monitorado desconhecido.")
         if site_id not in escolhidos:
             escolhidos.append(site_id)
     return escolhidos
+
+
+def normalizar_url_do_site(valor: str) -> tuple:
+    """Aceita a URL colada do chat e devolve (nome_do_host, url_normalizada)."""
+    texto = (valor or "").strip()
+    if not texto:
+        raise ErroValidacao("Informe a URL do chat.")
+    if "://" not in texto:
+        texto = "https://" + texto
+    try:
+        endereco = urlparse(texto)
+    except ValueError as erro:
+        raise ErroValidacao("URL do chat inválida.") from erro
+    host = (endereco.hostname or "").strip().lower().rstrip(".")
+    if endereco.scheme != "https" or not host:
+        raise ErroValidacao("Use uma URL https válida, como https://chat.exemplo.com.")
+    if len(host) > 253 or not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", host):
+        raise ErroValidacao("O host da URL do chat é inválido.")
+    if host == "localhost" or host.endswith(".local"):
+        raise ErroValidacao("Use o endereço público do chat, não um endereço local.")
+    return host, f"https://{host}"
+
+
+def gerar_id_site(nome: str, catalogo: dict) -> str:
+    base = unicodedata.normalize("NFKD", nome or "")
+    base = "".join(c for c in base if not unicodedata.combining(c)).lower()
+    base = re.sub(r"[^a-z0-9]+", "-", base).strip("-")[:32] or "chat"
+    candidato = base
+    contador = 2
+    while candidato in catalogo:
+        candidato = f"{base[:28]}-{contador}"
+        contador += 1
+    return candidato
 
 
 def condicoes_de_filtro(args) -> tuple:
@@ -604,6 +648,52 @@ def detectores_js():
     return resposta
 
 
+def url_publica_do_servidor() -> str:
+    """URL que a extensão deve usar, respeitando o proxy HTTPS da hospedagem."""
+    base = request.url_root.rstrip("/")
+    if base.startswith("http://") and (
+        request.is_secure or os.environ.get("SENTINELA_FORCAR_HTTPS", "0") == "1"
+    ):
+        base = "https://" + base[len("http://") :]
+    return base
+
+
+@app.get("/downloads/sentinela-extensao.zip")
+def baixar_extensao_configurada():
+    """Entrega o ZIP da extensão já com a URL pública deste servidor.
+
+    O ZIP estático do repositório continua disponível para demonstração, mas o
+    download pelo painel evita que o colaborador precise descobrir/colar a URL
+    do Render. O código de instalação continua sendo copiado à parte.
+    """
+    base = RAIZ_PROJETO / "extensao"
+    if not base.is_dir():
+        return jsonify({"erro": "Pacote da extensão não encontrado no servidor."}), 404
+
+    url = url_publica_do_servidor()
+    conteudo = BytesIO()
+    with zipfile.ZipFile(conteudo, "w", zipfile.ZIP_DEFLATED) as pacote:
+        for caminho in sorted(base.rglob("*")):
+            if not caminho.is_file():
+                continue
+            relativo = caminho.relative_to(base).as_posix()
+            if relativo == "config.js":
+                continue
+            pacote.write(caminho, "extensao/" + relativo)
+        pacote.writestr(
+            "extensao/config.js",
+            "/** URL injetada pelo painel da Sentinela. */\n"
+            "globalThis.SENTINELA_SERVIDOR_PADRAO = " + json.dumps(url) + ";\n",
+        )
+
+    resposta = Response(conteudo.getvalue(), mimetype="application/zip")
+    resposta.headers["Content-Disposition"] = (
+        'attachment; filename="sentinela-extensao.zip"'
+    )
+    resposta.headers["Cache-Control"] = "no-store"
+    return resposta
+
+
 @app.get("/api/ping")
 def api_ping():
     return jsonify(
@@ -676,7 +766,7 @@ def api_config():
         areas = [
             linha["nome"]
             for linha in conexao_aberta.execute(
-                "SELECT nome FROM areas ORDER BY id"
+                "SELECT nome FROM areas ORDER BY LOWER(nome)"
             ).fetchall()
         ]
         configuracoes = {
@@ -687,12 +777,15 @@ def api_config():
                 "'api_token_versao')"
             ).fetchall()
         }
+        sites = db.listar_sites()
+        catalogo = {site["id"]: site for site in sites}
         dados = {
             "versao_config": configuracoes.get("config_versao", "1"),
             "codigo_versao": db.token_versao_api(),
             "monitoramento_ativo": configuracoes.get("monitoramento_ativo", "1") != "0",
-            "sites_ativos": sites_ativos_do_banco(configuracoes.get("sites_ativos")),
-            "sites_disponiveis": db.SITES_MONITORADOS,
+            "sites_ativos": sites_ativos_do_banco(configuracoes.get("sites_ativos"), catalogo),
+            "sites": sites,
+            "sites_disponiveis": sites,
             "regras": [
                 {
                     "id": linha["id"],
@@ -726,24 +819,27 @@ def api_config():
 def api_registrar_dispositivo():
     """Registra o contato de uma instalação para o painel de dispositivos.
 
-    O identificador é aleatório e gerado pela extensão; não é o nome da pessoa.
-    O setor e o IP são os únicos dados organizacionais exibidos no painel.
+    O ID técnico é aleatório e gerado pela extensão. O colaborador informado nas
+    Opções é enviado junto para o painel mostrar o nome de uso, sem depender do ID.
     """
     corpo = ler_corpo()
     dispositivo_id = texto_obrigatorio(corpo.get("id"), "Identificador do dispositivo", 80)
     if not re.fullmatch(r"[A-Za-z0-9_-]{8,80}", dispositivo_id):
         raise ErroValidacao("Identificador do dispositivo inválido.")
-    setor = texto_opcional(corpo.get("setor"), "Setor", 80) or "Não informado"
+    colaborador = texto_opcional(corpo.get("colaborador"), "Colaborador", 80) or "Não identificado"
+    departamento = (
+        texto_opcional(corpo.get("setor"), "Departamento", 80) or "Não informado"
+    )
     versao = texto_opcional(corpo.get("versao"), "Versão da extensão", 20) or "desconhecida"
     codigo_versao = db.token_versao_api()
     if db.registrar_dispositivo(
-        dispositivo_id, setor, ip_do_cliente(), versao, codigo_versao
+        dispositivo_id, colaborador, departamento, ip_do_cliente(), versao, codigo_versao
     ) == 0:
         return (
             jsonify(
                 {
                     "erro": "Este dispositivo foi desconectado pelo painel. "
-                    "Abra as Opções, salve novamente ou reinstale a extensão."
+                    "Renove o código de instalação no painel e cole o novo código nas Opções."
                 }
             ),
             403,
@@ -773,7 +869,7 @@ def api_criar_alerta():
     nivel_informado = validar_nivel(corpo.get("nivel_risco"), "Nível de risco")
     acao = corpo.get("acao")
     if acao not in db.ACOES:
-        raise ErroValidacao("Ação deve ser enviou ou cancelou.")
+        raise ErroValidacao("Decisão deve ser enviou ou cancelou.")
     data_hora = normalizar_data_hora(corpo.get("data_hora"))
 
     evento_id = texto_opcional(corpo.get("evento_id"), "Identificador do evento", 64)
@@ -895,7 +991,7 @@ def areas_para_landing() -> list:
     conexao_aberta = conexao()
     try:
         areas = conexao_aberta.execute(
-            "SELECT id, nome, descricao FROM areas ORDER BY id"
+            "SELECT id, nome, descricao FROM areas ORDER BY LOWER(nome), id"
         ).fetchall()
         regras = conexao_aberta.execute(
             "SELECT area_id, nome, risco FROM regras WHERE ativo = 1 ORDER BY id"
@@ -1266,7 +1362,7 @@ def api_remover_alerta(alerta_id: int):
         conexao_aberta.commit()
         if cursor.rowcount == 0:
             return jsonify({"erro": "Alerta não encontrado."}), 404
-        return jsonify({"mensagem": "Alerta removido.", "removidos": cursor.rowcount})
+        return jsonify({"mensagem": "Alerta excluído.", "removidos": cursor.rowcount})
     finally:
         conexao_aberta.close()
 
@@ -1338,14 +1434,14 @@ def api_exportar_csv():
             "Colaborador",
             "IP",
             "Nível",
-            "Ação",
+            "Decisão",
             "Tipos",
         ]
     )
     rotulos = {"baixo": "Baixo", "medio": "Médio", "alto": "Alto"}
     origens = {
         "texto": "Texto digitado",
-        "colagem": "Colagem em massa",
+        "colagem": "Colagem de texto longo",
         "imagem": "Print ou imagem",
         "pdf": "Arquivo PDF",
         "anexo": "Imagem e PDF",
@@ -1360,7 +1456,7 @@ def api_exportar_csv():
                 linha["colaborador"] or "Não informado",
                 linha["ip"] or "—",
                 rotulos.get(linha["nivel_risco"], linha["nivel_risco"]),
-                "Enviou mesmo assim" if linha["acao"] == "enviou" else "Cancelou",
+                "Enviou" if linha["acao"] == "enviou" else "Cancelou",
                 linha["tipos"] or "",
             ]
         )
@@ -1430,12 +1526,13 @@ def api_exportar_pdf():
         filtros.append("risco " + rotulos.get(request.args["nivel"], request.args["nivel"]))
 
     subtitulo = (
-        f"Auditoria de alertas · {len(registros)} registro(s)"
+        "Auditoria de alertas · "
+        + ("1 registro" if len(registros) == 1 else f"{len(registros)} registros")
         + (" · " + " · ".join(filtros) if filtros else " · sem filtro")
     )
 
     conteudo = pdf.gerar_pdf(
-        "Sentinela — relatório de alertas",
+        "Sentinela · relatório de alertas",
         subtitulo,
         [
             ("Data/hora", 1.15),
@@ -1445,7 +1542,7 @@ def api_exportar_pdf():
             ("Site", 1.25),
             ("Origem", 0.85),
             ("Nível", 0.62),
-            ("Ação", 0.85),
+            ("Decisão", 0.85),
             ("Tipos", 2.4),
         ],
         registros,
@@ -1490,10 +1587,11 @@ def api_listar_departamentos():
 @app.get("/api/admin/instalacao")
 @exigir_sessao_api
 def api_instalacao():
-    url_base = request.url_root.rstrip("/")
+    url_base = url_publica_do_servidor()
     return jsonify(
         {
             "url_base": url_base,
+            "download_url": url_for("baixar_extensao_configurada", _external=True),
             "token": token_esperado(),
             "codigo_versao": db.token_versao_api(),
             "dispositivos_vinculados": db.contar_dispositivos(db.token_versao_api()),
@@ -1510,7 +1608,7 @@ def api_instalacao():
 def api_renovar_token():
     if (os.environ.get("SENTINELA_API_TOKEN") or "").strip():
         raise ErroValidacao(
-            "O código está definido em SENTINELA_API_TOKEN. Troque o valor lá e reinicie o servidor."
+            "O código é definido pela configuração do servidor. Atualize a configuração e reinicie o serviço."
         )
     resultado = db.renovar_token_api()
     invalidar_cache_config()
@@ -1518,8 +1616,13 @@ def api_renovar_token():
         {
             **resultado,
             "mensagem": (
-                f"Código renovado. {resultado['dispositivos_vinculados']} dispositivo(s) "
-                "ainda estavam vinculados ao código anterior e precisam ser reconfigurados."
+                "Código renovado. Nenhum dispositivo estava vinculado ao código anterior."
+                if resultado["dispositivos_vinculados"] == 0
+                else (
+                    "Código renovado. 1 dispositivo ainda vinculado usa o código anterior e precisa ser reconfigurado."
+                    if resultado["dispositivos_vinculados"] == 1
+                    else f"Código renovado. {resultado['dispositivos_vinculados']} dispositivos ainda vinculados usam o código anterior e precisam ser reconfigurados."
+                )
             ),
         }
     )
@@ -1557,7 +1660,7 @@ def api_desconectar_dispositivo(dispositivo_id: str):
         return jsonify({"erro": "Dispositivo não encontrado ou já desconectado."}), 404
     return jsonify(
         {
-            "mensagem": "Dispositivo desconectado. Ele deixa de receber regras e alertas até ser reinstalado."
+            "mensagem": "Dispositivo desconectado. Ele pode voltar ao salvar um código de instalação renovado nas Opções."
         }
     )
 
@@ -1617,7 +1720,7 @@ def api_criar_usuario():
 @exigir_superadmin_api
 def api_remover_usuario(admin_id: int):
     if admin_id == session.get("admin_id"):
-        raise ErroValidacao("Você não pode remover a sua própria conta.")
+        raise ErroValidacao("Você não pode excluir a sua própria conta.")
     conexao_aberta = conexao()
     try:
         alvo = conexao_aberta.execute(
@@ -1628,10 +1731,10 @@ def api_remover_usuario(admin_id: int):
     if alvo is None:
         return jsonify({"erro": "Administrador não encontrado."}), 404
     if alvo["superadmin"]:
-        return jsonify({"erro": "O superadmin inicial não pode ser removido."}), 403
+        return jsonify({"erro": "O superadmin inicial não pode ser excluído."}), 403
     if db.remover_admin(admin_id) == 0:
         return jsonify({"erro": "Administrador não encontrado."}), 404
-    return jsonify({"mensagem": "Administrador removido."})
+    return jsonify({"mensagem": "Administrador excluído."})
 
 
 @app.put("/api/admin/usuarios/<int:admin_id>/senha")
@@ -1783,7 +1886,7 @@ def api_remover_area(area_id: int):
         if cursor.rowcount == 0:
             return jsonify({"erro": "Área não encontrada."}), 404
         invalidar_cache_config()
-        return jsonify({"mensagem": "Área removida.", "regras_removidas": total_regras})
+        return jsonify({"mensagem": "Área excluída.", "regras_removidas": total_regras})
     finally:
         conexao_aberta.close()
 
@@ -1932,7 +2035,7 @@ def api_remover_regra(regra_id: int):
         if cursor.rowcount == 0:
             return jsonify({"erro": "Regra não encontrada."}), 404
         invalidar_cache_config()
-        return jsonify({"mensagem": "Regra removida."})
+        return jsonify({"mensagem": "Regra excluída."})
     finally:
         conexao_aberta.close()
 
@@ -1995,11 +2098,13 @@ def obter_politica_monitoramento() -> dict:
 @app.get("/api/admin/configuracoes")
 @exigir_sessao_api
 def api_obter_configuracoes():
+    sites = db.listar_sites()
     return jsonify(
         {
             "limiar_gargalo": obter_limiar(),
             **obter_politica_monitoramento(),
-            "sites_disponiveis": db.SITES_MONITORADOS,
+            "sites_disponiveis": sites,
+            "sites": sites,
         }
     )
 
@@ -2009,15 +2114,16 @@ def api_obter_configuracoes():
 def api_salvar_configuracoes():
     corpo = ler_corpo()
     politica = obter_politica_monitoramento()
+    catalogo = catalogo_de_sites()
     limiar = obter_limiar()
 
     if "limiar_gargalo" in corpo:
         try:
             limiar = int(corpo.get("limiar_gargalo"))
         except (TypeError, ValueError) as erro:
-            raise ErroValidacao("Informe uma tolerância de risco numérica.") from erro
+            raise ErroValidacao("Informe um limite de criticidade numérico.") from erro
         if limiar < 0 or limiar > 100:
-            raise ErroValidacao("A tolerância de risco deve ficar entre 0 e 100%.")
+            raise ErroValidacao("O limite de criticidade deve ficar entre 0 e 100%.")
 
     if "monitoramento_ativo" in corpo:
         if not isinstance(corpo["monitoramento_ativo"], bool):
@@ -2025,7 +2131,7 @@ def api_salvar_configuracoes():
         politica["monitoramento_ativo"] = corpo["monitoramento_ativo"]
 
     if "sites_ativos" in corpo:
-        politica["sites_ativos"] = validar_sites_ativos(corpo["sites_ativos"])
+        politica["sites_ativos"] = validar_sites_ativos(corpo["sites_ativos"], catalogo)
 
     if politica["monitoramento_ativo"] and not politica["sites_ativos"]:
         raise ErroValidacao("Selecione ao menos um site para ativar o monitoramento.")
@@ -2050,12 +2156,128 @@ def api_salvar_configuracoes():
         conexao_aberta.close()
 
     invalidar_cache_config()
+    sites = db.listar_sites()
     return jsonify(
         {
             "limiar_gargalo": limiar,
             **politica,
-            "sites_disponiveis": db.SITES_MONITORADOS,
+            "sites_disponiveis": sites,
+            "sites": sites,
             "mensagem": "Configurações atualizadas.",
+        }
+    )
+
+
+CAMPOS_GENERICOS = [
+    "textarea",
+    "div[contenteditable=\"true\"]",
+    "[role=\"textbox\"]",
+]
+ENVIAR_GENERICOS = [
+    "button[type=\"submit\"]",
+    "button[data-testid*=\"send\"]",
+    "button[data-test-id*=\"send\"]",
+    "button[aria-label*=\"Send\"]",
+    "button[aria-label*=\"Enviar\"]",
+]
+
+
+def salvar_sites_ativos(site_ids: list) -> None:
+    db.gravar_configuracao("sites_ativos", json.dumps(site_ids))
+    if not site_ids:
+        db.gravar_configuracao("monitoramento_ativo", "0")
+
+
+@app.post("/api/admin/sites")
+@exigir_sessao_api
+def api_criar_site():
+    corpo = ler_corpo()
+    nome = texto_obrigatorio(corpo.get("nome"), "Nome do chat", 60)
+    if len(nome) < 2:
+        raise ErroValidacao("O nome do chat deve ter pelo menos 2 caracteres.")
+    host, url = normalizar_url_do_site(corpo.get("url"))
+    catalogo = catalogo_de_sites()
+    for site in catalogo.values():
+        if host in (site.get("hosts") or []):
+            raise ErroValidacao("Este endereço já está vinculado a outro chat monitorado.")
+
+    site_id = gerar_id_site(nome, catalogo)
+    db.criar_site(site_id, nome, [host], CAMPOS_GENERICOS, ENVIAR_GENERICOS)
+
+    politica = obter_politica_monitoramento()
+    ativos = politica["sites_ativos"][:]
+    if site_id not in ativos:
+        ativos.append(site_id)
+    salvar_sites_ativos(ativos)
+    invalidar_cache_config()
+
+    return (
+        jsonify(
+            {
+                "site": {
+                    "id": site_id,
+                    "nome": nome,
+                    "hosts": [host],
+                    "url": url,
+                    "padrao": False,
+                },
+                "sites_ativos": ativos,
+                "mensagem": "Chat adicionado. Autorize o novo domínio nas Opções da extensão.",
+            }
+        ),
+        201,
+    )
+
+
+@app.put("/api/admin/sites/<site_id>")
+@exigir_sessao_api
+def api_atualizar_site(site_id: str):
+    site = db.obter_site(site_id)
+    if not site:
+        return jsonify({"erro": "Chat não encontrado."}), 404
+
+    corpo = ler_corpo()
+    nome = texto_obrigatorio(corpo.get("nome"), "Nome do chat", 60)
+    if len(nome) < 2:
+        raise ErroValidacao("O nome do chat deve ter pelo menos 2 caracteres.")
+    host, url = normalizar_url_do_site(corpo.get("url"))
+
+    for outro in db.listar_sites():
+        if outro["id"] != site_id and host in (outro.get("hosts") or []):
+            raise ErroValidacao("Este endereço já está vinculado a outro chat monitorado.")
+
+    if db.atualizar_site(site_id, nome, [host]) == 0:
+        return jsonify({"erro": "Chat não encontrado."}), 404
+    invalidar_cache_config()
+    return jsonify(
+        {
+            "site": {**site, "nome": nome, "hosts": [host], "url": url},
+            "mensagem": "Chat atualizado. Autorize o domínio novo nas Opções da extensão, se necessário.",
+        }
+    )
+
+
+@app.delete("/api/admin/sites/<site_id>")
+@exigir_sessao_api
+def api_remover_site(site_id: str):
+    site = db.obter_site(site_id)
+    if not site:
+        return jsonify({"erro": "Chat não encontrado."}), 404
+    if site["padrao"]:
+        raise ErroValidacao("Os chats padrão não podem ser excluídos; desative-os se não quiser monitorar.")
+    if db.remover_site(site_id) == 0:
+        return jsonify({"erro": "Chat não encontrado."}), 404
+
+    politica = obter_politica_monitoramento()
+    ativos = [item for item in politica["sites_ativos"] if item != site_id]
+    salvar_sites_ativos(ativos)
+    invalidar_cache_config()
+    return jsonify(
+        {
+            "sites_ativos": ativos,
+            "mensagem": "Chat excluído. A política das extensões foi atualizada."
+            if ativos
+            else "Chat excluído. Nenhum chat ativo restou, então o monitoramento foi pausado.",
         }
     )
 
@@ -2066,7 +2288,7 @@ def api_sincronizar_dispositivos():
     """Marca a configuração como nova para todos os dispositivos.
 
     Não há conexão aberta com cada navegador. A extensão consulta a versão a
-    cada minuto e baixa a matriz quando percebe a mudança, sem botão manual.
+    cada 30 segundos e baixa a matriz quando percebe a mudança, sem botão manual.
     """
     invalidar_cache_config()
     return jsonify(
@@ -2090,7 +2312,7 @@ def avisar_configuracao() -> None:
         print("[AVISO] SECRET_KEY de desenvolvimento. Defina SENTINELA_SECRET_KEY.")
     print("[Sentinela] Banco: Postgres externo (SENTINELA_DB_URL)")
     print(f"[Sentinela] Usuário admin: {ADMIN_USUARIO}")
-    print("[Sentinela] Código de instalação: painel → seção 06 · Instalação.")
+    print("[Sentinela] Código de instalação: painel → Instalação e acesso.")
 
 
 avisar_configuracao()

@@ -71,7 +71,7 @@
       "descricao": "Valores, orçamento e resultados da companhia. Publicação somente em canais aprovados.",
       "regras": [
         {
-          "nome": "Nome de conta ou setor",
+          "nome": "Nome de conta ou departamento",
           "tipo": "palavra-chave",
           "padrao": "centro de custo, nome da conta, setor financeiro, cost center, account name, finance department",
           "risco": "baixo"

@@ -65,6 +65,31 @@ MENSAGEM_BAIXO_ANTERIOR = (
     "Ainda assim, revise o conteúdo antes de compartilhá-lo."
 )
 
+# Textos usados até a versão 2.9. A atualização só ocorre enquanto o texto ainda
+# for o padrão; mensagens personalizadas no painel nunca são sobrescritas.
+MENSAGENS_DA_VERSAO_ANTERIOR = {
+    "baixo": (
+        "Nenhum dado de risco médio ou alto foi identificado neste conteúdo. Revise antes de "
+        "compartilhar: o envio fica registrado no painel de governança."
+    ),
+    "medio": (
+        "Esta informação contém dados internos que podem apresentar riscos à empresa. Evite "
+        "compartilhar informações desnecessárias e verifique as regras de uso de IA da empresa "
+        "antes do compartilhamento."
+    ),
+    "alto": (
+        "Esta informação contém dados confidenciais, pessoais, estratégicos ou relacionados à "
+        "segurança da empresa. Não compartilhe com uma IA pública. Remova os dados sensíveis ou "
+        "utilize uma ferramenta de IA corporativa autorizada."
+    ),
+}
+
+# Nomes de regras padrão que mudaram sem alterar o identificador da regra.
+# A atualização preserva o histórico e só atinge o nome exato da versão anterior.
+RENOMEACOES_DE_REGRAS = {
+    "Nome de conta ou setor": "Nome de conta ou departamento",
+}
+
 MENSAGENS_PADRAO = json.loads(CAMINHO_MENSAGENS.read_text(encoding="utf-8"))
 SITES_MONITORADOS = json.loads(CAMINHO_SITES.read_text(encoding="utf-8"))["sites"]
 SITES_PADRAO = [site["id"] for site in SITES_MONITORADOS]
@@ -134,6 +159,7 @@ CREATE TABLE IF NOT EXISTS usuarios_admin (
 
 CREATE TABLE IF NOT EXISTS dispositivos (
     id text PRIMARY KEY,
+    colaborador text,
     setor text,
     ip text,
     versao text,
@@ -145,6 +171,17 @@ CREATE TABLE IF NOT EXISTS dispositivos (
 
 CREATE INDEX IF NOT EXISTS idx_dispositivos_ultimo_visto ON dispositivos(ultimo_visto DESC);
 CREATE INDEX IF NOT EXISTS idx_dispositivos_codigo ON dispositivos(codigo_versao);
+
+CREATE TABLE IF NOT EXISTS sites_monitorados (
+    id text PRIMARY KEY,
+    nome text NOT NULL,
+    hosts text NOT NULL,
+    campos text NOT NULL,
+    enviar text NOT NULL,
+    padrao integer NOT NULL DEFAULT 0 CHECK (padrao IN (0, 1)),
+    criado_em text NOT NULL,
+    atualizado_em text NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS schema_migrations (
     versao text PRIMARY KEY,
@@ -306,6 +343,23 @@ MIGRACOES = [
             ON CONFLICT(chave) DO NOTHING;
         """,
     ),
+    (
+        "005_sites_editaveis_e_colaborador_dispositivo",
+        """
+        ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS colaborador text;
+
+        CREATE TABLE IF NOT EXISTS sites_monitorados (
+            id text PRIMARY KEY,
+            nome text NOT NULL,
+            hosts text NOT NULL,
+            campos text NOT NULL,
+            enviar text NOT NULL,
+            padrao integer NOT NULL DEFAULT 0 CHECK (padrao IN (0, 1)),
+            criado_em text NOT NULL,
+            atualizado_em text NOT NULL
+        );
+        """,
+    ),
 ]
 
 
@@ -386,6 +440,33 @@ def _semear_matriz(conexao_aberta: _Conexao, forcar_atualizacao: bool) -> None:
                 )
 
 
+def _semear_sites(conexao_aberta: _Conexao) -> None:
+    """Garante no banco os chats conhecidos do catálogo.
+
+    Os sites padrão podem ter nome/URL editados no painel. Por isso o seed usa
+    DO NOTHING: ele cria o que falta, mas não desfaz uma edição do cliente.
+    """
+    agora = datetime.now().isoformat(timespec="seconds")
+    for site in SITES_MONITORADOS:
+        conexao_aberta.execute(
+            """
+            INSERT INTO sites_monitorados
+                (id, nome, hosts, campos, enviar, padrao, criado_em, atualizado_em)
+            VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+            ON CONFLICT(id) DO NOTHING
+            """,
+            (
+                site["id"],
+                site["nome"],
+                json.dumps(site["hosts"], ensure_ascii=False),
+                json.dumps(site.get("campos", []), ensure_ascii=False),
+                json.dumps(site.get("enviar", []), ensure_ascii=False),
+                agora,
+                agora,
+            ),
+        )
+
+
 def _migrar_senhas_em_texto(conexao_aberta: _Conexao) -> None:
     """Converte senhas antigas gravadas sem hash para scrypt.
 
@@ -413,6 +494,12 @@ def inicializar_banco(usuario: str, senha: str) -> None:
         # dois cold starts poderiam tentar semear o banco ao mesmo tempo.
         conexao_aberta.execute("SELECT pg_advisory_xact_lock(728028)")
         _aplicar_migracoes(conexao_aberta)
+        _semear_sites(conexao_aberta)
+
+        for nome_antigo, nome_novo in RENOMEACOES_DE_REGRAS.items():
+            conexao_aberta.execute(
+                "UPDATE regras SET nome = ? WHERE nome = ?", (nome_novo, nome_antigo)
+            )
 
         versao = conexao_aberta.execute(
             "SELECT valor FROM configuracoes WHERE chave = 'matriz_versao'"
@@ -445,6 +532,11 @@ def inicializar_banco(usuario: str, senha: str) -> None:
             "UPDATE mensagens SET texto = ? WHERE nivel = 'baixo' AND texto = ?",
             (MENSAGENS_PADRAO["baixo"], MENSAGEM_BAIXO_ANTERIOR),
         )
+        for nivel, texto_anterior in MENSAGENS_DA_VERSAO_ANTERIOR.items():
+            conexao_aberta.execute(
+                "UPDATE mensagens SET texto = ? WHERE nivel = ? AND texto = ?",
+                (MENSAGENS_PADRAO[nivel], nivel, texto_anterior),
+            )
 
         conexao_aberta.execute(
             """
@@ -579,6 +671,116 @@ def token_versao_api() -> int:
         return 1
 
 
+def _site_da_linha(linha) -> dict:
+    item = dict(linha)
+    for campo in ("hosts", "campos", "enviar"):
+        try:
+            valor = json.loads(item.get(campo) or "[]")
+        except (TypeError, ValueError):
+            valor = []
+        item[campo] = valor if isinstance(valor, list) else []
+    item["padrao"] = bool(item.get("padrao"))
+    return item
+
+
+def listar_sites() -> list:
+    """Catálogo de chats monitoráveis, incluindo os adicionados no painel."""
+    conexao_aberta = conectar()
+    try:
+        linhas = conexao_aberta.execute(
+            """
+            SELECT id, nome, hosts, campos, enviar, padrao, criado_em, atualizado_em
+            FROM sites_monitorados
+            ORDER BY padrao DESC, LOWER(nome)
+            """
+        ).fetchall()
+        return [_site_da_linha(linha) for linha in linhas]
+    finally:
+        conexao_aberta.close()
+
+
+def obter_site(site_id: str):
+    conexao_aberta = conectar()
+    try:
+        linha = conexao_aberta.execute(
+            """
+            SELECT id, nome, hosts, campos, enviar, padrao, criado_em, atualizado_em
+            FROM sites_monitorados WHERE id = ?
+            """,
+            (site_id,),
+        ).fetchone()
+        return _site_da_linha(linha) if linha else None
+    finally:
+        conexao_aberta.close()
+
+
+def criar_site(
+    site_id: str,
+    nome: str,
+    hosts: list,
+    campos: list,
+    enviar: list,
+) -> str:
+    agora = datetime.now().isoformat(timespec="seconds")
+    conexao_aberta = conectar()
+    try:
+        conexao_aberta.execute(
+            """
+            INSERT INTO sites_monitorados
+                (id, nome, hosts, campos, enviar, padrao, criado_em, atualizado_em)
+            VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+            """,
+            (
+                site_id,
+                nome,
+                json.dumps(hosts, ensure_ascii=False),
+                json.dumps(campos, ensure_ascii=False),
+                json.dumps(enviar, ensure_ascii=False),
+                agora,
+                agora,
+            ),
+        )
+        conexao_aberta.commit()
+        return site_id
+    finally:
+        conexao_aberta.close()
+
+
+def atualizar_site(site_id: str, nome: str, hosts: list) -> int:
+    conexao_aberta = conectar()
+    try:
+        cursor = conexao_aberta.execute(
+            """
+            UPDATE sites_monitorados
+            SET nome = ?, hosts = ?, atualizado_em = ?
+            WHERE id = ?
+            """,
+            (
+                nome,
+                json.dumps(hosts, ensure_ascii=False),
+                datetime.now().isoformat(timespec="seconds"),
+                site_id,
+            ),
+        )
+        conexao_aberta.commit()
+        return cursor.rowcount
+    finally:
+        conexao_aberta.close()
+
+
+def remover_site(site_id: str) -> int:
+    """Só remove chats adicionados pelo cliente; os quatro padrão são protegidos."""
+    conexao_aberta = conectar()
+    try:
+        cursor = conexao_aberta.execute(
+            "DELETE FROM sites_monitorados WHERE id = ? AND padrao = 0", (site_id,)
+        )
+        conexao_aberta.commit()
+        return cursor.rowcount
+    finally:
+        conexao_aberta.close()
+
+
 def versao_config() -> str:
     """Versão leve da configuração, consultada pelas extensões a cada minuto."""
     return ler_configuracao("config_versao", "1")
@@ -631,6 +833,7 @@ def renovar_token_api() -> dict:
 
 def registrar_dispositivo(
     dispositivo_id: str,
+    colaborador: str,
     setor: str,
     ip: str,
     versao: str,
@@ -638,30 +841,47 @@ def registrar_dispositivo(
 ) -> int:
     """Cria ou atualiza o último contato de uma instalação da extensão.
 
-    A linha revogada nunca volta a ficar ativa por este caminho; o painel é o
-    único lugar que pode liberar o dispositivo novamente.
+    Um dispositivo desconectado volta a ficar ativo quando recebe um código de
+    instalação mais novo (o código anterior foi renovado). Com o mesmo código,
+    ele continua bloqueado. Assim o colaborador consegue reconfigurar a máquina
+    sem precisar apagar a extensão ou esperar intervenção no banco.
     """
     agora = datetime.utcnow().isoformat(timespec="seconds")
     conexao_aberta = conectar()
     try:
         existente = conexao_aberta.execute(
-            "SELECT ativo FROM dispositivos WHERE id = ?", (dispositivo_id,)
+            "SELECT ativo, codigo_versao FROM dispositivos WHERE id = ?",
+            (dispositivo_id,),
         ).fetchone()
         if existente and not existente["ativo"]:
-            return 0
+            if int(codigo_versao) <= int(existente["codigo_versao"] or 0):
+                return 0
+            conexao_aberta.execute(
+                """
+                UPDATE dispositivos
+                SET colaborador = ?, setor = ?, ip = ?, versao = ?,
+                    codigo_versao = ?, ativo = 1, ultimo_visto = ?
+                WHERE id = ?
+                """,
+                (colaborador, setor, ip, versao, codigo_versao, agora, dispositivo_id),
+            )
+            conexao_aberta.commit()
+            return 1
+
         conexao_aberta.execute(
             """
             INSERT INTO dispositivos
-                (id, setor, ip, versao, codigo_versao, ativo, primeiro_visto, ultimo_visto)
-            VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+                (id, colaborador, setor, ip, versao, codigo_versao, ativo, primeiro_visto, ultimo_visto)
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
+                colaborador = excluded.colaborador,
                 setor = excluded.setor,
                 ip = excluded.ip,
                 versao = excluded.versao,
                 codigo_versao = excluded.codigo_versao,
                 ultimo_visto = excluded.ultimo_visto
             """,
-            (dispositivo_id, setor, ip, versao, codigo_versao, agora, agora),
+            (dispositivo_id, colaborador, setor, ip, versao, codigo_versao, agora, agora),
         )
         conexao_aberta.commit()
         return 1
@@ -670,18 +890,32 @@ def registrar_dispositivo(
 
 
 def dispositivo_revogado(dispositivo_id: str) -> bool:
-    """Retorna True somente para um dispositivo que o painel desconectou."""
+    """Retorna True quando o dispositivo desconectado ainda usa o código antigo.
+
+    Depois de uma renovação, a extensão que salvar o código novo pode consultar
+    a configuração e se registrar novamente. Sem essa exceção, um dispositivo
+    desconectado ficaria bloqueado para sempre mesmo com um código válido.
+    """
     if not dispositivo_id:
         return False
     conexao_aberta = conectar()
     try:
         linha = conexao_aberta.execute(
-            "SELECT ativo FROM dispositivos WHERE id = ?", (dispositivo_id,)
+            "SELECT ativo, codigo_versao FROM dispositivos WHERE id = ?",
+            (dispositivo_id,),
         ).fetchone()
-        return bool(linha and not linha["ativo"])
+        if not linha or linha["ativo"]:
+            return False
+        versao = conexao_aberta.execute(
+            "SELECT valor FROM configuracoes WHERE chave = 'api_token_versao'"
+        ).fetchone()
+        try:
+            atual = int(versao["valor"]) if versao else 0
+        except (TypeError, ValueError):
+            atual = 0
+        return int(linha["codigo_versao"] or 0) >= atual
     finally:
         conexao_aberta.close()
-
 
 
 def listar_dispositivos() -> list:
@@ -689,7 +923,7 @@ def listar_dispositivos() -> list:
     try:
         linhas = conexao_aberta.execute(
             """
-            SELECT id, setor, ip, versao, codigo_versao, primeiro_visto, ultimo_visto
+            SELECT id, colaborador, setor, ip, versao, codigo_versao, primeiro_visto, ultimo_visto
             FROM dispositivos
             WHERE ativo = 1
             ORDER BY ultimo_visto DESC

@@ -39,8 +39,13 @@
 
     caixa.className = "lp-demo-caixa demo-" + resultado.nivel;
     nivel.textContent = "Risco " + ROTULOS[resultado.nivel];
-    contagem.textContent = resultado.deteccoes.length
-      ? resultado.deteccoes.length + " tipo(s) · " + resultado.totalOcorrencias + " ocorrência(s)"
+    var totalTipos = resultado.deteccoes.length;
+    var totalOcorrencias = resultado.totalOcorrencias;
+    contagem.textContent = totalTipos
+      ? totalTipos +
+        (totalTipos === 1 ? " tipo · " : " tipos · ") +
+        totalOcorrencias +
+        (totalOcorrencias === 1 ? " ocorrência" : " ocorrências")
       : "sem detecções";
 
     tipos.replaceChildren();

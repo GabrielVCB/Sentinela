@@ -7,8 +7,7 @@ export default function NotFound() {
       <p className="rotulo">Erro 404</p>
       <h1 className="mt-5 font-serif text-6xl tracking-tight">Página não encontrada.</h1>
       <p className="mt-4 max-w-sm text-sm leading-6 text-muted-foreground">
-        Esta prévia tem apenas a página inicial e a demonstração local. O painel administrativo é
-        servido pelo Flask.
+        O endereço não existe ou foi movido. Volte à página inicial para continuar.
       </p>
       <div className="mt-8 flex flex-wrap justify-center gap-3">
         <Button asChild className="rounded-sm">

@@ -311,13 +311,6 @@ body.opcoes {
   margin-bottom: 18px;
 }
 
-.secao-titulo .numero {
-  font-size: 10px;
-  color: var(--cinza-claro);
-  padding-top: 4px;
-  font-variant-numeric: tabular-nums;
-}
-
 .secao-titulo h2 {
   font-family: Georgia, "Times New Roman", serif;
   font-weight: 400;
@@ -335,7 +328,6 @@ body.opcoes {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  padding-left: 26px;
 }
 
 .campo {
@@ -411,9 +403,43 @@ body.opcoes {
   margin: 0;
 }
 
+.sites-status {
+  list-style: none;
+  margin: 0 0 14px 26px;
+  padding: 0;
+  border-top: 1px solid var(--linha);
+}
+
+.sites-status li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--linha);
+  font-size: 11px;
+  color: var(--tinta-suave, #55554f);
+}
+
+.sites-status li strong {
+  font-weight: 600;
+  color: var(--tinta);
+}
+
+.sites-status li span {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 10px;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.sites-status li.micro {
+  display: block;
+  color: var(--cinza-claro);
+}
+
 .resumo {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
   margin-left: 26px;
   border-top: 1px solid var(--linha);
@@ -469,6 +495,10 @@ body.opcoes {
     grid-template-columns: 1fr;
     margin-left: 0;
     padding-left: 0;
+  }
+
+  .sites-status {
+    margin-left: 0;
   }
 
   .acoes,

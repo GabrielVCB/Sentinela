@@ -3,66 +3,46 @@
 
 {% block corpo %}
 <main class="login-pagina">
-  <aside class="login-editorial">
+  <header class="login-topo">
     <a class="marca-bloco" href="{{ url_for('landing') }}">
       <span class="marca">Sentinela</span>
       <span class="micro">governança de ia</span>
     </a>
+  </header>
 
-    <div class="login-texto">
-      <p class="rotulo">Painel administrativo</p>
-      <h1>O aviso chega antes do envio.</h1>
-      <p class="subtitulo">
-        Governança, auditoria e letramento em IA. Acompanhe os alertas de vazamento sem
-        armazenar uma única linha do texto digitado.
-      </p>
+  <div class="login-conteudo">
+    <section class="login-formulario" aria-labelledby="login-titulo">
+      <div class="login-caixa">
+        <p class="rotulo">Painel administrativo</p>
+        <h1 id="login-titulo">Entrar</h1>
+        <p class="subtitulo">Informe suas credenciais de administrador.</p>
 
-      <dl class="lista-principios">
-        <div><dt>Regras editáveis</dt><dd>por área e nível de risco</dd></div>
-        <div><dt>Auditoria sem conteúdo</dt><dd>somente metadados</dd></div>
-        <div><dt>Letramento</dt><dd>envios × cancelamentos</dd></div>
-      </dl>
-    </div>
+        <form method="post" action="{{ url_for('login') }}" class="formulario-login">
+          <label class="campo">
+            <span class="rotulo">Usuário</span>
+            <input type="text" name="usuario" value="{{ usuario or '' }}" autocomplete="username" required autofocus />
+          </label>
+          <label class="campo">
+            <span class="rotulo">Senha</span>
+            <input type="password" name="senha" autocomplete="current-password" required />
+          </label>
 
-    <p class="nota-rodape">Sentinela · governança de IA · servidor na nuvem</p>
-  </aside>
+          {% if erro %}
+          <p class="mensagem-erro" role="alert">{{ erro }}</p>
+          {% endif %}
 
-  <section class="login-formulario">
-    <div class="login-caixa">
-      <a class="marca-bloco login-marca-mobile" href="{{ url_for('landing') }}">
-        <span class="marca">Sentinela</span>
-        <span class="micro">governança de ia</span>
-      </a>
+          <button type="submit" class="botao primario largo">Entrar</button>
+        </form>
 
-      <p class="rotulo">Acesso restrito</p>
-      <h2>Entrar no painel</h2>
-      <p class="subtitulo">Use as credenciais definidas nas variáveis de ambiente do servidor.</p>
+        <p class="nota-rodape">
+          Acesso restrito a administradores autorizados. A sessão expira após 8 horas.
+        </p>
 
-      <form method="post" action="{{ url_for('login') }}" class="formulario-login">
-        <label class="campo">
-          <span class="rotulo">Usuário</span>
-          <input type="text" name="usuario" value="{{ usuario or '' }}" autocomplete="username" required autofocus />
-        </label>
-        <label class="campo">
-          <span class="rotulo">Senha</span>
-          <input type="password" name="senha" autocomplete="current-password" required />
-        </label>
-
-        {% if erro %}
-        <p class="mensagem-erro" role="alert">{{ erro }}</p>
-        {% endif %}
-
-        <button type="submit" class="botao primario largo">Entrar</button>
-      </form>
-
-      <p class="nota-rodape">
-        O acesso é restrito a pessoas autorizadas. As sessões expiram em oito horas.
-      </p>
-
-      <p class="nota-rodape">
-        <a href="{{ url_for('landing') }}">← Voltar para a página inicial</a>
-      </p>
-    </div>
-  </section>
+        <a class="botao login-voltar" href="{{ url_for('landing') }}">
+          <span aria-hidden="true">←</span> Voltar para a página inicial
+        </a>
+      </div>
+    </section>
+  </div>
 </main>
 {% endblock %}

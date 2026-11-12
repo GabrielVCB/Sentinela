@@ -335,7 +335,7 @@
     var risco =
       pareceCodigoFonte(limpo) || limpo.length >= 6000 || linhas >= 80 ? "alto" : "medio";
     return {
-      tipo: "Colagem de bloco extenso",
+      tipo: "Colagem de texto longo",
       area: "Segurança da Informação",
       risco: risco,
       ocorrencias: 1,

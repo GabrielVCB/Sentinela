@@ -11,32 +11,25 @@
 
     <nav class="menu-nav" aria-label="Painel">
       <button class="item ativo" type="button" data-ir="visao">
-        <span class="numero">01</span>
-        <span><strong>Visão geral</strong><small>Indicadores e departamentos críticos</small></span>
+        <span><strong>Visão geral</strong></span>
       </button>
       <button class="item" type="button" data-ir="regras">
-        <span class="numero">02</span>
-        <span><strong>Regras</strong><small>Detectores editáveis</small></span>
+        <span><strong>Regras de detecção</strong></span>
       </button>
       <button class="item" type="button" data-ir="areas">
-        <span class="numero">03</span>
-        <span><strong>Áreas</strong><small>Matriz de risco</small></span>
+        <span><strong>Áreas de risco</strong></span>
       </button>
       <button class="item" type="button" data-ir="mensagens">
-        <span class="numero">04</span>
-        <span><strong>Mensagens</strong><small>Texto educativo</small></span>
+        <span><strong>Mensagens educativas</strong></span>
       </button>
       <button class="item" type="button" data-ir="alertas">
-        <span class="numero">05</span>
-        <span><strong>Alertas</strong><small>Auditoria e retenção</small></span>
+        <span><strong>Alertas</strong></span>
       </button>
       <button class="item" type="button" data-ir="instalacao">
-        <span class="numero">06</span>
-        <span><strong>Instalação</strong><small>Extensões e acessos</small></span>
+        <span><strong>Instalação e acesso</strong></span>
       </button>
       <button class="item" type="button" data-ir="monitoramento">
-        <span class="numero">07</span>
-        <span><strong>Monitoramento</strong><small>Sites e ativação</small></span>
+        <span><strong>Monitoramento</strong></span>
       </button>
     </nav>
 
@@ -49,19 +42,16 @@
 
   <main class="conteudo">
     <div class="topo">
-      <p class="rotulo" id="secao-descricao">Indicadores, evolução e departamentos críticos.</p>
       <p class="rotulo">Painel administrativo</p>
     </div>
 
-    <!-- 01 · Visão geral -->
     <section class="secao ativa" data-painel="visao">
       <header class="secao-cabecalho">
         <div>
-          <p class="rotulo">01 · Visão geral</p>
-          <h1>Relatórios de letramento</h1>
+          <h1>Visão geral</h1>
           <p class="subtitulo">
-            O que os colaboradores levaram para fora — e o que decidiram revisar. Todos os
-            números vêm de metadados; nenhum texto de conversa é armazenado.
+            Alertas gerados e decisões tomadas após o aviso. Todos os indicadores usam apenas
+            metadados.
           </p>
         </div>
         <button type="button" class="botao" id="atualizar-resumo">Atualizar</button>
@@ -69,7 +59,7 @@
 
       <div class="metricas">
         <div>
-          <p class="rotulo">Alertas registrados</p>
+          <p class="rotulo">Alertas</p>
           <p class="metrica" id="kpi-total">0</p>
           <p class="micro" id="kpi-total-detalhe">carregando…</p>
         </div>
@@ -79,12 +69,12 @@
           <p class="micro" id="kpi-alto-detalhe">—</p>
         </div>
         <div>
-          <p class="rotulo">Enviou mesmo assim</p>
+          <p class="rotulo">Envios após o aviso</p>
           <p class="metrica" id="kpi-envio">0%</p>
           <p class="micro" id="kpi-envio-detalhe">—</p>
         </div>
         <div>
-          <p class="rotulo">Tipos distintos</p>
+          <p class="rotulo">Tipos de dado detectados</p>
           <p class="metrica" id="kpi-tipos">0</p>
           <p class="micro">categorias detectadas</p>
         </div>
@@ -101,17 +91,14 @@
       <div class="grade-tres">
         <section class="bloco-painel">
           <h2>Distribuição por risco</h2>
-          <p class="micro">Participação de cada nível no total.</p>
           <div id="grafico-risco" class="grafico-donut"></div>
         </section>
         <section class="bloco-painel">
           <h2>Decisão do colaborador</h2>
-          <p class="micro">Enviou mesmo assim ou cancelou após o aviso.</p>
           <div id="grafico-acao" class="grafico-donut"></div>
         </section>
         <section class="bloco-painel">
           <h2>Sites com mais alertas</h2>
-          <p class="micro">Onde a extensão encontrou conteúdo sensível.</p>
           <div id="barras-sites"></div>
         </section>
       </div>
@@ -119,29 +106,28 @@
       <div class="grade-duas">
         <section class="bloco-painel">
           <h2>Risco alto por departamento</h2>
-          <p class="micro">Absoluto de alertas classificados como alto.</p>
+          <p class="micro">Alertas de risco alto / total de alertas.</p>
           <div id="barras-departamento"></div>
         </section>
         <section class="bloco-painel">
           <h2>Tipos mais detectados</h2>
-          <p class="micro">Frequência por tipo, independente do nível.</p>
           <ol id="lista-tipos" class="lista-tipos"></ol>
         </section>
       </div>
 
       <section class="bloco-painel">
         <div class="linha-titulo">
-          <h2>Enviou mesmo assim × cancelou</h2>
+          <h2>Efetividade dos avisos por departamento</h2>
           <form id="form-limiar" class="form-inline">
             <label class="campo-inline">
-              <span class="rotulo">Tolerância de Risco (%)</span>
+              <span class="rotulo">Limite de criticidade (%)</span>
               <input type="number" id="limiar" min="0" max="100" value="{{ limiar_padrao }}" />
             </label>
             <button type="submit" class="botao">Aplicar</button>
           </form>
         </div>
         <p class="micro">
-          Indicador de letramento: quanto maior a fatia escura, menor a efetividade dos avisos.
+          Barra escura = proporção de envios após o aviso. Quanto maior, menor a efetividade.
         </p>
 
         <div class="tabela-rolagem">
@@ -151,7 +137,7 @@
                 <th>Departamento</th>
                 <th class="direita">Alertas</th>
                 <th class="direita">Risco alto</th>
-                <th>Enviou mesmo assim</th>
+                <th>Envios após o aviso</th>
                 <th>Situação</th>
               </tr>
             </thead>
@@ -160,8 +146,8 @@
         </div>
 
         <p class="nota" id="nota-limiar">
-          Crítico = departamento com no mínimo 3 alertas e ao menos {{ limiar_padrao }}% deles em
-          risco alto.
+          Crítico = ao menos 3 alertas e {{ limiar_padrao }}% deles em risco alto. Em observação =
+          menos de 3 alertas.
         </p>
         <div id="gargalos"></div>
       </section>
@@ -169,28 +155,26 @@
       <section class="bloco-painel">
         <div class="linha-titulo">
           <h2>Últimos alertas</h2>
-          <button type="button" class="link" data-ir="alertas">Ver todos</button>
+          <button type="button" class="link" data-ir="alertas">Ver todos os alertas</button>
         </div>
         <ul id="ultimos" class="lista-simples"></ul>
       </section>
     </section>
 
-    <!-- 02 · Regras -->
     <section class="secao" data-painel="regras">
       <header class="secao-cabecalho">
         <div>
-          <p class="rotulo">02 · Regras</p>
-          <h1>Detectores editáveis</h1>
+          <h1>Regras de detecção</h1>
           <p class="subtitulo">
-            Cada regra pertence a uma área e carrega um nível de risco. A extensão recebe esta
-            lista automaticamente quando a matriz muda e aplica tudo localmente, no navegador.
+            Cada regra pertence a uma área e define um nível de risco. As alterações chegam às
+            extensões em até 1 minuto.
           </p>
         </div>
         <button type="button" class="botao primario" id="nova-regra">Nova regra</button>
       </header>
 
       <div class="barra-ferramentas">
-        <input type="search" id="busca-regras" placeholder="Buscar por nome, área ou padrão…" aria-label="Buscar regras" />
+        <input type="search" id="busca-regras" placeholder="Buscar por nome, área ou palavra-chave…" aria-label="Buscar regras" />
         <span class="rotulo" id="contador-regras"></span>
       </div>
 
@@ -210,22 +194,15 @@
         </table>
       </div>
 
-      <p class="nota">
-        Detectores técnicos sempre ativos: CPF e CNPJ com dígitos verificadores · IPv4 privado e
-        hostnames internos · tokens e chaves de API · senhas e credenciais · dados bancários ·
-        cartões com Luhn · heurística de código-fonte.
-      </p>
     </section>
 
-    <!-- 03 · Áreas -->
     <section class="secao" data-painel="areas">
       <header class="secao-cabecalho">
         <div>
-          <p class="rotulo">03 · Áreas</p>
-          <h1>Estrutura da matriz</h1>
+          <h1>Áreas de risco</h1>
           <p class="subtitulo">
-            As áreas organizam regras e alimentam os filtros. O nome é registrado no alerta como
-            departamento e o histórico é preservado após exclusões.
+            As áreas organizam as regras e são os departamentos que o colaborador escolhe na
+            extensão. Ao excluir uma área, o histórico de alertas é preservado.
           </p>
         </div>
         <button type="button" class="botao primario" id="nova-area">Nova área</button>
@@ -234,37 +211,32 @@
       <ul id="lista-areas" class="lista-areas"></ul>
     </section>
 
-    <!-- 04 · Mensagens -->
     <section class="secao" data-painel="mensagens">
       <header class="secao-cabecalho">
         <div>
-          <p class="rotulo">04 · Mensagens</p>
           <h1>Mensagens educativas</h1>
           <p class="subtitulo">
-            É o texto exibido no aviso da extensão, abaixo dos tipos detectados. A alteração chega
-            aos navegadores automaticamente em até 1 minuto.
+            Texto exibido no aviso da extensão, abaixo dos tipos detectados.
           </p>
         </div>
       </header>
       <div id="mensagens" class="grade-mensagens"></div>
     </section>
 
-    <!-- 05 · Alertas -->
     <section class="secao" data-painel="alertas">
       <header class="secao-cabecalho">
         <div>
-          <p class="rotulo">05 · Alertas</p>
-          <h1>Auditoria de envios</h1>
+          <h1>Alertas</h1>
           <p class="subtitulo">
-            Somente metadados: quem digitou (colaborador identificado), onde, qual risco, quais tipos e a
-            decisão de enviar ou cancelar.
+            Registro de metadados: colaborador, site, IP, origem, nível de risco, tipos detectados
+            e decisão. Nenhum prompt é armazenado.
           </p>
         </div>
         <div class="acoes-cabecalho">
           <a class="botao" id="exportar" href="{{ url_for('api_exportar_csv') }}">Exportar CSV</a>
           <a class="botao" id="exportar-pdf" href="{{ url_for('api_exportar_pdf') }}">Exportar PDF</a>
-          <button type="button" class="botao" id="abrir-idade">Limpar por idade</button>
-          <button type="button" class="botao perigo" id="limpar-tudo">Limpar tudo</button>
+          <button type="button" class="botao" id="abrir-idade">Excluir alertas antigos</button>
+          <button type="button" class="botao perigo" id="limpar-tudo">Excluir todos os alertas</button>
         </div>
       </header>
 
@@ -294,7 +266,7 @@
         </label>
         <div class="filtros-acoes">
           <button type="submit" class="botao primario">Aplicar</button>
-          <button type="button" class="botao" id="limpar-filtros">Limpar</button>
+          <button type="button" class="botao" id="limpar-filtros">Limpar filtros</button>
         </div>
       </form>
 
@@ -311,9 +283,9 @@
               <th>Site</th>
               <th>Origem</th>
               <th>Nível</th>
-              <th>Ação</th>
+              <th>Decisão</th>
               <th>Tipos</th>
-              <th class="direita">Ações</th>
+              <th class="direita" aria-label="Ações"></th>
             </tr>
           </thead>
           <tbody id="tabela-alertas"></tbody>
@@ -327,19 +299,16 @@
       </div>
     </section>
 
-    <!-- 06 · Instalação -->
     <section class="secao" data-painel="instalacao">
       <header class="secao-cabecalho">
         <div>
-          <p class="rotulo">06 · Instalação</p>
-          <h1>Extensões e administradores</h1>
+          <h1>Instalação e acesso</h1>
           <p class="subtitulo">
-            Este é o endereço e o código que a extensão usa nos computadores da empresa. Todo
-            envio de alerta precisa do código abaixo — a versão do servidor aparece ao lado.
+            Use o endereço do servidor e o código de instalação para conectar a extensão aos
+            computadores da empresa. Sem o código, o servidor recusa o registro de alertas.
           </p>
         </div>
         <div class="marcas-cabecalho">
-          <span class="badge" id="instalacao-modo">—</span>
           <span class="badge versao" id="instalacao-versao">—</span>
         </div>
       </header>
@@ -347,13 +316,26 @@
       <section class="bloco-painel">
         <div class="linha-titulo">
           <div>
-            <h2>Código de instalação</h2>
+            <h2>Pacote e código de instalação</h2>
             <p class="micro">
-              Cole este mesmo código nas Opções da extensão, em cada computador. Ele não dá acesso
-              ao painel: serve só para o servidor aceitar os alertas.
+              Entregue o ZIP e o código aos funcionários. O pacote já vem com o endereço do
+              servidor.
             </p>
           </div>
           <button type="button" class="botao" id="renovar-token">Renovar código</button>
+        </div>
+
+        <div class="instalacao-entrega">
+          <div class="codigo-bloco">
+            <p class="rotulo">Código de instalação</p>
+            <code id="instalacao-token" class="codigo-valor">—</code>
+          </div>
+          <div class="instalacao-entrega-acoes">
+            <button type="button" class="botao" id="copiar-token">Copiar código</button>
+            <a class="botao primario" href="{{ url_for('baixar_extensao_configurada') }}" download>
+              Baixar extensão (.zip)
+            </a>
+          </div>
         </div>
 
         <dl class="resumo-detalhe">
@@ -362,81 +344,20 @@
             <dd id="instalacao-url">—</dd>
           </div>
           <div>
-            <dt>Código de instalação</dt>
-            <dd><code id="instalacao-token" class="token-valor">—</code></dd>
-          </div>
-          <div>
-            <dt>Exigência do código</dt>
-            <dd id="instalacao-exigencia">—</dd>
-          </div>
-          <div>
-            <dt>Dispositivos conectados</dt>
-            <dd id="instalacao-dispositivos">—</dd>
-          </div>
-          <div>
-            <dt>Origem desta conexão</dt>
+            <dt>Seu IP</dt>
             <dd id="instalacao-origem">—</dd>
           </div>
           <div>
-            <dt>Banco de dados</dt>
+            <dt>Armazenamento</dt>
             <dd id="instalacao-banco">—</dd>
           </div>
         </dl>
-
-        <div class="acoes-cabecalho">
-          <button type="button" class="botao primario" id="copiar-token">Copiar código</button>
-        </div>
-
-        <p class="nota">
-          O mesmo código vale para todos os computadores. Ao renovar, o painel avisa quantos
-          dispositivos ainda estão vinculados ao código anterior.
-        </p>
-      </section>
-
-      <section class="bloco-painel">
-        <div class="linha-titulo">
-          <div>
-            <h2>Dispositivos conectados</h2>
-            <p class="micro">
-              Cada instalação da extensão recebe um identificador aleatório. O setor vem das
-              Opções; o IP é o endereço de rede visto pelo servidor.
-            </p>
-          </div>
-          <button type="button" class="botao" id="atualizar-dispositivos">Atualizar</button>
-        </div>
-
-        <div id="resumo-dispositivos" class="micro">—</div>
-
-        <div class="tabela-rolagem">
-          <table class="tabela tabela-dispositivos">
-            <thead>
-              <tr>
-                <th>Identificador</th>
-                <th>Setor</th>
-                <th>IP</th>
-                <th>Versão</th>
-                <th>Código</th>
-                <th>Último contato</th>
-                <th class="direita">Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tabela-dispositivos"></tbody>
-          </table>
-        </div>
-        <p class="nota">
-          Desconectar remove o dispositivo da lista e bloqueia novas regras e alertas até que a
-          extensão seja reinstalada e vinculada novamente.
-        </p>
       </section>
 
       <section class="bloco-painel">
         <div class="linha-titulo">
           <div>
             <h2>Administradores</h2>
-            <p class="micro">
-              O superadmin inicial é criado pelo servidor e não pode ser excluído. Ele cria e
-              remove contas comuns; cada pessoa troca a própria senha.
-            </p>
           </div>
           <button type="button" class="botao primario" id="novo-admin"{% if not superadmin %} hidden{% endif %}>Novo administrador</button>
         </div>
@@ -459,52 +380,120 @@
       </section>
     </section>
 
-    <!-- 07 · Monitoramento -->
     <section class="secao" data-painel="monitoramento">
       <header class="secao-cabecalho">
         <div>
-          <p class="rotulo">07 · Monitoramento</p>
-          <h1>Onde a extensão atua</h1>
+          <h1>Monitoramento</h1>
           <p class="subtitulo">
-            A política abaixo vale para todas as extensões conectadas a este servidor. As regras
-            e a política são aplicadas automaticamente em até 1 minuto, sem botão nas Opções.
+            Defina onde a extensão atua, cadastre chats e acompanhe os dispositivos conectados.
           </p>
         </div>
+        <span class="badge monitoramento-badge" id="monitoramento-status">—</span>
       </header>
+
+      <div class="monitoramento-kpis">
+        <div class="monitoramento-kpi">
+          <span class="rotulo">Chats ativos</span>
+          <strong id="monitoramento-chats">—</strong>
+          <small>de chats cadastrados</small>
+        </div>
+        <div class="monitoramento-kpi">
+          <span class="rotulo">Dispositivos</span>
+          <strong id="monitoramento-dispositivos">—</strong>
+          <small>com contato registrado</small>
+        </div>
+        <div class="monitoramento-kpi">
+          <span class="rotulo">Código atual</span>
+          <strong id="monitoramento-codigo">—</strong>
+          <small>versão de instalação</small>
+        </div>
+        <div class="monitoramento-kpi">
+          <span class="rotulo">Atualização</span>
+          <strong>1 min</strong>
+          <small>consulta automática</small>
+        </div>
+      </div>
+
+      <section class="bloco-painel bloco-ativacao">
+        <div class="linha-titulo">
+          <div>
+            <h2>Ativação geral</h2>
+            <p class="micro">
+              Pausar interrompe a análise e os avisos em todos os chats. A seleção de chats e as
+              regras continuam salvas.
+            </p>
+          </div>
+          <label class="interruptor-monitoramento">
+            <input type="checkbox" id="monitoramento-ativo" />
+            <span class="interruptor-trilho" aria-hidden="true"></span>
+            <span class="interruptor-texto" id="monitoramento-ativo-texto">Pausado</span>
+          </label>
+        </div>
+        <div class="faixa-status" id="faixa-monitoramento">
+          <span class="ponto-status-painel" aria-hidden="true"></span>
+          <p id="texto-monitoramento">Carregando política…</p>
+        </div>
+      </section>
 
       <section class="bloco-painel">
         <div class="linha-titulo">
           <div>
-            <h2>Ativação global</h2>
+            <h2>Chats monitorados</h2>
             <p class="micro">
-              Desligar interrompe a análise em todos os chats. Os sites escolhidos continuam
-              gravados para quando o monitoramento voltar.
+              Ative ou pause cada chat, edite a URL quando o endereço mudar ou adicione uma nova IA.
             </p>
           </div>
-          <label class="caixa-ativa">
-            <input type="checkbox" id="monitoramento-ativo" />
-            <span>Monitoramento ativo</span>
-          </label>
+          <button type="button" class="botao primario" id="adicionar-chat">Adicionar chat</button>
         </div>
 
         <div class="sites-painel" id="sites-monitorados"></div>
 
         <div class="acoes-cabecalho acoes-monitoramento">
           <button type="button" class="botao primario" id="salvar-monitoramento">
-            Salvar monitoramento
+            Salvar ativação
           </button>
           <button type="button" class="botao" id="sincronizar-todos">
             Sincronizar todos agora
           </button>
         </div>
         <p class="micro" id="sincronizacao-monitoramento">
-          A sincronização automática consulta o servidor a cada minuto e aplica a versão mais
-          recente em todos os dispositivos conectados.
+          As alterações são aplicadas automaticamente.
         </p>
+      </section>
 
+      <section class="bloco-painel">
+        <div class="linha-titulo">
+          <div>
+            <h2>Dispositivos conectados</h2>
+            <p class="micro">
+              Cada dispositivo é identificado pelo colaborador e por um ID técnico, usado para
+              desconectar uma máquina específica.
+            </p>
+          </div>
+          <button type="button" class="botao" id="atualizar-dispositivos">Atualizar</button>
+        </div>
+
+        <div id="resumo-dispositivos" class="micro">—</div>
+
+        <div class="tabela-rolagem">
+          <table class="tabela tabela-dispositivos">
+            <thead>
+              <tr>
+                <th>Colaborador</th>
+                <th>Dispositivo</th>
+                <th>Departamento</th>
+                <th>IP</th>
+                <th>Código</th>
+                <th>Último contato</th>
+                <th class="direita">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-dispositivos"></tbody>
+          </table>
+        </div>
         <p class="nota">
-          A extensão ainda analisa o conteúdo localmente; esta configuração só define se o
-          aviso aparece e em quais chats. Texto, imagens e PDFs nunca são enviados ao servidor.
+          Desconectar bloqueia novas regras e alertas daquele dispositivo. Ao renovar o código, a
+          máquina volta a conectar depois de salvar o novo código nas Opções.
         </p>
       </section>
     </section>
@@ -544,7 +533,7 @@
     </div>
 
     <label class="campo">
-      <span class="rotulo">Padrão</span>
+      <span class="rotulo">Termos ou expressão</span>
       <textarea id="regra-padrao" rows="3" maxlength="500" placeholder="Termos separados por vírgula ou expressão regular" required></textarea>
     </label>
 
@@ -565,7 +554,7 @@
 
     <div class="teste-regra">
       <p class="rotulo">Testar contra um texto</p>
-      <textarea id="regra-teste" rows="3" placeholder="Digite um texto de exemplo para validar o padrão."></textarea>
+      <textarea id="regra-teste" rows="3" placeholder="Digite um texto de exemplo para validar a regra."></textarea>
       <div class="linha-teste">
         <button type="button" class="botao" id="testar-regra">Testar regra</button>
         <p id="resultado-teste" class="resultado" role="status"></p>
@@ -626,7 +615,7 @@
   <div class="formulario-dialogo">
     <div class="dialogo-topo">
       <div>
-        <p class="rotulo">Detalhe do alerta</p>
+        <p class="rotulo">Detalhes do alerta</p>
         <h2 id="detalhe-titulo">Alerta</h2>
         <p class="micro" id="detalhe-sub"></p>
       </div>
@@ -648,6 +637,39 @@
       <button type="button" class="botao perigo" id="detalhe-excluir">Excluir alerta</button>
     </div>
   </div>
+</dialog>
+
+<!-- Diálogo: chat monitorado -->
+<dialog id="dialogo-site" class="dialogo dialogo-estreito">
+  <form id="form-site" class="formulario-dialogo">
+    <div class="dialogo-topo">
+      <div>
+        <p class="rotulo">Chat de IA</p>
+        <h2 id="titulo-site">Adicionar chat</h2>
+      </div>
+      <button type="button" class="fechar-dialogo" data-fecha="dialogo-site" aria-label="Fechar">×</button>
+    </div>
+
+    <input type="hidden" id="site-id" />
+
+    <label class="campo">
+      <span class="rotulo">Nome do chat</span>
+      <input type="text" id="site-nome" maxlength="60" placeholder="Ex.: Assistente interno" required />
+    </label>
+    <label class="campo">
+      <span class="rotulo">URL do chat</span>
+      <input type="url" id="site-url" placeholder="https://chat.exemplo.com" required />
+    </label>
+    <p class="micro" id="site-dica">
+      A extensão usa o domínio para reconhecer a página. Depois de salvar, autorize o novo
+      domínio nas Opções da extensão em cada computador.
+    </p>
+
+    <div class="dialogo-acoes">
+      <button type="button" class="botao" data-fecha="dialogo-site">Cancelar</button>
+      <button type="submit" class="botao primario">Salvar chat</button>
+    </div>
+  </form>
 </dialog>
 
 <!-- Diálogo: administrador -->
@@ -684,14 +706,13 @@
   </form>
 </dialog>
 
-<!-- Diálogo: limpeza por idade -->
+<!-- Diálogo: alertas antigos -->
 <dialog id="dialogo-idade" class="dialogo dialogo-estreito">
   <form id="form-idade" class="formulario-dialogo">
-    <p class="rotulo">Retenção</p>
-    <h2>Limpeza por idade</h2>
+    <p class="rotulo">Alertas antigos</p>
+    <h2>Excluir alertas antigos</h2>
     <p class="subtitulo">
-      Remove definitivamente os alertas mais antigos que o período informado. Os itens detectados
-      são removidos em cascata.
+      Exclui definitivamente os alertas mais antigos que o período informado.
     </p>
     <label class="campo">
       <span class="rotulo">Manter os últimos (dias)</span>
@@ -699,7 +720,7 @@
     </label>
     <div class="dialogo-acoes">
       <button type="button" class="botao" data-fecha="dialogo-idade">Cancelar</button>
-      <button type="submit" class="botao primario">Executar limpeza</button>
+      <button type="submit" class="botao primario">Excluir alertas</button>
     </div>
   </form>
 </dialog>

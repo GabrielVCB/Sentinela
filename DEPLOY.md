@@ -1,4 +1,4 @@
-# Deploy — Sentinela 2.9 no Render Free + Neon
+# Deploy da Sentinela 2.9 no Render Free + Neon
 
 Este é o caminho de custo zero do projeto: **Render Free** para o Flask, **Neon Free** para o
 Postgres e, opcionalmente, **UptimeRobot** para manter a demo acordada. O mesmo container pode
@@ -88,18 +88,25 @@ visita demora cerca de 1 minuto.
 
 1. Abra `https://SEU-SERVICO.onrender.com/painel`.
 2. Entre com `SENTINELA_ADMIN_USUARIO` e a senha informada.
-3. Em **07 · Monitoramento**, ative o monitoramento e escolha os sites.
-4. Confira **06 · Instalação**:
+3. Em **Monitoramento**, ative o monitoramento, escolha os chats ou adicione um novo chat
+   com nome e URL.
+4. Confira **Instalação e acesso**:
    - a URL pública;
    - o código de instalação;
    - a versão **2.9**;
    - o administrador inicial marcado como **Superadmin**.
-5. Confira **04 · Regras**: devem existir 44 regras iniciais.
+5. Confira **Regras de detecção**: devem existir 44 regras iniciais.
 6. Crie/edite uma regra e confirme que a extensão recebe a nova versão automaticamente; use
-   **Sincronizar todos agora** em **07 · Monitoramento** se quiser forçar a consulta.
-7. Instale a extensão e confirme que ela aparece em **06 · Instalação → Dispositivos conectados**.
+   **Sincronizar todos agora** em **Monitoramento** se quiser forçar a consulta.
+7. Instale a extensão pelo botão **Baixar extensão (.zip)** e confirme que ela aparece em
+   **Monitoramento → Dispositivos conectados**, com o colaborador informado nas Opções.
 
 ## 6. Instalar a extensão
+
+O botão **Baixar extensão (.zip)** monta o pacote na hora com `config.js` contendo a URL pública deste
+servidor. Ele fica no mesmo bloco do código de instalação, para os dois serem entregues juntos
+aos funcionários. O `public/sentinela-extensao.zip` do repositório é só o fallback de
+demonstração e pode ser regenerado com:
 
 ```bash
 rm -f public/sentinela-extensao.zip
@@ -108,13 +115,21 @@ zip -qr public/sentinela-extensao.zip extensao -x '*.DS_Store'
 
 O ZIP deve conter a pasta `extensao/` com `manifest.json` dentro. Em cada computador:
 
-1. Descompacte e recarregue em `chrome://extensions` ou `edge://extensions`.
-2. Abra **Opções**.
-3. Informe a URL do Render, o código de instalação, o departamento e o colaborador.
-4. Salve, autorize o host e use **Testar conexão**.
+1. Baixe o ZIP pelo painel em **Instalação e acesso → Baixar extensão (.zip)**. A URL do servidor já vem
+   preenchida; o ZIP público do repositório continua disponível para demonstração.
+2. Descompacte e recarregue em `chrome://extensions` ou `edge://extensions`.
+3. Abra **Opções** e confirme a URL preenchida; informe o código de instalação, o departamento e
+   o colaborador.
+4. Salve, autorize o servidor e os chats adicionais e use **Testar conexão**.
 5. Abra o ChatGPT/Gemini/Claude/Copilot e teste texto + imagem/PDF.
 
-A versão 2.9 pede a permissão `alarms`, usada para sincronizar a matriz e reenviar a fila.
+Chats adicionados no painel usam seletores genéricos de compositor. Se o site tiver uma estrutura
+muito específica, a autorização do domínio ainda é necessária e os seletores podem precisar de
+ajuste em `extensao/content.js`.
+
+A versão 2.9 pede as permissões `alarms` e `scripting`. A primeira sincroniza a matriz e
+reenvia a fila; a segunda injeta o detector nos chats adicionados pelo painel depois que o
+domínio for autorizado nas Opções.
 
 ## 7. Validar o deploy
 
@@ -134,8 +149,11 @@ No painel:
 - [ ] criar/editar/excluir uma regra e recarregar em outra instância mostra a mudança;
 - [ ] um alerta de teste aparece com site, departamento, colaborador, IP, nível, tipos e origem;
 - [ ] texto + imagem no mesmo prompt gera detecções das duas origens;
-- [ ] **06 · Instalação** mostra o endereço e o código corretos;
-- [ ] **07 · Monitoramento** ativa e desativa o aviso nos sites escolhidos;
+- [ ] **Instalação e acesso** mostra o endereço e o código corretos;
+- [ ] **Monitoramento** ativa/pausa globalmente e por chat, adiciona chat com URL e move os
+  dispositivos conectados para a mesma seção;
+- [ ] um dispositivo desconectado volta a conectar depois de renovar o código e salvar o novo
+  código nas Opções;
 - [ ] a extensão mostra **2.9** em `chrome://extensions`;
 - [ ] desligar a rede, gerar um alerta e religar: a fila reenvia em até 1 minuto;
 - [ ] o mesmo `evento_id` não duplica o alerta na auditoria.

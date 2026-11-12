@@ -1,9 +1,10 @@
 /** Sentinela — página de opções. */
 "use strict";
 
-// O endereço do servidor é copiado do painel; não há servidor local.
+// O pacote do painel injeta a URL pública em config.js. No ZIP público, o
+// campo continua editável como alternativa.
 const PADROES = {
-  serverUrl: "",
+  serverUrl: String(globalThis.SENTINELA_SERVIDOR_PADRAO || "").trim(),
   apiToken: "",
   departamento: "",
   colaborador: "",
@@ -11,6 +12,8 @@ const PADROES = {
 
 const el = {};
 let avisoPermissao = "";
+let sitesConhecidos = [];
+let sitesPendentes = [];
 
 /**
  * Servidor na internet exige permissão do navegador para ser acessado.
@@ -62,6 +65,10 @@ function enviar(mensagem) {
 function avisar(elemento, texto, tipo) {
   elemento.textContent = texto;
   elemento.className = "resultado " + (tipo || "");
+}
+
+function plural(total, singular, plural) {
+  return total + " " + (Number(total) === 1 ? singular : plural);
 }
 
 function quando(ms) {
@@ -132,7 +139,7 @@ async function carregarAreas(mostrarErro) {
       avisar(
         el.resultadoConexao,
         resposta.areas && resposta.areas.length
-          ? resposta.areas.length + " departamento(s) carregado(s)."
+          ? plural(resposta.areas.length, "departamento carregado", "departamentos carregados") + "."
           : "O servidor respondeu sem departamentos cadastrados.",
         resposta.areas && resposta.areas.length ? "ok" : "erro",
       );
@@ -157,10 +164,79 @@ function agendarAreas() {
   }, 500);
 }
 
+function desenharSites(sites, pendentes) {
+  sitesConhecidos = Array.isArray(sites) ? sites.slice() : [];
+  sitesPendentes = Array.isArray(pendentes) ? pendentes.slice() : [];
+  el.sitesStatus.replaceChildren();
+
+  if (!sitesConhecidos.length) {
+    const vazio = document.createElement("li");
+    vazio.className = "micro";
+    vazio.textContent = "Nenhum chat carregado ainda. Salve a configuração para consultar o painel.";
+    el.sitesStatus.appendChild(vazio);
+  } else {
+    sitesConhecidos.forEach(function (site) {
+      const item = document.createElement("li");
+      const nome = document.createElement("strong");
+      nome.textContent = site.nome || site.id;
+      const host = document.createElement("span");
+      host.textContent = (site.hosts || []).join(" · ");
+      item.appendChild(nome);
+      item.appendChild(host);
+      el.sitesStatus.appendChild(item);
+    });
+  }
+
+  if (sitesPendentes.length) {
+    el.permissaoSites.textContent =
+      "Falta autorizar: " + sitesPendentes.join(", ") + ". Use o botão abaixo.";
+    el.permissaoSites.className = "dica erro";
+    el.autorizarSites.hidden = false;
+  } else {
+    el.permissaoSites.textContent = sitesConhecidos.length
+      ? "Todos os domínios configurados estão autorizados neste navegador."
+      : "";
+    el.permissaoSites.className = "dica";
+    el.autorizarSites.hidden = !sitesConhecidos.length;
+  }
+}
+
+async function autorizarSites() {
+  if (!sitesPendentes.length) return;
+  const origens = [];
+  sitesPendentes.forEach(function (host) {
+    origens.push("https://" + host + "/*");
+    origens.push("https://*." + host + "/*");
+  });
+  try {
+    const concedido = await chrome.permissions.request({ origins: origens });
+    if (!concedido) {
+      avisar(el.resultadoConexao, "O navegador não autorizou os domínios adicionais.", "erro");
+      return;
+    }
+    const sincronizado = await enviar({ tipo: "SINCRONIZAR_AGORA" });
+    if (sincronizado.ok) {
+      avisar(el.resultadoConexao, "Chats autorizados. A extensão já pode analisar esses domínios.", "ok");
+    }
+    await carregar();
+  } catch (erro) {
+    avisar(
+      el.resultadoConexao,
+      erro instanceof Error ? erro.message : "Falha ao pedir permissão.",
+      "erro",
+    );
+  }
+}
+
 function atualizarResumo(estado) {
-  el.regras.textContent = estado.cache ? estado.cache.totalRegras : 0;
   el.sincronizacao.textContent = estado.cache ? quando(estado.cache.atualizadoEm) : "nunca";
   el.versao.textContent = estado.versao || chrome.runtime.getManifest().version;
+  const politica = estado.configuracao || {};
+  const totalSites = Array.isArray(sitesConhecidos) ? sitesConhecidos.length : 0;
+  const ativos = Array.isArray(politica.sitesAtivos) ? politica.sitesAtivos.length : 0;
+  el.politica.textContent = politica.monitoramentoAtivo === false
+    ? "Pausado pelo painel"
+    : ativos + " de " + plural(totalSites, "chat ativo", "chats ativos");
 
   const status = estado.status;
   el.statusPonto.className =
@@ -178,6 +254,7 @@ async function carregar() {
   }
 
   const configuracao = Object.assign({}, PADROES, estado.configuracao || {});
+  if (!String(configuracao.serverUrl || "").trim()) configuracao.serverUrl = PADROES.serverUrl;
   el.servidor.value = configuracao.serverUrl || "";
   el.token.value = configuracao.apiToken || "";
   el.colaborador.value = configuracao.colaborador || "";
@@ -186,6 +263,7 @@ async function carregar() {
   montarDepartamentos(areas, configuracao.departamento);
   // Sem cache (primeira abertura), as áreas vêm do servidor na hora.
   if (!areas || !areas.length) void carregarAreas(false);
+  desenharSites(estado.sites, estado.sitesPendentes);
   atualizarResumo(estado);
 }
 
@@ -211,7 +289,7 @@ async function salvar(silencioso, completo) {
   if (/suaempresa\.com/i.test(servidor)) {
     avisar(
       el.resultadoSalvar,
-      "Troque a URL de exemplo pela URL do Render que aparece no painel em 06 · Instalação.",
+      "Troque a URL de exemplo pela URL do servidor que aparece no painel, em Instalação e acesso.",
       "erro",
     );
     return false;
@@ -221,7 +299,7 @@ async function salvar(silencioso, completo) {
   if (!codigo) {
     avisar(
       el.resultadoSalvar,
-      "Cole o código de instalação que aparece no painel, em 06 · Instalação.",
+      "Cole o código de instalação que aparece no painel, em Instalação e acesso.",
       "erro",
     );
     return false;
@@ -271,7 +349,7 @@ async function salvar(silencioso, completo) {
     } else if (!sincronizado.ok) {
       avisar(
         el.resultadoSalvar,
-        "Configurações salvas, mas o servidor recusou o código. Copie o valor de 06 · Instalação e salve de novo.",
+        "Configurações salvas, mas o servidor recusou o código. Copie o valor de Instalação e acesso e salve de novo.",
         "erro",
       );
     } else {
@@ -325,8 +403,11 @@ document.addEventListener("DOMContentLoaded", function () {
   el.token = document.getElementById("token");
   el.departamento = document.getElementById("departamento");
   el.colaborador = document.getElementById("colaborador");
-  el.regras = document.getElementById("regras");
   el.sincronizacao = document.getElementById("sincronizacao");
+  el.politica = document.getElementById("politica-monitoramento");
+  el.sitesStatus = document.getElementById("sites-status");
+  el.permissaoSites = document.getElementById("permissao-sites");
+  el.autorizarSites = document.getElementById("autorizar-sites");
   el.statusPonto = document.getElementById("status-ponto");
   el.resultadoConexao = document.getElementById("resultado-conexao");
   el.resultadoSalvar = document.getElementById("resultado-salvar");
@@ -335,6 +416,9 @@ document.addEventListener("DOMContentLoaded", function () {
   el.versao = document.getElementById("versao-extensao");
 
   el.testar.addEventListener("click", testar);
+  el.autorizarSites.addEventListener("click", function () {
+    void autorizarSites();
+  });
   el.salvar.addEventListener("click", function () {
     void salvar(false);
   });

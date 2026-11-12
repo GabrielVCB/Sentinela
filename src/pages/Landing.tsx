@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { motion } from "framer-motion";
 import { useAnaliseComDebounce } from "@/hooks/use-analise";
-import { BannerRisco } from "@/components/painel/BannerRisco";
 import { BaixarProjetoLink } from "@/components/BaixarProjeto";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { BannerRisco } from "@/components/painel/BannerRisco";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AREAS_SEED,
@@ -13,7 +13,7 @@ import {
   type Risco,
 } from "@/lib/dados";
 import type { RegraEntrada } from "@/lib/detectores";
-import { ArrowRight, ArrowUpRight, Download } from "lucide-react";
+import { ArrowRight, ArrowUpRight } from "lucide-react";
 
 // A prévia não tem login próprio: o painel real é servido pelo Flask.
 // Configure VITE_SENTINELA_URL com a URL pública do servidor.
@@ -27,6 +27,9 @@ const REGRAS_DEMO: RegraEntrada[] = AREAS_SEED.flatMap((area) =>
     area: area.nome,
     ativo: true,
   })),
+);
+const AREAS_ORDENADAS = [...AREAS_SEED].sort((a, b) =>
+  a.nome.localeCompare(b.nome, "pt-BR"),
 );
 
 const TEXTO_INICIAL =
@@ -54,27 +57,25 @@ const EXEMPLOS_DEMO = [
 const ETAPAS = [
   {
     numero: "01",
-    titulo: "Instalação sem loja",
-    texto:
-      "A extensão é instalada no Chrome ou no Edge em modo de desenvolvedor, sem passar por loja de extensões.",
+    titulo: "Implantação em minutos",
+    texto: "A extensão é instalada no Chrome ou no Edge a partir do pacote fornecido pelo painel.",
   },
   {
     numero: "02",
-    titulo: "Leitura no campo",
-    texto:
-      "MutationObserver encontra a caixa de texto de cada IA. A cada pausa na digitação, os detectores rodam no navegador.",
+    titulo: "Detecção no campo de texto",
+    texto:                  "A extensão localiza a caixa de texto de cada IA. Texto, colagens e anexos entram na análise.",
   },
   {
     numero: "03",
-    titulo: "Aviso no momento certo",
+    titulo: "Aviso antes do envio",
     texto:
-      "Um painel em Shadow DOM classifica o risco — inclusive quando é baixo —, lista os tipos e explica o que fazer. Em risco alto, o envio pede confirmação.",
+      "Um aviso aparece antes do envio, classifica o risco e orienta o colaborador. Em risco médio ou alto, pede confirmação.",
   },
   {
     numero: "04",
     titulo: "Auditoria sem conteúdo",
     texto:
-      "Só o alerta chega ao servidor: site, departamento, IP de origem, nível, tipos e a decisão do colaborador. Nunca o texto.",
+      "O painel recebe colaborador, IP e decisão, mas não o prompt. A empresa acompanha o risco sem acessar a conversa.",
   },
 ];
 
@@ -101,29 +102,20 @@ export default function Landing() {
             <span className="rotulo hidden sm:inline">governança de ia</span>
           </Link>
 
-          <nav className="hidden items-center gap-8 md:flex" aria-label="Navegação principal">
-            <a
-              href="#principio"
-              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Princípio
+          <nav className="hidden items-center gap-6 md:flex" aria-label="Navegação principal">
+            <a href="#problema" className="text-xs text-muted-foreground transition-colors hover:text-foreground">
+              Problema
             </a>
-            <a
-              href="#matriz"
-              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-            >
+            <a href="#privacidade" className="text-xs text-muted-foreground transition-colors hover:text-foreground">
+              Privacidade
+            </a>
+            <a href="#matriz" className="text-xs text-muted-foreground transition-colors hover:text-foreground">
               Matriz de risco
             </a>
-            <a
-              href="#funciona"
-              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-            >
+            <a href="#funciona" className="text-xs text-muted-foreground transition-colors hover:text-foreground">
               Como funciona
             </a>
-            <a
-              href="#letramento"
-              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
-            >
+            <a href="#letramento" className="text-xs text-muted-foreground transition-colors hover:text-foreground">
               Letramento
             </a>
           </nav>
@@ -146,15 +138,14 @@ export default function Landing() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
             >
-              <p className="rotulo">Governança de dados · uso de IA</p>
+              <p className="rotulo">Governança de IA · privacidade</p>
               <h1 className="mt-6 max-w-xl font-serif text-[2.9rem] leading-[0.98] tracking-tight text-balance sm:text-6xl lg:text-[4.15rem]">
                 O que é confidencial não deveria virar <em className="italic">prompt</em>.
               </h1>
               <p className="mt-7 max-w-md text-sm leading-7 text-muted-foreground">
-                Um painel de governança e letramento em IA para reduzir o vazamento de
-                informações corporativas. A extensão lê o que o colaborador digita no ChatGPT,
-                Gemini, Claude e Copilot — e avisa antes do envio. O texto digitado nunca chega aos
-                servidores da Sentinela.
+                Painel de governança e letramento em IA para reduzir o vazamento de informações
+                corporativas. A extensão analisa localmente o que é digitado no ChatGPT, Gemini,
+                Claude e Copilot e avisa antes do envio. O texto nunca sai do navegador.
               </p>
 
               <div className="mt-9 flex flex-wrap items-center gap-3">
@@ -167,12 +158,6 @@ export default function Landing() {
                 <Button asChild variant="ghost" className="rounded-sm">
                   <a href="#matriz">Ver a matriz de risco</a>
                 </Button>
-                <BaixarProjetoLink
-                  className={buttonVariants({ variant: "outline", className: "rounded-sm" })}
-                  rotuloBaixando="Baixando projeto"
-                >
-                  <Download className="size-4" /> Baixar projeto
-                </BaixarProjetoLink>
               </div>
 
               <dl className="mt-12 grid max-w-md grid-cols-3 gap-4 border-t border-border pt-5">
@@ -185,7 +170,7 @@ export default function Landing() {
                   <dd className="mt-1 font-serif text-2xl">{AREAS_SEED.length}</dd>
                 </div>
                 <div>
-                  <dt className="rotulo">Textos enviados ao servidor</dt>
+                  <dt className="rotulo">Textos de conversa armazenados</dt>
                   <dd className="mt-1 font-serif text-2xl">0</dd>
                 </div>
               </dl>
@@ -204,7 +189,7 @@ export default function Landing() {
                     <span className="size-1.5 rounded-full bg-risco-baixo" aria-hidden />
                     ChatGPT
                   </span>
-                  <span className="rotulo">prévia · análise no navegador</span>
+                  <span className="rotulo">prévia</span>
                 </div>
 
                 <Textarea
@@ -224,29 +209,25 @@ export default function Landing() {
                   />
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="rotulo">Testar</span>
-                    {EXEMPLOS_DEMO.map((exemplo) => (
-                      <button
-                        key={exemplo.rotulo}
-                        type="button"
-                        onClick={() => setTexto(exemplo.texto)}
-                        className="border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
-                      >
-                        {exemplo.rotulo}
-                      </button>
-                    ))}
-                  </div>
-                  <span className="text-[10px] text-muted-foreground">nada é gravado aqui</span>
+                <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-2.5">
+                  <span className="rotulo">Testar</span>
+                  {EXEMPLOS_DEMO.map((exemplo) => (
+                    <button
+                      key={exemplo.rotulo}
+                      type="button"
+                      onClick={() => setTexto(exemplo.texto)}
+                      className="border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+                    >
+                      {exemplo.rotulo}
+                    </button>
+                  ))}
                 </div>
               </div>
 
               <p className="mt-3 flex items-start gap-2 text-[11px] leading-5 text-muted-foreground">
                 <span className="mt-1.5 block size-1 shrink-0 bg-foreground/40" aria-hidden />
-                A classificação vem da matriz de risco editável no painel. Esta prévia usa os
-                mesmos detectores da extensão, rodando no seu navegador. “Senha:123”, “minha senha
-                é 123” e “My password is Hunter2!” caem na mesma regra, de risco alto.
+                A prévia usa as mesmas regras da extensão. Experimente:
+                “My password is Hunter2!”, “minha senha é 123” ou “senha:123”.
               </p>
             </motion.div>
           </div>
@@ -263,15 +244,19 @@ export default function Landing() {
                   {site}
                 </span>
               ))}
-            </div>              <span className="rotulo">análise no navegador</span>
+            </div>
           </div>
         </div>
 
-        {/* 01 O problema */}
-        <motion.section {...fade} className="mx-auto w-full max-w-6xl px-5 py-20 sm:px-8 lg:py-28">
+        {/* O problema */}
+        <motion.section
+          id="problema"
+          {...fade}
+          className="mx-auto w-full max-w-6xl scroll-mt-20 px-5 py-20 sm:px-8 lg:py-28"
+        >
           <div className="grid gap-12 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] lg:gap-20">
             <div>
-              <p className="rotulo">01 — O problema</p>
+              <p className="rotulo">O problema</p>
               <h2 className="mt-5 font-serif text-4xl leading-[1.05] tracking-tight text-balance">
                 A política existe. O hábito não acompanha.
               </h2>
@@ -284,97 +269,129 @@ export default function Landing() {
             <div className="border-t border-border">
               {[
                 {
-                  n: "01",
                   titulo: "A IA pública virou atalho",
                   texto:
-                    "Reescrever e-mail, depurar código, resumir contrato: a ferramenta certa, muitas vezes alimentada com dados sensíveis.",
+                    "Reescrever e-mails, depurar código, resumir contratos: tarefas legítimas que, com frequência, envolvem dados sensíveis.",
                 },
                 {
-                  n: "02",
                   titulo: "O vazamento não parece vazamento",
                   texto:
-                    "Um CPF no meio de uma frase, um token colado para pedir ajuda. Nada disso aciona o antivírus — nem o jurídico.",
+                    "Um CPF no meio de uma frase, um token colado para pedir ajuda. Nenhum antivírus reage a isso, e o jurídico só descobre depois.",
                 },
                 {
-                  n: "03",
                   titulo: "Sem registro, não há gestão",
                   texto:
-                    "Quem enviou, com que risco, em qual área? Sem auditoria, a política de uso de IA fica só no papel.",
+                    "Quem enviou, com que risco, em qual departamento? Sem auditoria, a política de uso de IA fica só no papel.",
                 },
               ].map((item) => (
-                <div
-                  key={item.n}
-                  className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-4 border-b border-border py-6"
-                >
-                  <span className="tabular pt-1 text-[10px] text-muted-foreground">{item.n}</span>
-                  <div>
-                    <h3 className="text-sm font-medium">{item.titulo}</h3>
-                    <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
-                      {item.texto}
-                    </p>
-                  </div>
+                <div key={item.titulo} className="border-b border-border py-6">
+                  <h3 className="text-sm font-medium">{item.titulo}</h3>
+                  <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
+                    {item.texto}
+                  </p>
                 </div>
               ))}
             </div>
           </div>
         </motion.section>
 
-        {/* 02 Princípio */}
+        {/* Privacidade */}
         <motion.section
-          id="principio"
+          id="privacidade"
           {...fade}
           className="scroll-mt-20 border-y border-border bg-muted/25"
         >
           <div className="mx-auto w-full max-w-6xl px-5 py-20 sm:px-8 lg:py-24">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div className="flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="rotulo">02 — Princípio</p>
+                <p className="rotulo">Privacidade</p>
                 <h2 className="mt-5 max-w-xl font-serif text-4xl leading-[1.05] tracking-tight text-balance">
-                  Vigilância sobre o risco, não sobre a conversa.
+                  Controle do risco, não da conversa.
                 </h2>
               </div>
-              <p className="max-w-xs text-xs leading-6 text-muted-foreground">
-                O sistema foi desenhado para que o conteúdo sensível nunca atravesse a fronteira
-                do navegador.
-              </p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+                className="relative hidden w-full max-w-sm shrink-0 overflow-hidden border border-border bg-background/60 p-5 lg:block"
+                aria-hidden
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <span className="rotulo">Fluxo local</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="size-1.5 rounded-full bg-risco-baixo" />
+                    <span className="size-1.5 rounded-full bg-border" />
+                    <span className="size-1.5 rounded-full bg-border" />
+                  </span>
+                </div>
+
+                <div className="relative mt-8">
+                  <div className="absolute inset-x-4 top-1/2 h-px -translate-y-1/2 bg-border" />
+                  <div className="relative grid grid-cols-3 gap-2.5">
+                    {[
+                      ["Texto", "entrada"],
+                      ["Regra", "local"],
+                      ["Alerta", "metadados"],
+                    ].map(([titulo, detalhe]) => (
+                      <div
+                        key={titulo}
+                        className="border border-border bg-background px-2 py-3 text-center"
+                      >
+                        <p className="font-serif text-sm tracking-tight">{titulo}</p>
+                        <p className="mt-1 font-mono text-[8px] tracking-wider text-muted-foreground uppercase">
+                          {detalhe}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <motion.span
+                    className="absolute top-1/2 left-4 size-1.5 -translate-y-1/2 rounded-full bg-risco-baixo"
+                    animate={{ left: ["16%", "50%", "84%"] }}
+                    transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
+                  />
+                </div>
+
+                <div className="mt-7 flex items-end justify-between gap-4 border-t border-border pt-4">
+                  <span className="max-w-[9.5rem] text-[10px] leading-5 text-muted-foreground">
+                    O navegador é o limite.
+                  </span>
+                  <span className="font-serif text-[2.7rem] leading-none tracking-tight text-foreground/15 italic">
+                    local
+                  </span>
+                </div>
+              </motion.div>
             </div>
 
             <div className="mt-14 grid gap-8 border-t border-border pt-8 md:grid-cols-3 md:gap-12">
               {[
                 {
-                  n: "01",
-                  titulo: "Lê no navegador",
+                  titulo: "Analisa no navegador",
                   texto:
-                    "Content script observa o campo de texto e aplica os detectores localmente. Nenhum keystroke é transmitido.",
+                    "A extensão examina o texto no próprio computador. Nada do que é digitado é transmitido.",
                 },
                 {
-                  n: "02",
-                  titulo: "Classifica por área e nível",
+                  titulo: "Classifica por risco",
                   texto:
-                    "Cada regra pertence a uma área e a um nível. A maior gravidade encontrada define o alerta: alto, médio ou baixo.",
+                    "Cada regra pertence a uma área e a um nível. O maior nível encontrado define o alerta.",
                 },
                 {
-                  n: "03",
-                  titulo: "Registra só o alerta",
+                  titulo: "Registra o alerta",
                   texto:
-                    "Site, departamento, nível, tipos detectados e a decisão de enviar ou cancelar. Sem texto, sem histórico de chat.",
+                    "Metadados do alerta: site, departamento, colaborador, IP, origem, nível, tipos detectados e decisão. O prompt não é armazenado.",
                 },
               ].map((item) => (
-                <div key={item.n}>
-                  <p className="tabular text-[10px] text-muted-foreground">{item.n}</p>
-                  <h3 className="mt-3 font-serif text-xl tracking-tight">{item.titulo}</h3>
+                <div key={item.titulo}>
+                  <h3 className="font-serif text-xl tracking-tight">{item.titulo}</h3>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.texto}</p>
                 </div>
               ))}
             </div>
-
-            <p className="mt-12 border-l-2 border-foreground/20 pl-5 font-serif text-xl leading-relaxed text-foreground/80 italic">
-              “Só o alerta chega ao servidor de auditoria.”
-            </p>
           </div>
         </motion.section>
 
-        {/* 03 Matriz */}
+        {/* Matriz */}
         <motion.section
           id="matriz"
           {...fade}
@@ -382,14 +399,13 @@ export default function Landing() {
         >
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="rotulo">03 — Matriz de risco</p>
+              <p className="rotulo">Matriz de risco</p>
               <h2 className="mt-5 font-serif text-4xl leading-[1.05] tracking-tight">
-                {AREAS_SEED.length} áreas, uma escala só.
+                {AREAS_ORDENADAS.length} áreas, uma escala de risco.
               </h2>
             </div>
             <p className="max-w-xs text-xs leading-6 text-muted-foreground">
-              A classificação é sempre a mesma: um item de risco alto eleva a mensagem a risco
-              alto. Sem itens altos, um médio eleva a risco médio.
+              O maior nível encontrado define o alerta. As regras funcionam em português e inglês.
             </p>
           </div>
 
@@ -418,7 +434,7 @@ export default function Landing() {
                 </tr>
               </thead>
               <tbody>
-                {AREAS_SEED.map((area) => {
+                {AREAS_ORDENADAS.map((area) => {
                   const porRisco = (nivel: Risco) =>
                     area.regras.filter((regra) => regra.risco === nivel);
                   return (
@@ -451,11 +467,11 @@ export default function Landing() {
           </div>
 
           <p className="mt-4 text-[11px] text-muted-foreground">
-            Regras editáveis no painel · a extensão sincroniza a matriz a cada 30 minutos.
+            Regras editáveis no painel; as extensões recebem as alterações automaticamente.
           </p>
         </motion.section>
 
-        {/* 04 Como funciona */}
+        {/* Como funciona */}
         <motion.section
           id="funciona"
           {...fade}
@@ -464,15 +480,14 @@ export default function Landing() {
           <div className="mx-auto w-full max-w-6xl px-5 py-20 sm:px-8 lg:py-28">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="rotulo">04 — Como funciona</p>
+                <p className="rotulo">Como funciona</p>
                 <h2 className="mt-5 font-serif text-4xl leading-[1.05] tracking-tight">
                   Do campo de texto à auditoria.
                 </h2>
               </div>
               <p className="max-w-xs text-xs leading-6 text-muted-foreground">
-                Extensão Manifest V3 (Chrome ou Edge), servidor Flask na nuvem (Render) com banco
-                Postgres (Neon) e painel servido pela mesma aplicação. No plano gratuito o serviço
-                hiberna sem tráfego; o UptimeRobot mantém o health check ativo.
+                Uma extensão para Chrome e Edge, um painel administrativo e uma API na nuvem. Em
+                quatro etapas.
               </p>
             </div>
 
@@ -485,10 +500,64 @@ export default function Landing() {
                 </div>
               ))}
             </div>
+
+            <div className="mt-14 grid gap-6 border-t border-border pt-8 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                {
+                  marca: "Imagem",
+                  titulo: "Imagens",
+                  texto:
+                    "O texto é extraído por OCR no próprio computador, classificado e descartado. A imagem nunca é enviada.",
+                },
+                {
+                  marca: "PDF",
+                  titulo: "PDFs",
+                  texto: "O texto é extraído localmente e passa pela mesma análise.",
+                },
+                {
+                  marca: "Colagem",
+                  titulo: "Colagens grandes",
+                  texto:
+                    "A colagem é analisada antes de chegar ao site. Blocos longos, listas e código têm classificação própria.",
+                },
+                {
+                  marca: "Gestão",
+                  titulo: "Gestão centralizada",
+                  texto:
+                    "Sites monitorados, ativação e departamentos são definidos no painel e valem para todas as extensões.",
+                },
+                {
+                  marca: "Acesso",
+                  titulo: "Acesso controlado",
+                  texto:
+                    "Cada extensão precisa do código de instalação para registrar alertas.",
+                },
+                {
+                  marca: "Relatórios",
+                  titulo: "Relatórios",
+                  texto:
+                    "Os alertas filtrados por data, departamento e nível podem ser exportados em CSV ou PDF.",
+                },
+                {
+                  marca: "Sincronia",
+                  titulo: "Regras sincronizadas",
+                  texto:
+                    "Alterações no painel chegam a todas as extensões em até 1 minuto.",
+                },
+              ].map((recurso) => (
+                <div key={recurso.titulo}>
+                  <span className="inline-block border border-border px-2 py-0.5 font-mono text-[9px] tracking-wider text-muted-foreground uppercase">
+                    {recurso.marca}
+                  </span>
+                  <h3 className="mt-3 text-xs font-medium">{recurso.titulo}</h3>
+                  <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{recurso.texto}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </motion.section>
 
-        {/* 05 Letramento */}
+        {/* Letramento */}
         <motion.section
           id="letramento"
           {...fade}
@@ -497,29 +566,27 @@ export default function Landing() {
           <div className="mx-auto grid w-full max-w-6xl gap-12 px-5 py-20 sm:px-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-20 lg:py-28">
             <div>
               <p className="text-[10px] font-medium tracking-[0.22em] text-background/50 uppercase">
-                05 — Letramento
+                Letramento
               </p>
               <h2 className="mt-5 max-w-xl font-serif text-4xl leading-[1.05] tracking-tight text-balance lg:text-5xl">
                 “Enviou mesmo assim” é o número que importa.
               </h2>
               <p className="mt-6 max-w-lg text-sm leading-7 text-background/65">
                 O painel compara envios e cancelamentos por departamento. Não para punir, mas para
-                mostrar onde o aviso ainda não está funcionando — e onde o letramento precisa ser
+                mostrar onde o aviso ainda não está funcionando e onde o letramento precisa ser
                 reforçado.
               </p>
-              <div className="mt-8 flex flex-wrap gap-x-10 gap-y-4 border-t border-background/15 pt-6 text-xs text-background/60">
-                <span>Relatórios com filtros de data, área e nível</span>
-                <span>Departamentos sem informação (“Não informado”)</span>
-                <span>Exportação em CSV e PDF</span>
+              <div className="mt-8 border-t border-background/15 pt-6 text-xs text-background/60">
+                Relatórios por data, departamento e nível, com exportação em CSV e PDF.
               </div>
             </div>
 
             <div className="lg:border-l lg:border-background/15 lg:pl-12">
               <p className="font-serif text-7xl leading-none tracking-tight">30%</p>
               <p className="mt-4 max-w-xs text-sm leading-6 text-background/65">
-                Quando 30% ou mais dos alertas de risco alto são enviados mesmo após o aviso
-                (mínimo de três registros no departamento), o departamento é marcado como crítico.
-                A tolerância de risco é configurável no painel.
+                Quando 30% ou mais dos alertas de risco alto são enviados mesmo após o aviso,
+                com no mínimo três registros no departamento, o departamento é marcado como
+                crítico. O limite de criticidade é configurável no painel.
               </p>
               <div className="mt-8 border-t border-background/15 pt-4">
                 <p className="text-[10px] tracking-[0.18em] text-background/45 uppercase">
@@ -538,14 +605,14 @@ export default function Landing() {
         {/* CTA */}
         <motion.section {...fade} className="mx-auto w-full max-w-6xl px-5 py-20 sm:px-8 lg:py-28">
           <div className="flex flex-col items-center border-y border-border py-16 text-center lg:py-20">
-            <p className="rotulo">Painel administrativo · acesso restrito</p>
+            <p className="rotulo">Painel administrativo</p>
             <h2 className="mt-5 max-w-2xl font-serif text-4xl leading-[1.05] tracking-tight text-balance lg:text-5xl">
               Comece pelo painel. Depois instale a extensão.
             </h2>
             <p className="mt-5 max-w-md text-sm leading-7 text-muted-foreground">
-              O painel é dos administradores: regras, áreas, mensagens educativas, auditoria e
-              relatórios de letramento em um só lugar. O colaborador não faz login — ele usa a
-              extensão. Nesta prévia, a entrada de convidado serve apenas para explorar.
+              O painel é de uso exclusivo dos administradores: regras, áreas, mensagens educativas,
+              auditoria e relatórios de letramento em um só lugar. Os colaboradores não fazem login;
+              usam apenas a extensão.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Button asChild className="rounded-sm">
@@ -558,11 +625,6 @@ export default function Landing() {
                 <a href="#matriz">Ver a matriz de risco</a>
               </Button>
             </div>
-            <p className="mt-4 max-w-md text-[11px] leading-5 text-muted-foreground">
-              Esta prévia é somente leitura. O painel real, com login e auditoria, é servido pelo
-              Flask — configure <code className="font-mono">VITE_SENTINELA_URL</code> para apontar
-              para o endereço público.
-            </p>
           </div>
         </motion.section>
       </main>
@@ -575,60 +637,49 @@ export default function Landing() {
               <span className="rotulo">governança de ia</span>
             </Link>
             <p className="mt-3 max-w-sm text-[11px] leading-5 text-muted-foreground">
-              Painel de governança, auditoria e letramento em IA. Extensão MV3 (Chrome e Edge) +
-              servidor Flask com Postgres. A prévia React é somente leitura; o painel real é Flask.
+              Painel de governança, auditoria e letramento em IA.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-x-14 gap-y-6 text-[11px]">
             <div className="flex flex-col gap-2">
-              <span className="rotulo">Painel real</span>
-              <a
-                href={`${URL_PAINEL}/painel`}
-                className="text-muted-foreground hover:text-foreground"
-              >
+              <span className="rotulo">Painel</span>
+              <a href={`${URL_PAINEL}/painel`} className="text-muted-foreground hover:text-foreground">
                 Visão geral
               </a>
-              <a
-                href={`${URL_PAINEL}/painel`}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Auditoria
+              <a href={`${URL_PAINEL}/painel`} className="text-muted-foreground hover:text-foreground">
+                Alertas
               </a>
-              <a
-                href={`${URL_PAINEL}/painel`}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                Regras
+              <a href={`${URL_PAINEL}/painel`} className="text-muted-foreground hover:text-foreground">
+                Regras de detecção
               </a>
             </div>
             <div className="flex flex-col gap-2">
               <span className="rotulo">Projeto</span>
+              <a href="#privacidade" className="text-muted-foreground hover:text-foreground">
+                Privacidade
+              </a>
               <a href="#matriz" className="text-muted-foreground hover:text-foreground">
                 Matriz de risco
               </a>
-              <a href="#principio" className="text-muted-foreground hover:text-foreground">
-                Princípio de privacidade
+              <a href="#funciona" className="text-muted-foreground hover:text-foreground">
+                Como funciona
               </a>
-              <a
-                href={`${URL_PAINEL}/painel`}
+              <BaixarProjetoLink
                 className="text-muted-foreground hover:text-foreground"
+                rotuloBaixando="Baixando projeto"
               >
-                Laboratório
-              </a>
-              <BaixarProjetoLink className="text-muted-foreground hover:text-foreground">
-                Baixar projeto (.zip)
+                Baixar projeto
               </BaixarProjetoLink>
             </div>
             <p className="max-w-[11rem] text-[10px] leading-5 text-muted-foreground">
-              Nenhum texto de conversa é armazenado neste sistema.
+              Nenhum prompt é armazenado nesse sistema.
             </p>
           </div>
         </div>
         <div className="border-t border-border/70">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-5 py-4 text-[10px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-8">
             <span>© {new Date().getFullYear()} Sentinela</span>
-            <span className="tabular">Chrome/Edge MV3 · Flask · Postgres · Render Free</span>
           </div>
         </div>
       </footer>

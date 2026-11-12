@@ -10,7 +10,7 @@ COPY servidor/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY servidor ./servidor
-COPY extensao/detectores.js ./extensao/detectores.js
+COPY extensao ./extensao
 WORKDIR /app/servidor
 
 EXPOSE 8080

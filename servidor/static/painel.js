@@ -19,25 +19,16 @@ const estado = {
   alertaAtual: null,
   secao: "visao",
   monitoramento: null,
+  sites: [],
   dispositivos: [],
   codigoVersao: 0,
   euSuperadmin: false,
 };
 
-const SECAO_INFO = {
-  visao: "Indicadores, evolução e departamentos críticos.",
-  regras: "Detectores editáveis por área e nível de risco.",
-  areas: "Estrutura da matriz de risco da empresa.",
-  mensagens: "Texto educativo exibido pela extensão.",
-  alertas: "Auditoria, filtros, retenção e exportação.",
-  instalacao: "Código de instalação, dispositivos conectados e contas de administrador.",
-  monitoramento: "Ativação global, sites e sincronização das extensões.",
-};
-
 const ROTULO_NIVEL = { baixo: "Baixo", medio: "Médio", alto: "Alto" };
 const ROTULO_ORIGEM = {
   texto: "Texto digitado",
-  colagem: "Colagem em massa",
+  colagem: "Colagem de texto longo",
   imagem: "Print ou imagem",
   pdf: "Arquivo PDF",
   anexo: "Imagem e PDF",
@@ -121,6 +112,16 @@ function numero(valor) {
   return new Intl.NumberFormat("pt-BR").format(Number(valor) || 0);
 }
 
+function plural(total, singular, plural) {
+  return numero(total) + " " + (Number(total) === 1 ? singular : plural);
+}
+
+function percentual(valor) {
+  return (
+    new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(Number(valor) || 0) + "%"
+  );
+}
+
 function normalizar(texto) {
   return String(texto)
     .normalize("NFD")
@@ -172,7 +173,6 @@ function irPara(secao) {
   document.querySelectorAll(".menu-nav [data-ir]").forEach(function (botao) {
     botao.classList.toggle("ativo", botao.dataset.ir === secao);
   });
-  $("secao-descricao").textContent = SECAO_INFO[secao] || "";
   window.scrollTo({ top: 0, behavior: "smooth" });
   carregarSecao(secao);
 }
@@ -194,9 +194,9 @@ function carregarSecao(secao) {
       })
       .catch(tratarErro);
   } else if (secao === "instalacao") {
-    Promise.all([carregarInstalacao(), carregarAdmins(), carregarDispositivos()]).catch(tratarErro);
+    Promise.all([carregarInstalacao(), carregarAdmins()]).catch(tratarErro);
   } else if (secao === "monitoramento") {
-    carregarMonitoramento().catch(tratarErro);
+    Promise.all([carregarMonitoramento(), carregarDispositivos()]).catch(tratarErro);
   }
 }
 
@@ -209,18 +209,21 @@ async function carregarResumo() {
   const dados = await api("/api/admin/resumo?limiar=" + encodeURIComponent(limiar));
 
   $("kpi-total").textContent = numero(dados.total);
-  $("kpi-total-detalhe").textContent =
-    numero(dados.departamentos_ativos) + " departamentos monitorados";
+  $("kpi-total-detalhe").textContent = plural(
+    dados.departamentos_ativos,
+    "departamento monitorado",
+    "departamentos monitorados",
+  );
   $("kpi-alto").textContent = numero(dados.total_alto);
-  $("kpi-alto-detalhe").textContent = dados.taxa_alto + "% do total de alertas";
-  $("kpi-envio").textContent = dados.taxa_envio + "%";
+  $("kpi-alto-detalhe").textContent = percentual(dados.taxa_alto) + " do total de alertas";
+  $("kpi-envio").textContent = percentual(dados.taxa_envio);
   $("kpi-envio-detalhe").textContent =
     numero(dados.total_enviou) + " envios · " + numero(dados.total_cancelou) + " cancelamentos";
   $("kpi-tipos").textContent = numero(dados.tipos_distintos);
   $("nota-limiar").textContent =
-    "Crítico = departamento com no mínimo 3 alertas e ao menos " +
+    "Crítico = ao menos 3 alertas e " +
     dados.limiar +
-    "% deles em risco alto.";
+    "% deles em risco alto. Em observação = menos de 3 alertas.";
 
   desenharGrafico(dados.evolucao);
   const porNivel = dados.por_nivel || {
@@ -235,9 +238,9 @@ async function carregarResumo() {
   desenharDonut(
     "grafico-risco",
     [
-      { rotulo: "Alto", valor: porNivel.alto, cor: "#a83227" },
-      { rotulo: "Médio", valor: porNivel.medio, cor: "#96691a" },
-      { rotulo: "Baixo", valor: porNivel.baixo, cor: "#3c7a5a" },
+      { rotulo: "Alto", valor: porNivel.alto, cor: "#c2412d" },
+      { rotulo: "Médio", valor: porNivel.medio, cor: "#c98a00" },
+      { rotulo: "Baixo", valor: porNivel.baixo, cor: "#2f855a" },
     ],
     "Distribuição dos alertas por nível de risco",
   );
@@ -301,7 +304,7 @@ function desenharGrafico(evolucao) {
     barra.setAttribute("y", topo + altura - alturaTotal);
     barra.setAttribute("width", larguraBarra);
     barra.setAttribute("height", Math.max(alturaTotal, dia.total > 0 ? 2 : 0));
-    barra.setAttribute("fill", "#d8d6cf");
+    barra.setAttribute("fill", "#e4e1d9");
     grupo.appendChild(barra);
 
     if (dia.alto > 0) {
@@ -310,7 +313,7 @@ function desenharGrafico(evolucao) {
       barraAlto.setAttribute("y", topo + altura - alturaAlto);
       barraAlto.setAttribute("width", larguraBarra);
       barraAlto.setAttribute("height", Math.max(alturaAlto, 2));
-      barraAlto.setAttribute("fill", "#1b1b1a");
+      barraAlto.setAttribute("fill", "#c2412d");
       grupo.appendChild(barraAlto);
     }
 
@@ -326,7 +329,11 @@ function desenharGrafico(evolucao) {
 
     const titulo = document.createElementNS(ns, "title");
     titulo.textContent =
-      diaCurto(dia.data) + ": " + dia.total + " alerta(s), " + dia.alto + " de risco alto";
+      diaCurto(dia.data) +
+      ": " +
+      plural(dia.total, "alerta", "alertas") +
+      ", " +
+      plural(dia.alto, "de risco alto", "de risco alto");
     grupo.appendChild(titulo);
     svg.appendChild(grupo);
   });
@@ -336,10 +343,10 @@ function desenharGrafico(evolucao) {
   const legenda = criar("div", "legenda-grafico");
   const itemAlto = criar("span");
   itemAlto.appendChild(criar("i"));
-  itemAlto.appendChild(document.createTextNode("Risco alto"));
+  itemAlto.appendChild(document.createTextNode("Alto"));
   const itemDemais = criar("span");
   itemDemais.appendChild(criar("i", "claro"));
-  itemDemais.appendChild(document.createTextNode("Demais alertas"));
+  itemDemais.appendChild(document.createTextNode("Médio e baixo"));
   legenda.appendChild(itemAlto);
   legenda.appendChild(itemDemais);
   container.appendChild(legenda);
@@ -387,7 +394,7 @@ function desenharDonut(id, itens, descricao) {
     circulo.setAttribute("stroke-dasharray", fatia + " " + (100 - fatia));
     circulo.setAttribute("stroke-dashoffset", String(25 - deslocamento));
     const titulo = document.createElementNS(ns, "title");
-    titulo.textContent = item.rotulo + ": " + valor + " (" + Math.round(fatia) + "%)";
+    titulo.textContent = item.rotulo + ": " + valor + " (" + percentual(fatia) + ")";
     circulo.appendChild(titulo);
     svg.appendChild(circulo);
     deslocamento += fatia;
@@ -475,9 +482,8 @@ function desenharTipos(tipos) {
     return;
   }
 
-  tipos.forEach(function (tipo, indice) {
+  tipos.forEach(function (tipo) {
     const item = criar("li");
-    item.appendChild(criar("span", "indice", String(indice + 1).padStart(2, "0")));
 
     const bloco = criar("span");
     bloco.appendChild(criar("span", "tipo", tipo.tipo));
@@ -514,7 +520,7 @@ function desenharLetramento(dados) {
 
     linha.appendChild(criar("td", "direita", item.total));
 
-    const alto = criar("td", "direita", item.alto + " · " + item.taxa_alto + "%");
+    const alto = criar("td", "direita", item.alto + " · " + percentual(item.taxa_alto));
     linha.appendChild(alto);
 
     const envio = criar("td");
@@ -527,15 +533,17 @@ function desenharLetramento(dados) {
     trilho.appendChild(enviado);
     trilho.appendChild(cancelado);
     barra.appendChild(trilho);
-    barra.appendChild(criar("span", "percentual", item.taxa_envio + "%"));
+    barra.appendChild(criar("span", "percentual", percentual(item.taxa_envio)));
     envio.appendChild(barra);
     linha.appendChild(envio);
 
     const situacao = criar("td");
     if (gargalos.indexOf(item.departamento) >= 0) {
       situacao.appendChild(criar("span", "status-gargalo", "Crítico"));
+    } else if (item.total < 3) {
+      situacao.appendChild(criar("span", "status-observacao", "Em observação"));
     } else {
-      situacao.appendChild(criar("span", "status-ok", "Acompanhar"));
+      situacao.appendChild(criar("span", "status-ok", "Normal"));
     }
     linha.appendChild(situacao);
 
@@ -546,35 +554,9 @@ function desenharLetramento(dados) {
 function desenharGargalos(gargalos) {
   const container = $("gargalos");
   limpar(container);
-
-  if (!gargalos.length) {
-    container.appendChild(
-      criar("p", "nota", "Nenhum departamento ultrapassa a tolerância de risco configurada."),
-    );
-    return;
-  }
-
-  const bloco = criar("div", "gargalo-bloco");
-  bloco.appendChild(criar("p", "rotulo", "Departamentos críticos"));
-  const lista = criar("ul");
-  gargalos.forEach(function (item) {
-    lista.appendChild(
-      criar(
-        "li",
-        "",
-        item.departamento +
-          " — " +
-          item.alto +
-          " de " +
-          item.total +
-          " alertas em risco alto (" +
-          item.taxa_alto +
-          "%)",
-      ),
-    );
-  });
-  bloco.appendChild(lista);
-  container.appendChild(bloco);
+  container.appendChild(
+    criar("p", "nota", plural(gargalos.length, "departamento crítico", "departamentos críticos") + "."),
+  );
 }
 
 function desenharUltimos(ultimos) {
@@ -597,7 +579,7 @@ function desenharUltimos(ultimos) {
       criar(
         "span",
         "acao",
-        alerta.acao === "enviou" ? "Enviou mesmo assim" : "Cancelou",
+        alerta.acao === "enviou" ? "Enviou" : "Cancelou",
       ),
     );
     lista.appendChild(item);
@@ -637,9 +619,8 @@ function renderizarAreas() {
     return;
   }
 
-  estado.areas.forEach(function (area, indice) {
+  estado.areas.forEach(function (area) {
     const item = criar("li", "area-item");
-    item.appendChild(criar("span", "indice", String(indice + 1).padStart(2, "0")));
 
     const bloco = criar("div");
     bloco.appendChild(criar("h3", "", area.nome));
@@ -648,7 +629,9 @@ function renderizarAreas() {
       criar(
         "p",
         "rotulo contagem",
-        area.total_regras + " regra(s) · " + area.total_ativas + " ativa(s)",
+        plural(area.total_regras, "regra", "regras") +
+          " · " +
+          plural(area.total_ativas, "ativa", "ativas"),
       ),
     );
     item.appendChild(bloco);
@@ -663,12 +646,17 @@ function renderizarAreas() {
     excluir.addEventListener("click", function () {
       confirmar(
         "Excluir área?",
-        'A área "' + area.nome + '" e suas ' + area.total_regras + " regra(s) serão removidas. Os alertas históricos permanecem.",
+        'A área "' + area.nome + '" e suas ' + plural(area.total_regras, "regra", "regras") +
+          " serão excluídas. Os alertas históricos permanecem.",
         "Excluir área",
         async function () {
           try {
             const resposta = await api("/api/admin/areas/" + area.id, { method: "DELETE" });
-            avisar("Área removida. " + resposta.regras_removidas + " regra(s) excluída(s).");
+            avisar(
+              "Área excluída. " +
+                plural(resposta.regras_removidas, "regra excluída", "regras excluídas") +
+                ".",
+            );
             await carregarAreas();
             await carregarRegras();
           } catch (erro) {
@@ -707,8 +695,13 @@ function renderizarRegras() {
   });
 
   $("contador-regras").textContent =
-    filtradas.length + " de " + estado.regras.length + " regras · " +
-    estado.regras.filter(function (regra) { return regra.ativo; }).length + " ativas";
+    plural(estado.regras.length, "regra", "regras") +
+    " · " +
+    plural(
+      estado.regras.filter(function (regra) { return regra.ativo; }).length,
+      "ativa",
+      "ativas",
+    );
 
   if (!filtradas.length) {
     const linha = criar("tr");
@@ -761,7 +754,7 @@ function renderizarRegras() {
         async function () {
           try {
             await api("/api/admin/regras/" + regra.id, { method: "DELETE" });
-            avisar("Regra removida.");
+            avisar("Regra excluída.");
             await carregarRegras();
             await carregarAreas();
           } catch (erro) {
@@ -829,7 +822,7 @@ function testarRegra() {
   const resultado = $("resultado-teste");
 
   if (!padrao.trim()) {
-    resultado.textContent = "Informe um padrão antes de testar.";
+    resultado.textContent = "Informe os termos ou a expressão antes de testar.";
     resultado.className = "resultado erro";
     return;
   }
@@ -852,7 +845,8 @@ function testarRegra() {
     const total = encontrados ? encontrados.length : 0;
     resultado.textContent =
       total > 0
-        ? total + " correspondência(s) encontrada(s) no texto de exemplo."
+        ? plural(total, "correspondência encontrada", "correspondências encontradas") +
+          " no texto de exemplo."
         : "Nenhuma correspondência no texto de exemplo.";
     resultado.className = "resultado " + (total > 0 ? "ok" : "erro");
     return;
@@ -872,7 +866,8 @@ function testarRegra() {
 
   resultado.textContent =
     total > 0
-      ? total + " correspondência(s) encontrada(s) no texto de exemplo."
+      ? plural(total, "correspondência encontrada", "correspondências encontradas") +
+        " no texto de exemplo."
       : "Nenhuma correspondência no texto de exemplo.";
   resultado.className = "resultado " + (total > 0 ? "ok" : "erro");
 }
@@ -955,7 +950,6 @@ async function carregarMensagens() {
 
     const topo = criar("div", "topo-editor");
     topo.appendChild(badge(mensagem.nivel));
-    topo.appendChild(criar("span", "rotulo", "mensagem educativa"));
     editor.appendChild(topo);
 
     const campo = document.createElement("textarea");
@@ -1082,7 +1076,11 @@ async function carregarAlertas(pagina) {
   $("exportar").href = "/api/admin/exportar.csv?" + filtrosExportacao;
   $("exportar-pdf").href = "/api/admin/exportar.pdf?" + filtrosExportacao;
   $("resumo-listagem").textContent =
-    dados.total + " alerta(s) · página " + dados.pagina + " de " + dados.total_paginas;
+    plural(dados.total, "alerta", "alertas") +
+    " · página " +
+    dados.pagina +
+    " de " +
+    dados.total_paginas;
   $("pagina-info").textContent = dados.pagina + " / " + dados.total_paginas;
   $("pagina-anterior").disabled = dados.pagina <= 1;
   $("pagina-proxima").disabled = dados.pagina >= dados.total_paginas;
@@ -1115,7 +1113,7 @@ async function carregarAlertas(pagina) {
     nivel.appendChild(badge(alerta.nivel_risco));
     linha.appendChild(nivel);
 
-    const acao = criar("td", "", alerta.acao === "enviou" ? "Enviou mesmo assim" : "Cancelou");
+    const acao = criar("td", "", alerta.acao === "enviou" ? "Enviou" : "Cancelou");
     linha.appendChild(acao);
 
     const tipos = criar("td", "", alerta.itens.map(function (item) {
@@ -1128,7 +1126,7 @@ async function carregarAlertas(pagina) {
     linha.appendChild(tipos);
 
     const acoes = criar("td", "direita");
-    const ver = criar("button", "botao pequeno", "Detalhe");
+    const ver = criar("button", "botao pequeno", "Detalhes");
     ver.type = "button";
     ver.addEventListener("click", function () { abrirDetalhe(alerta.id); });
 
@@ -1138,12 +1136,12 @@ async function carregarAlertas(pagina) {
     excluir.addEventListener("click", function () {
       confirmar(
         "Excluir alerta?",
-        "O registro e seus tipos detectados serão removidos da auditoria. Esta ação não pode ser desfeita.",
+        "O registro e seus tipos detectados serão excluídos da auditoria. Esta ação não pode ser desfeita.",
         "Excluir alerta",
         async function () {
           try {
             await api("/api/admin/alertas/" + alerta.id, { method: "DELETE" });
-            avisar("Alerta removido.");
+            avisar("Alerta excluído.");
             await carregarAlertas(estado.pagina);
           } catch (erro) {
             tratarErro(erro);
@@ -1171,7 +1169,7 @@ async function abrirDetalhe(id) {
     limpar(campos);
     const pares = [
       ["Nível de risco", ROTULO_NIVEL[alerta.nivel_risco]],
-      ["Ação", alerta.acao === "enviou" ? "Enviou mesmo assim" : "Cancelou e revisou"],
+      ["Decisão", alerta.acao === "enviou" ? "Enviou" : "Cancelou"],
       ["Colaborador", alerta.colaborador || "Não informado"],
       ["IP de origem", alerta.ip || "—"],
       ["Origem", ROTULO_ORIGEM[alerta.origem] || "Texto digitado"],
@@ -1222,21 +1220,7 @@ async function carregarInstalacao() {
   $("instalacao-token").dataset.valor = dados.token;
   $("instalacao-origem").textContent = dados.endereco_visto || "—";
   $("instalacao-versao").textContent = "versão " + dados.versao;
-  $("instalacao-dispositivos").textContent =
-    (dados.dispositivos_total ?? dados.dispositivos_vinculados) +
-    " conectado(s) · " +
-    dados.dispositivos_vinculados +
-    " no código atual (v" +
-    dados.codigo_versao +
-    ")";
-  $("instalacao-banco").textContent =
-    "Externo (Postgres) · os alertas ficam gravados na nuvem";
-
-  const modo = $("instalacao-modo");
-  modo.textContent = "Exige código";
-  modo.className = "badge risco-alto";
-  $("instalacao-exigencia").textContent =
-    "Obrigatório: a extensão de cada computador precisa do código para registrar alertas.";
+  $("instalacao-banco").textContent = "Nuvem";
 }
 
 async function carregarDispositivos() {
@@ -1246,8 +1230,20 @@ async function carregarDispositivos() {
   const corpo = $("tabela-dispositivos");
   limpar(corpo);
 
+  const atuais = estado.dispositivos.filter(function (dispositivo) {
+    return dispositivo.codigo_atual;
+  }).length;
   $("resumo-dispositivos").textContent =
-    dados.total + " dispositivo(s) ativo(s) · código de instalação v" + dados.codigo_versao + ".";
+    plural(dados.total, "dispositivo conectado", "dispositivos conectados") +
+    " · " +
+    plural(atuais, "com o código atual", "com o código atual") +
+    ".";
+  if ($("monitoramento-dispositivos")) {
+    $("monitoramento-dispositivos").textContent = numero(dados.total);
+  }
+  if ($("monitoramento-codigo")) {
+    $("monitoramento-codigo").textContent = String(dados.codigo_versao);
+  }
 
   if (!estado.dispositivos.length) {
     const linha = criar("tr");
@@ -1261,18 +1257,25 @@ async function carregarDispositivos() {
   estado.dispositivos.forEach(function (dispositivo) {
     const linha = criar("tr");
 
+    const colaborador = criar("td");
+    colaborador.appendChild(
+      criar("strong", "nome-colaborador", dispositivo.colaborador || "Não identificado"),
+    );
+    linha.appendChild(colaborador);
+
     const identificador = criar("td");
-    identificador.appendChild(criar("code", "id-dispositivo", dispositivo.id));
+    const codigoId = criar("code", "id-dispositivo", dispositivo.id);
+    codigoId.title = dispositivo.id;
+    identificador.appendChild(codigoId);
     linha.appendChild(identificador);
     linha.appendChild(criar("td", null, dispositivo.setor || "Não informado"));
     linha.appendChild(criar("td", "ip", dispositivo.ip || "—"));
-    linha.appendChild(criar("td", null, dispositivo.versao || "—"));
 
     const codigo = criar("td");
     const selo = criar(
       "span",
       "codigo-dispositivo" + (dispositivo.codigo_atual ? "" : " anterior"),
-      dispositivo.codigo_atual ? "Atual" : "Anterior v" + dispositivo.codigo_versao,
+      dispositivo.codigo_atual ? "Atual" : "Anterior (versão " + dispositivo.codigo_versao + ")",
     );
     codigo.appendChild(selo);
     linha.appendChild(codigo);
@@ -1284,9 +1287,9 @@ async function carregarDispositivos() {
     desconectar.addEventListener("click", function () {
       confirmar(
         "Desconectar dispositivo?",
-        "O dispositivo " +
-          dispositivo.id +
-          " deixa de receber regras e de registrar alertas até ser reinstalado.",
+        (dispositivo.colaborador || "O dispositivo") +
+          " deixa de receber regras e de registrar alertas. Se o código for renovado, ele pode " +
+          "voltar ao salvar o novo código nas Opções.",
         "Desconectar",
         async function () {
           try {
@@ -1337,8 +1340,8 @@ async function confirmarRenovacaoToken() {
       total === 0
         ? "Nenhum dispositivo está vinculado ao código atual. As extensões existentes deixarão de registrar alertas até receber o novo valor."
         : "Há " +
-            total +
-            " dispositivo(s) ainda vinculado(s) ao código atual. Todos deixarão de receber regras e registrar alertas até serem reconfigurados.",
+            plural(total, "dispositivo ainda vinculado", "dispositivos ainda vinculados") +
+            " ao código atual. Todos deixarão de receber regras e registrar alertas até serem reconfigurados.",
       "Renovar código",
       function () { void renovarToken(); },
     );
@@ -1356,8 +1359,8 @@ async function carregarAdmins() {
 
   $("novo-admin").hidden = !estado.euSuperadmin;
   $("admin-nota").textContent = estado.euSuperadmin
-    ? "Você é o superadmin: pode criar e remover contas comuns. A sua conta e o perfil de superadmin são protegidos."
-    : "Apenas o superadmin pode criar ou remover administradores. Você pode trocar a sua própria senha.";
+    ? "Você é o superadmin: pode criar e excluir contas comuns. A sua conta e o perfil de superadmin são protegidos."
+    : "Apenas o superadmin pode criar ou excluir administradores. Você pode trocar a sua própria senha.";
 
   admins.forEach(function (admin) {
     const linha = criar("tr");
@@ -1390,18 +1393,18 @@ async function carregarAdmins() {
     }
 
     if (estado.euSuperadmin && !admin.atual && !admin.superadmin) {
-      const remover = criar("button", "botao pequeno perigo", "Remover");
-      remover.type = "button";
-      remover.style.marginLeft = "6px";
-      remover.addEventListener("click", function () {
+      const excluir = criar("button", "botao pequeno perigo", "Excluir");
+      excluir.type = "button";
+      excluir.style.marginLeft = "6px";
+      excluir.addEventListener("click", function () {
         confirmar(
-          "Remover administrador?",
+          "Excluir administrador?",
           "A conta de " + admin.usuario + " perde o acesso ao painel. Os alertas já registrados não são afetados.",
-          "Remover acesso",
+          "Excluir",
           async function () {
             try {
               await api("/api/admin/usuarios/" + admin.id, { method: "DELETE" });
-              avisar("Administrador removido.");
+              avisar("Administrador excluído.");
               await carregarAdmins();
             } catch (erro) {
               tratarErro(erro);
@@ -1409,7 +1412,7 @@ async function carregarAdmins() {
           },
         );
       });
-      acoes.appendChild(remover);
+      acoes.appendChild(excluir);
     }
 
     if (!acoes.childNodes.length) {
@@ -1475,45 +1478,149 @@ async function exportarPdfFiltrosAtuais() {
 // Monitoramento
 // ---------------------------------------------------------------------------
 
+function urlDoSite(site) {
+  return "https://" + ((site.hosts && site.hosts[0]) || "");
+}
+
+function atualizarEstadoMonitoramento() {
+  const ativo = Boolean(estado.monitoramento && estado.monitoramento.monitoramento_ativo);
+  const totais = document.querySelectorAll("#sites-monitorados .site-toggle:checked");
+  const totalSites = estado.sites.length;
+  const status = $("monitoramento-status");
+
+  $("monitoramento-ativo").checked = ativo;
+  $("monitoramento-ativo-texto").textContent = ativo ? "Monitorando" : "Pausado";
+  $("monitoramento-chats").textContent = totais.length + " / " + totalSites;
+  status.textContent = ativo ? "Monitoramento ativo" : "Monitoramento pausado";
+  status.className = "badge monitoramento-badge " + (ativo ? "status-ativo" : "status-pausado");
+
+  const faixa = $("faixa-monitoramento");
+  faixa.className = "faixa-status " + (ativo ? "faixa-ativa" : "faixa-pausada");
+  $("texto-monitoramento").textContent = ativo
+    ? "A análise está ativa nos chats selecionados. Alterações chegam às extensões em até 1 minuto."
+    : "A análise está pausada em todos os chats. As regras e a seleção permanecem salvas.";
+}
+
 function desenharSitesMonitorados(disponiveis, ativos) {
   const container = $("sites-monitorados");
   limpar(container);
   const selecionados = new Set(Array.isArray(ativos) ? ativos : []);
+  estado.sites = Array.isArray(disponiveis) ? disponiveis.slice() : [];
 
-  (Array.isArray(disponiveis) ? disponiveis : []).forEach(function (site) {
-    const rotulo = criar("label", "site-painel");
+  if (!estado.sites.length) {
+    container.appendChild(criar("p", "vazio-painel", "Nenhum chat cadastrado. Adicione o primeiro chat para começar."));
+    return;
+  }
+
+  estado.sites.forEach(function (site) {
+    const card = criar("article", "site-card" + (selecionados.has(site.id) ? " site-card-ativo" : ""));
+
+    const topo = criar("div", "site-card-topo");
+    const avatar = criar("span", "site-avatar", (site.nome || "?").slice(0, 1).toUpperCase());
+    const identidade = criar("div", "site-identidade");
+    identidade.appendChild(criar("h3", null, site.nome || site.id));
+    identidade.appendChild(criar("p", "site-url", urlDoSite(site)));
+    topo.appendChild(avatar);
+    topo.appendChild(identidade);
+    topo.appendChild(criar("span", "site-origem", site.padrao ? "Original" : "Adicionado"));
+    card.appendChild(topo);
+
+    const rodape = criar("div", "site-card-rodape");
+    const alternativa = criar("label", "interruptor-site");
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
+    checkbox.className = "site-toggle";
     checkbox.value = site.id;
     checkbox.checked = selecionados.has(site.id);
+    checkbox.addEventListener("change", function () {
+      card.classList.toggle("site-card-ativo", checkbox.checked);
+      atualizarEstadoMonitoramento();
+    });
+    alternativa.appendChild(checkbox);
+    alternativa.appendChild(criar("span", "interruptor-site-texto", "Monitorar"));
+    rodape.appendChild(alternativa);
 
-    const texto = criar("span", "site-painel-texto");
-    texto.appendChild(criar("strong", null, site.nome));
-    texto.appendChild(criar("small", null, (site.hosts || []).join(" · ")));
+    const acoes = criar("div", "site-card-acoes");
+    const editar = criar("button", "botao pequeno", "Editar");
+    editar.type = "button";
+    editar.addEventListener("click", function () { abrirSite(site); });
+    acoes.appendChild(editar);
 
-    rotulo.appendChild(checkbox);
-    rotulo.appendChild(texto);
-    container.appendChild(rotulo);
+    if (!site.padrao) {
+      const excluir = criar("button", "botao pequeno perigo", "Excluir");
+      excluir.type = "button";
+      excluir.addEventListener("click", function () { removerSite(site); });
+      acoes.appendChild(excluir);
+    }
+    rodape.appendChild(acoes);
+    card.appendChild(rodape);
+    container.appendChild(card);
   });
 }
 
 async function carregarMonitoramento() {
   const dados = await api("/api/admin/configuracoes");
   estado.monitoramento = dados;
-  $("monitoramento-ativo").checked = Boolean(dados.monitoramento_ativo);
   desenharSitesMonitorados(dados.sites_disponiveis, dados.sites_ativos);
+  atualizarEstadoMonitoramento();
+}
+
+function abrirSite(site) {
+  $("site-id").value = site ? site.id : "";
+  $("site-nome").value = site ? site.nome : "";
+  $("site-url").value = site ? urlDoSite(site) : "";
+  $("titulo-site").textContent = site ? "Editar chat" : "Adicionar chat";
+  $("site-dica").textContent = site
+    ? "Ao mudar a URL, autorize o novo domínio nas Opções da extensão em cada computador."
+    : "A extensão usa o domínio para reconhecer a página. Depois de salvar, autorize o novo domínio nas Opções da extensão em cada computador.";
+  $("dialogo-site").showModal();
+  setTimeout(function () { $("site-nome").focus(); }, 30);
+}
+
+async function salvarSite(evento) {
+  evento.preventDefault();
+  const id = $("site-id").value.trim();
+  const corpo = JSON.stringify({ nome: $("site-nome").value.trim(), url: $("site-url").value.trim() });
+  try {
+    await api(id ? "/api/admin/sites/" + encodeURIComponent(id) : "/api/admin/sites", {
+      method: id ? "PUT" : "POST",
+      body: corpo,
+    });
+    $("dialogo-site").close();
+    avisar(id ? "Chat atualizado." : "Chat adicionado.");
+    await carregarMonitoramento();
+  } catch (erro) {
+    tratarErro(erro);
+  }
+}
+
+function removerSite(site) {
+  confirmar(
+    "Excluir chat monitorado?",
+    "O chat " + site.nome + " sai do catálogo. A extensão deixará de analisar esse domínio.",
+    "Excluir chat",
+    async function () {
+      try {
+        await api("/api/admin/sites/" + encodeURIComponent(site.id), { method: "DELETE" });
+        avisar("Chat excluído.");
+        await carregarMonitoramento();
+      } catch (erro) {
+        tratarErro(erro);
+      }
+    },
+  );
 }
 
 async function salvarMonitoramento() {
   const ativo = $("monitoramento-ativo").checked;
   const sites = Array.from(
-    document.querySelectorAll("#sites-monitorados input[type=checkbox]:checked"),
+    document.querySelectorAll("#sites-monitorados .site-toggle:checked"),
   ).map(function (checkbox) {
     return checkbox.value;
   });
 
   if (ativo && !sites.length) {
-    avisar("Selecione ao menos um site ou desligue o monitoramento.", "erro");
+    avisar("Selecione ao menos um chat ou pause o monitoramento.", "erro");
     return;
   }
 
@@ -1523,8 +1630,8 @@ async function salvarMonitoramento() {
       body: JSON.stringify({ monitoramento_ativo: ativo, sites_ativos: sites }),
     });
     estado.monitoramento = dados;
-    $("monitoramento-ativo").checked = Boolean(dados.monitoramento_ativo);
     desenharSitesMonitorados(dados.sites_disponiveis, dados.sites_ativos);
+    atualizarEstadoMonitoramento();
     avisar("Monitoramento atualizado. As extensões aplicam automaticamente em até 1 minuto.");
     $("sincronizacao-monitoramento").textContent =
       "Política salva · os dispositivos conectados recebem a nova versão em até 1 minuto.";
@@ -1541,9 +1648,9 @@ async function sincronizarTodos() {
     const dados = await api("/api/admin/configuracoes/sincronizar", { method: "POST" });
     avisar(dados.mensagem || "Sincronização solicitada.");
     $("sincronizacao-monitoramento").textContent =
-      dados.dispositivos +
-      " dispositivo(s) serão atualizados na próxima consulta automática (até 1 minuto).";
-    await Promise.all([carregarDispositivos(), carregarInstalacao()]);
+      plural(dados.dispositivos, "dispositivo será atualizado", "dispositivos serão atualizados") +
+      " na próxima consulta automática (até 1 minuto).";
+    await carregarDispositivos();
   } catch (erro) {
     tratarErro(erro);
   } finally {
@@ -1573,7 +1680,7 @@ function ligarEventos() {
         method: "PUT",
         body: JSON.stringify({ limiar_gargalo: limiar }),
       });
-      avisar("Tolerância de risco atualizada.");
+      avisar("Limite de criticidade atualizado.");
       await carregarResumo();
     } catch (erro) {
       tratarErro(erro);
@@ -1583,6 +1690,16 @@ function ligarEventos() {
   $("salvar-monitoramento").addEventListener("click", function () {
     void salvarMonitoramento();
   });
+
+  $("monitoramento-ativo").addEventListener("change", function () {
+    if (estado.monitoramento) {
+      estado.monitoramento.monitoramento_ativo = $("monitoramento-ativo").checked;
+    }
+    atualizarEstadoMonitoramento();
+  });
+
+  $("adicionar-chat").addEventListener("click", function () { abrirSite(null); });
+  $("form-site").addEventListener("submit", salvarSite);
 
   $("nova-regra").addEventListener("click", function () { abrirRegra(null); });
   $("form-regra").addEventListener("submit", salvarRegra);
@@ -1656,12 +1773,11 @@ function ligarEventos() {
         method: "POST",
         body: JSON.stringify({ dias: dias }),
       });
-      $("dialogo-idade").close();
-      avisar(
-        resposta.removidos === 0
-          ? "Nenhum alerta mais antigo que o período informado."
-          : resposta.removidos + " alerta(s) removido(s).",
-      );
+      $("dialogo-idade").close();        avisar(
+          resposta.removidos === 0
+            ? "Nenhum alerta mais antigo que o período informado."
+            : plural(resposta.removidos, "alerta excluído", "alertas excluídos") + ".",
+        );
       await carregarAlertas(1);
     } catch (erro) {
       tratarErro(erro);
@@ -1670,13 +1786,16 @@ function ligarEventos() {
 
   $("limpar-tudo").addEventListener("click", function () {
     confirmar(
-      "Limpar todos os alertas?",
+      "Excluir todos os alertas?",
       "Toda a base de auditoria será apagada, inclusive os itens detectados. Esta ação não pode ser desfeita.",
-      "Limpar tudo",
+      "Excluir todos os alertas",
       async function () {
         try {
           const resposta = await api("/api/admin/alertas", { method: "DELETE" });
-          avisar(resposta.removidos + " alerta(s) removido(s) definitivamente.");
+          avisar(
+            plural(resposta.removidos, "alerta excluído", "alertas excluídos") +
+              " definitivamente.",
+          );
           await carregarAlertas(1);
         } catch (erro) {
           tratarErro(erro);
@@ -1702,14 +1821,14 @@ function ligarEventos() {
     const id = estado.alertaAtual.id;
     confirmar(
       "Excluir alerta?",
-      "O registro e seus tipos detectados serão removidos da auditoria.",
+      "O registro e seus tipos detectados serão excluídos da auditoria.",
       "Excluir alerta",
       async function () {
         try {
           await api("/api/admin/alertas/" + id, { method: "DELETE" });
           $("dialogo-alerta").close();
           estado.alertaAtual = null;
-          avisar("Alerta removido.");
+          avisar("Alerta excluído.");
           await carregarAlertas(estado.pagina);
         } catch (erro) {
           tratarErro(erro);
@@ -1750,6 +1869,10 @@ function iniciarAtualizacaoAutomatica() {
     } else if (estado.secao === "alertas") {
       carregarAlertas(estado.pagina).catch(function () {
         /* mantém a lista atual se a rede falhar */
+      });
+    } else if (estado.secao === "monitoramento") {
+      carregarDispositivos().catch(function () {
+        /* mantém os dispositivos atuais se a rede falhar */
       });
     }
   }, INTERVALO_ATUALIZACAO);
