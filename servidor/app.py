@@ -62,7 +62,7 @@ import pdf
 VERSAO = "2.9"
 # A versão do produto continua 2.9; este sufixo invalida o cache dos arquivos
 # estáticos quando a interface muda sem alterar a versão exibida.
-VERSAO_ASSETS = "2.9.6"
+VERSAO_ASSETS = "2.9.12"
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------------------
@@ -456,7 +456,7 @@ def sites_ativos_do_banco(valor, catalogo=None) -> list:
 
 def validar_sites_ativos(valor, catalogo=None) -> list:
     if not isinstance(valor, list):
-        raise ErroValidacao("Sites monitorados deve ser uma lista.")
+        raise ErroValidacao("IAs monitoradas deve ser uma lista.")
     disponiveis = catalogo if catalogo is not None else catalogo_de_sites()
     escolhidos = []
     for site_id in valor:
@@ -471,20 +471,20 @@ def normalizar_url_do_site(valor: str) -> tuple:
     """Aceita a URL colada do chat e devolve (nome_do_host, url_normalizada)."""
     texto = (valor or "").strip()
     if not texto:
-        raise ErroValidacao("Informe a URL do chat.")
+        raise ErroValidacao("Informe a URL da IA.")
     if "://" not in texto:
         texto = "https://" + texto
     try:
         endereco = urlparse(texto)
     except ValueError as erro:
-        raise ErroValidacao("URL do chat inválida.") from erro
+        raise ErroValidacao("URL da IA inválida.") from erro
     host = (endereco.hostname or "").strip().lower().rstrip(".")
     if endereco.scheme != "https" or not host:
-        raise ErroValidacao("Use uma URL https válida, como https://chat.exemplo.com.")
+        raise ErroValidacao("Use uma URL https válida, como https://ia.exemplo.com.")
     if len(host) > 253 or not re.fullmatch(r"[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?", host):
-        raise ErroValidacao("O host da URL do chat é inválido.")
+        raise ErroValidacao("O host da URL da IA é inválido.")
     if host == "localhost" or host.endswith(".local"):
-        raise ErroValidacao("Use o endereço público do chat, não um endereço local.")
+        raise ErroValidacao("Use o endereço público da IA, não um endereço local.")
     return host, f"https://{host}"
 
 
@@ -2192,14 +2192,14 @@ def salvar_sites_ativos(site_ids: list) -> None:
 @exigir_sessao_api
 def api_criar_site():
     corpo = ler_corpo()
-    nome = texto_obrigatorio(corpo.get("nome"), "Nome do chat", 60)
+    nome = texto_obrigatorio(corpo.get("nome"), "Nome da IA", 60)
     if len(nome) < 2:
-        raise ErroValidacao("O nome do chat deve ter pelo menos 2 caracteres.")
+        raise ErroValidacao("O nome da IA deve ter pelo menos 2 caracteres.")
     host, url = normalizar_url_do_site(corpo.get("url"))
     catalogo = catalogo_de_sites()
     for site in catalogo.values():
         if host in (site.get("hosts") or []):
-            raise ErroValidacao("Este endereço já está vinculado a outro chat monitorado.")
+            raise ErroValidacao("Este endereço já está vinculado a outra IA monitorada.")
 
     site_id = gerar_id_site(nome, catalogo)
     db.criar_site(site_id, nome, [host], CAMPOS_GENERICOS, ENVIAR_GENERICOS)
@@ -2222,7 +2222,7 @@ def api_criar_site():
                     "padrao": False,
                 },
                 "sites_ativos": ativos,
-                "mensagem": "Chat adicionado. Autorize o novo domínio nas Opções da extensão.",
+                "mensagem": "IA adicionada. Autorize o novo domínio nas Opções da extensão.",
             }
         ),
         201,
@@ -2234,25 +2234,25 @@ def api_criar_site():
 def api_atualizar_site(site_id: str):
     site = db.obter_site(site_id)
     if not site:
-        return jsonify({"erro": "Chat não encontrado."}), 404
+        return jsonify({"erro": "IA não encontrada."}), 404
 
     corpo = ler_corpo()
-    nome = texto_obrigatorio(corpo.get("nome"), "Nome do chat", 60)
+    nome = texto_obrigatorio(corpo.get("nome"), "Nome da IA", 60)
     if len(nome) < 2:
-        raise ErroValidacao("O nome do chat deve ter pelo menos 2 caracteres.")
+        raise ErroValidacao("O nome da IA deve ter pelo menos 2 caracteres.")
     host, url = normalizar_url_do_site(corpo.get("url"))
 
     for outro in db.listar_sites():
         if outro["id"] != site_id and host in (outro.get("hosts") or []):
-            raise ErroValidacao("Este endereço já está vinculado a outro chat monitorado.")
+            raise ErroValidacao("Este endereço já está vinculado a outra IA monitorada.")
 
     if db.atualizar_site(site_id, nome, [host]) == 0:
-        return jsonify({"erro": "Chat não encontrado."}), 404
+        return jsonify({"erro": "IA não encontrada."}), 404
     invalidar_cache_config()
     return jsonify(
         {
             "site": {**site, "nome": nome, "hosts": [host], "url": url},
-            "mensagem": "Chat atualizado. Autorize o domínio novo nas Opções da extensão, se necessário.",
+            "mensagem": "IA atualizada. Autorize o domínio novo nas Opções da extensão, se necessário.",
         }
     )
 
@@ -2262,11 +2262,11 @@ def api_atualizar_site(site_id: str):
 def api_remover_site(site_id: str):
     site = db.obter_site(site_id)
     if not site:
-        return jsonify({"erro": "Chat não encontrado."}), 404
+        return jsonify({"erro": "IA não encontrada."}), 404
     if site["padrao"]:
-        raise ErroValidacao("Os chats padrão não podem ser excluídos; desative-os se não quiser monitorar.")
+        raise ErroValidacao("As IAs padrão não podem ser excluídas; desative-as se não quiser monitorar.")
     if db.remover_site(site_id) == 0:
-        return jsonify({"erro": "Chat não encontrado."}), 404
+        return jsonify({"erro": "IA não encontrada."}), 404
 
     politica = obter_politica_monitoramento()
     ativos = [item for item in politica["sites_ativos"] if item != site_id]
@@ -2275,9 +2275,9 @@ def api_remover_site(site_id: str):
     return jsonify(
         {
             "sites_ativos": ativos,
-            "mensagem": "Chat excluído. A política das extensões foi atualizada."
+            "mensagem": "IA excluída. A política das extensões foi atualizada."
             if ativos
-            else "Chat excluído. Nenhum chat ativo restou, então o monitoramento foi pausado.",
+            else "IA excluída. Nenhuma IA ativa restou, então o monitoramento foi pausado.",
         }
     )
 
@@ -2312,7 +2312,7 @@ def avisar_configuracao() -> None:
         print("[AVISO] SECRET_KEY de desenvolvimento. Defina SENTINELA_SECRET_KEY.")
     print("[Sentinela] Banco: Postgres externo (SENTINELA_DB_URL)")
     print(f"[Sentinela] Usuário admin: {ADMIN_USUARIO}")
-    print("[Sentinela] Código de instalação: painel → Instalação e acesso.")
+    print("[Sentinela] Código de instalação: painel → Instalação e administradores.")
 
 
 avisar_configuracao()

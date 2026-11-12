@@ -88,16 +88,16 @@ visita demora cerca de 1 minuto.
 
 1. Abra `https://SEU-SERVICO.onrender.com/painel`.
 2. Entre com `SENTINELA_ADMIN_USUARIO` e a senha informada.
-3. Em **Monitoramento**, ative o monitoramento, escolha os chats ou adicione um novo chat
+3. Em **Monitoramento**, ative a chave geral, escolha as IAs ou adicione uma nova IA
    com nome e URL.
-4. Confira **Instalação e acesso**:
+4. Confira **Instalação e administradores**:
    - a URL pública;
    - o código de instalação;
    - a versão **2.9**;
    - o administrador inicial marcado como **Superadmin**.
 5. Confira **Regras de detecção**: devem existir 44 regras iniciais.
-6. Crie/edite uma regra e confirme que a extensão recebe a nova versão automaticamente; use
-   **Sincronizar todos agora** em **Monitoramento** se quiser forçar a consulta.
+6. Crie/edite uma regra e confirme que a extensão recebe a nova versão automaticamente em até
+   1 minuto.
 7. Instale a extensão pelo botão **Baixar extensão (.zip)** e confirme que ela aparece em
    **Monitoramento → Dispositivos conectados**, com o colaborador informado nas Opções.
 
@@ -115,20 +115,20 @@ zip -qr public/sentinela-extensao.zip extensao -x '*.DS_Store'
 
 O ZIP deve conter a pasta `extensao/` com `manifest.json` dentro. Em cada computador:
 
-1. Baixe o ZIP pelo painel em **Instalação e acesso → Baixar extensão (.zip)**. A URL do servidor já vem
+1. Baixe o ZIP pelo painel em **Instalação e administradores → Baixar extensão (.zip)**. A URL do servidor já vem
    preenchida; o ZIP público do repositório continua disponível para demonstração.
 2. Descompacte e recarregue em `chrome://extensions` ou `edge://extensions`.
 3. Abra **Opções** e confirme a URL preenchida; informe o código de instalação, o departamento e
    o colaborador.
-4. Salve, autorize o servidor e os chats adicionais e use **Testar conexão**.
+4. Salve e use **Testar conexão**. Domínios novos são autorizados no mesmo salvamento.
 5. Abra o ChatGPT/Gemini/Claude/Copilot e teste texto + imagem/PDF.
 
-Chats adicionados no painel usam seletores genéricos de compositor. Se o site tiver uma estrutura
+IAs adicionadas no painel usam seletores genéricos de compositor. Se o site tiver uma estrutura
 muito específica, a autorização do domínio ainda é necessária e os seletores podem precisar de
 ajuste em `extensao/content.js`.
 
 A versão 2.9 pede as permissões `alarms` e `scripting`. A primeira sincroniza a matriz e
-reenvia a fila; a segunda injeta o detector nos chats adicionados pelo painel depois que o
+reenvia a fila; a segunda injeta o detector nas IAs adicionadas pelo painel depois que o
 domínio for autorizado nas Opções.
 
 ## 7. Validar o deploy
@@ -148,9 +148,9 @@ No painel:
 - [ ] 44 regras visíveis;
 - [ ] criar/editar/excluir uma regra e recarregar em outra instância mostra a mudança;
 - [ ] um alerta de teste aparece com site, departamento, colaborador, IP, nível, tipos e origem;
-- [ ] texto + imagem no mesmo prompt gera detecções das duas origens;
-- [ ] **Instalação e acesso** mostra o endereço e o código corretos;
-- [ ] **Monitoramento** ativa/pausa globalmente e por chat, adiciona chat com URL e move os
+- [ ] texto + imagem no mesmo conteúdo gera detecções das duas origens;
+- [ ] **Instalação e administradores** mostra o endereço e o código corretos;
+- [ ] **Monitoramento** ativa/pausa globalmente e por IA, adiciona IA com URL e move os
   dispositivos conectados para a mesma seção;
 - [ ] um dispositivo desconectado volta a conectar depois de renovar o código e salvar o novo
   código nas Opções;

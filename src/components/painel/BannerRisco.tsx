@@ -123,7 +123,7 @@ export function ModalRisco({
             <span className={cn("font-medium", CLASSES_RISCO[nivel].texto)}>
               {ROTULO_RISCO[nivel].toLowerCase()}
             </span>
-            . Ao enviar, o alerta será registrado no painel de governança. O prompt não é
+            . Ao enviar, o alerta será registrado no painel de governança. O conteúdo não é
             armazenado.
           </DialogDescription>
         </DialogHeader>

@@ -5,7 +5,7 @@
  * páginas das IAs. Funciona igual no Chrome e no Microsoft Edge.
  *
  * Cada pedido leva X-API-Token com o código de instalação copiado do painel
- * (Instalação e acesso). Sem o código, o servidor recusa o envio. O popup
+ * (Instalação e administradores). Sem o código, o servidor recusa o envio. O popup
  * mostra o aviso em vez de falhar em silêncio. Alertas que falham por rede
  * entram em uma fila persistente e são reenviados por alarme; o cache de regras
  * mantém o aviso funcionando enquanto o servidor estiver fora do ar.
@@ -325,7 +325,7 @@ async function requisitar(caminho, opcoes, configuracaoExplicita) {
   const configuracao = configuracaoExplicita || (await obterConfiguracao());
   const base = normalizarUrl(configuracao.serverUrl);
   if (!base) {
-    throw new Error("Configure a URL do servidor nas Opções. Copie o endereço do painel em Instalação e acesso.");
+    throw new Error("Configure a URL do servidor nas Opções. Copie o endereço do painel em Instalação e administradores.");
   }
 
   const controlador = new AbortController();
@@ -395,7 +395,7 @@ async function garantirOffscreen() {
       url: "offscreen.html",
       reasons: ["WORKERS", "BLOBS"],
       justification:
-        "Extração local de texto de imagens e PDFs colados nos chats, sem enviar conteúdo a servidores.",
+        "Extração local de texto de imagens e PDFs colados nas IAs, sem enviar conteúdo a servidores.",
     })
     .catch(async function (erro) {
       // Se a página já existe, o erro é inofensivo.
@@ -538,7 +538,7 @@ async function sincronizarConfig(forcar, verificarRemoto) {
     }
     if (!(configuracao.apiToken || "").trim()) {
       throw new Error(
-        "Código de instalação não configurado. Abra Opções e cole o código do painel, em Instalação e acesso.",
+        "Código de instalação não configurado. Abra Opções e cole o código do painel, em Instalação e administradores.",
       );
     }
 
@@ -670,7 +670,7 @@ async function enviarAlerta(alerta) {
   }
   if (!(configuracao.apiToken || "").trim()) {
     return recusar(
-      "Código de instalação não configurado. Abra Opções e cole o código do painel, em Instalação e acesso.",
+      "Código de instalação não configurado. Abra Opções e cole o código do painel, em Instalação e administradores.",
     );
   }
 
@@ -802,7 +802,7 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
           const base = normalizarUrl(configuracao.serverUrl);
           if (!base) {
             throw new Error(
-              "Configure a URL do servidor nas Opções. Copie o endereço do painel em Instalação e acesso.",
+              "Configure a URL do servidor nas Opções. Copie o endereço do painel em Instalação e administradores.",
             );
           }
           if (chrome.permissions && chrome.permissions.contains) {
@@ -824,7 +824,7 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
           await registrarStatus(true, "Conexão estabelecida.");
           responder({
             ok: true,
-            mensagem: `Servidor online · ${totalRegras} ${totalRegras === 1 ? "regra" : "regras"}.`,
+            mensagem: `${totalRegras} ${totalRegras === 1 ? "regra" : "regras"}`,
             latenciaMs: Date.now() - inicio,
           });
         } catch (erro) {

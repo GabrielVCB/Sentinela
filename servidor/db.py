@@ -517,6 +517,9 @@ def inicializar_banco(usuario: str, senha: str) -> None:
                 (VERSAO_MATRIZ,),
             )
 
+        # Mensagens padrão são sincronizadas em toda inicialização. A atualização
+        # só atinge textos que ainda são exatamente os padrões antigos, então uma
+        # mensagem personalizada no painel nunca é sobrescrita.
         for nivel, texto in MENSAGENS_PADRAO.items():
             conexao_aberta.execute(
                 """
@@ -526,8 +529,6 @@ def inicializar_banco(usuario: str, senha: str) -> None:
                 (nivel, texto),
             )
 
-        # 2.2: o aviso de risco baixo passou a aparecer com conteúdo detectado,
-        # então o texto antigo (“nada foi identificado”) deixou de fazer sentido.
         conexao_aberta.execute(
             "UPDATE mensagens SET texto = ? WHERE nivel = 'baixo' AND texto = ?",
             (MENSAGENS_PADRAO["baixo"], MENSAGEM_BAIXO_ANTERIOR),
@@ -537,6 +538,17 @@ def inicializar_banco(usuario: str, senha: str) -> None:
                 "UPDATE mensagens SET texto = ? WHERE nivel = ? AND texto = ?",
                 (MENSAGENS_PADRAO[nivel], nivel, texto_anterior),
             )
+
+        # Textos antigos que circularam em bancos de demonstração. O LIKE cobre
+        # variações do mesmo aviso sem tocar em mensagens personalizadas.
+        conexao_aberta.execute(
+            "UPDATE mensagens SET texto = ? WHERE nivel = 'baixo' AND texto LIKE 'Nenhum dado crítico detectado%'",
+            (MENSAGENS_PADRAO["baixo"],),
+        )
+        conexao_aberta.execute(
+            "UPDATE mensagens SET texto = ? WHERE nivel = 'alto' AND texto = ?",
+            (MENSAGENS_PADRAO["alto"], "Não compartilhe este conteúdo."),
+        )
 
         conexao_aberta.execute(
             """

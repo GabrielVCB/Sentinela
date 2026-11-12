@@ -90,9 +90,9 @@
   --sidebar-border: oklch(0.902 0.004 250);
   --sidebar-ring: oklch(0.62 0.006 250);
 
-  --risco-baixo: oklch(0.48 0.085 158);
-  --risco-medio: oklch(0.55 0.115 66);
-  --risco-alto: oklch(0.505 0.175 27);
+  --risco-baixo: #16a34a;
+  --risco-medio: #f59e0b;
+  --risco-alto: #dc2626;
   --risco-baixo-bg: oklch(0.955 0.022 158);
   --risco-medio-bg: oklch(0.962 0.032 80);
   --risco-alto-bg: oklch(0.958 0.022 27);

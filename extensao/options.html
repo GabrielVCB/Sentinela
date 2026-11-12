@@ -13,7 +13,7 @@
         <h1>Configuração da extensão</h1>
         <p class="subtitulo">
           Conecte ao servidor da empresa e informe o departamento e o colaborador. A ativação e
-          os chats monitorados são definidos pelo painel administrativo.
+          as IAs monitoradas são definidas pelo painel administrativo.
         </p>
         <p class="micro">Extensão versão <strong id="versao-extensao">2.9</strong></p>
       </div>
@@ -26,19 +26,19 @@
           <div>
             <h2>Servidor</h2>
             <p>
-              O pacote baixado pelo painel já preenche a URL do servidor. O código de instalação
-              continua obrigatório: copie-o em <strong>Instalação e acesso</strong>. Sem ele, o
-              servidor recusa os alertas.
+              O pacote baixado pelo painel já preenche a URL do servidor. Copie o código de
+              instalação em <strong>Instalação e administradores</strong>. Sem ele, o servidor
+              recusa os alertas.
             </p>
           </div>
         </div>
         <div class="grade">
           <label class="campo">
-            <span class="rotulo">URL do servidor</span>
-            <input id="servidor" type="url" placeholder="Preenchida automaticamente pelo painel" />
+            <span class="rotulo">URL do servidor <b class="obrigatorio">*</b></span>
+            <input id="servidor" type="url" required placeholder="Preenchida automaticamente pelo painel" />
           </label>
           <label class="campo">
-            <span class="rotulo">Código de instalação (obrigatório)</span>
+            <span class="rotulo">Código de instalação <b class="obrigatorio">*</b></span>
             <input id="token" type="text" autocomplete="off" spellcheck="false" required
               placeholder="Cole o código exibido no painel" />
           </label>
@@ -48,7 +48,7 @@
           servidor da empresa. Se ele for apagado (por exemplo, ao reinstalar a extensão), o popup
           avisa que os alertas pararam de ser registrados.
         </p>
-        <div class="acoes">
+        <div class="acoes-teste">
           <button id="testar" class="botao" type="button">Testar conexão</button>
           <p id="resultado-conexao" class="resultado" role="status"></p>
         </div>
@@ -59,20 +59,20 @@
           <div>
             <h2>Identificação</h2>
             <p>
-              Os campos de identificação são obrigatórios: sem departamento e sem colaborador o
-              alerta não é registrado, para não haver anonimato na auditoria.
+              Sem departamento e sem colaborador o alerta não é registrado, para não haver
+              anonimato na auditoria.
             </p>
           </div>
         </div>
         <div class="grade">
           <label class="campo">
-            <span class="rotulo">Departamento (obrigatório)</span>
+            <span class="rotulo">Departamento <b class="obrigatorio">*</b></span>
             <select id="departamento" required>
               <option value="" disabled selected>Carregando departamentos…</option>
             </select>
           </label>
           <label class="campo">
-            <span class="rotulo">Identificador do colaborador (obrigatório)</span>
+            <span class="rotulo">Identificador do colaborador <b class="obrigatorio">*</b></span>
             <input id="colaborador" type="text" autocomplete="off" required
               placeholder="Ex.: maria.souza" />
           </label>
@@ -86,21 +86,17 @@
       <section class="secao">
         <div class="secao-titulo">
           <div>
-            <h2>Chats monitorados</h2>
+            <h2>IAs monitoradas</h2>
             <p>
-              O painel define quais chats são analisados. Se um chat novo foi adicionado, o
-              navegador precisa autorizar o domínio uma única vez.
+              O painel define quais IAs são analisadas. Domínios novos são autorizados ao salvar.
             </p>
           </div>
         </div>
 
         <ul id="sites-status" class="sites-status">
-          <li class="micro">Carregando chats…</li>
+          <li class="micro">Carregando IAs…</li>
         </ul>
         <p id="permissao-sites" class="dica"></p>
-        <div class="acoes">
-          <button id="autorizar-sites" class="botao" type="button">Autorizar chats configurados</button>
-        </div>
       </section>
 
       <section class="secao">
@@ -108,14 +104,14 @@
           <div>
             <h2>Atualização automática</h2>
             <p>
-              Regras, mensagens e chats são sincronizados automaticamente enquanto o navegador
+              Regras, mensagens e IAs são sincronizadas automaticamente enquanto o navegador
               estiver aberto. Não existe botão de sincronização manual aqui.
             </p>
           </div>
         </div>
         <dl class="resumo" id="resumo">
-          <div><dt>Última verificação automática</dt><dd id="sincronizacao">nunca</dd></div>
-          <div><dt>Política</dt><dd id="politica-monitoramento">—</dd></div>
+          <div><dt>Última sincronização</dt><dd id="sincronizacao">nunca</dd></div>
+          <div><dt>IAs ativas</dt><dd id="politica-monitoramento">—</dd></div>
         </dl>
       </section>
 
@@ -125,8 +121,7 @@
       </div>
 
       <p class="nota">
-        A ativação e os chats monitorados ficam no painel, em <strong>Monitoramento</strong>. O
-        alerta contém somente site, departamento, colaborador, IP, nível de risco, tipos
+        O alerta contém apenas metadados: IA, departamento, colaborador, IP, origem, nível, tipos
         detectados e decisão. O conteúdo analisado não é gravado nem transmitido.
       </p>
     </main>

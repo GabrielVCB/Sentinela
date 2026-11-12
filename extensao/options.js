@@ -172,7 +172,7 @@ function desenharSites(sites, pendentes) {
   if (!sitesConhecidos.length) {
     const vazio = document.createElement("li");
     vazio.className = "micro";
-    vazio.textContent = "Nenhum chat carregado ainda. Salve a configuração para consultar o painel.";
+    vazio.textContent = "Nenhuma IA carregada ainda. Salve a configuração para consultar o painel.";
     el.sitesStatus.appendChild(vazio);
   } else {
     sitesConhecidos.forEach(function (site) {
@@ -189,20 +189,18 @@ function desenharSites(sites, pendentes) {
 
   if (sitesPendentes.length) {
     el.permissaoSites.textContent =
-      "Falta autorizar: " + sitesPendentes.join(", ") + ". Use o botão abaixo.";
+      "Domínios pendentes: " + sitesPendentes.join(", ") + ". Salve para autorizar.";
     el.permissaoSites.className = "dica erro";
-    el.autorizarSites.hidden = false;
   } else {
     el.permissaoSites.textContent = sitesConhecidos.length
       ? "Todos os domínios configurados estão autorizados neste navegador."
       : "";
     el.permissaoSites.className = "dica";
-    el.autorizarSites.hidden = !sitesConhecidos.length;
   }
 }
 
-async function autorizarSites() {
-  if (!sitesPendentes.length) return;
+async function autorizarPendentes() {
+  if (!sitesPendentes.length) return true;
   const origens = [];
   sitesPendentes.forEach(function (host) {
     origens.push("https://" + host + "/*");
@@ -212,19 +210,16 @@ async function autorizarSites() {
     const concedido = await chrome.permissions.request({ origins: origens });
     if (!concedido) {
       avisar(el.resultadoConexao, "O navegador não autorizou os domínios adicionais.", "erro");
-      return;
+      return false;
     }
-    const sincronizado = await enviar({ tipo: "SINCRONIZAR_AGORA" });
-    if (sincronizado.ok) {
-      avisar(el.resultadoConexao, "Chats autorizados. A extensão já pode analisar esses domínios.", "ok");
-    }
-    await carregar();
+    return true;
   } catch (erro) {
     avisar(
       el.resultadoConexao,
       erro instanceof Error ? erro.message : "Falha ao pedir permissão.",
       "erro",
     );
+    return false;
   }
 }
 
@@ -236,7 +231,7 @@ function atualizarResumo(estado) {
   const ativos = Array.isArray(politica.sitesAtivos) ? politica.sitesAtivos.length : 0;
   el.politica.textContent = politica.monitoramentoAtivo === false
     ? "Pausado pelo painel"
-    : ativos + " de " + plural(totalSites, "chat ativo", "chats ativos");
+    : ativos + " de " + totalSites;
 
   const status = estado.status;
   el.statusPonto.className =
@@ -289,7 +284,7 @@ async function salvar(silencioso, completo) {
   if (/suaempresa\.com/i.test(servidor)) {
     avisar(
       el.resultadoSalvar,
-      "Troque a URL de exemplo pela URL do servidor que aparece no painel, em Instalação e acesso.",
+      "Troque a URL de exemplo pela URL do servidor que aparece no painel, em Instalação e administradores.",
       "erro",
     );
     return false;
@@ -299,7 +294,7 @@ async function salvar(silencioso, completo) {
   if (!codigo) {
     avisar(
       el.resultadoSalvar,
-      "Cole o código de instalação que aparece no painel, em Instalação e acesso.",
+      "Cole o código de instalação que aparece no painel, em Instalação e administradores.",
       "erro",
     );
     return false;
@@ -326,6 +321,12 @@ async function salvar(silencioso, completo) {
 
   const permissao = await garantirPermissao(servidor);
   avisoPermissao = permissao.ok ? "" : permissao.mensagem || "";
+  if (permissao.ok && !silencioso) {
+    const dominiosOk = await autorizarPendentes();
+    if (!dominiosOk) {
+      avisoPermissao = "Configurações salvas, mas o navegador não autorizou todos os domínios.";
+    }
+  }
 
   // Testar/sincronizar não devem apagar uma identificação já salva: quando o
   // campo está vazio, o valor anterior é mantido.
@@ -349,7 +350,7 @@ async function salvar(silencioso, completo) {
     } else if (!sincronizado.ok) {
       avisar(
         el.resultadoSalvar,
-        "Configurações salvas, mas o servidor recusou o código. Copie o valor de Instalação e acesso e salve de novo.",
+        "Configurações salvas, mas o servidor recusou o código. Copie o valor de Instalação e administradores e salve de novo.",
         "erro",
       );
     } else {
@@ -383,9 +384,12 @@ async function testar() {
   el.testar.textContent = "Testar conexão";
 
   if (resposta.ok) {
+    const segundos = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(
+      (resposta.latenciaMs || 0) / 1000,
+    );
     avisar(
       el.resultadoConexao,
-      "Conectado em " + (resposta.latenciaMs || 0) + " ms. " + (resposta.mensagem || ""),
+      "Servidor online · " + segundos + " s · " + (resposta.mensagem || ""),
       "ok",
     );
   } else {
@@ -407,7 +411,6 @@ document.addEventListener("DOMContentLoaded", function () {
   el.politica = document.getElementById("politica-monitoramento");
   el.sitesStatus = document.getElementById("sites-status");
   el.permissaoSites = document.getElementById("permissao-sites");
-  el.autorizarSites = document.getElementById("autorizar-sites");
   el.statusPonto = document.getElementById("status-ponto");
   el.resultadoConexao = document.getElementById("resultado-conexao");
   el.resultadoSalvar = document.getElementById("resultado-salvar");
@@ -416,9 +419,6 @@ document.addEventListener("DOMContentLoaded", function () {
   el.versao = document.getElementById("versao-extensao");
 
   el.testar.addEventListener("click", testar);
-  el.autorizarSites.addEventListener("click", function () {
-    void autorizarSites();
-  });
   el.salvar.addEventListener("click", function () {
     void salvar(false);
   });

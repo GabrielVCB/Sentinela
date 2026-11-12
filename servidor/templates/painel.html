@@ -13,23 +13,23 @@
       <button class="item ativo" type="button" data-ir="visao">
         <span><strong>Visão geral</strong></span>
       </button>
+      <button class="item" type="button" data-ir="alertas">
+        <span><strong>Alertas</strong></span>
+      </button>
       <button class="item" type="button" data-ir="regras">
         <span><strong>Regras de detecção</strong></span>
       </button>
       <button class="item" type="button" data-ir="areas">
-        <span><strong>Áreas de risco</strong></span>
+        <span><strong>Departamentos</strong></span>
       </button>
       <button class="item" type="button" data-ir="mensagens">
         <span><strong>Mensagens educativas</strong></span>
       </button>
-      <button class="item" type="button" data-ir="alertas">
-        <span><strong>Alertas</strong></span>
-      </button>
-      <button class="item" type="button" data-ir="instalacao">
-        <span><strong>Instalação e acesso</strong></span>
-      </button>
       <button class="item" type="button" data-ir="monitoramento">
         <span><strong>Monitoramento</strong></span>
+      </button>
+      <button class="item" type="button" data-ir="instalacao">
+        <span><strong>Instalação e administradores</strong></span>
       </button>
     </nav>
 
@@ -47,13 +47,7 @@
 
     <section class="secao ativa" data-painel="visao">
       <header class="secao-cabecalho">
-        <div>
-          <h1>Visão geral</h1>
-          <p class="subtitulo">
-            Alertas gerados e decisões tomadas após o aviso. Todos os indicadores usam apenas
-            metadados.
-          </p>
-        </div>
+        <h1>Visão geral</h1>
         <button type="button" class="botao" id="atualizar-resumo">Atualizar</button>
       </header>
 
@@ -74,9 +68,9 @@
           <p class="micro" id="kpi-envio-detalhe">—</p>
         </div>
         <div>
-          <p class="rotulo">Tipos de dado detectados</p>
+          <p class="rotulo">Tipos detectados</p>
           <p class="metrica" id="kpi-tipos">0</p>
-          <p class="micro">categorias detectadas</p>
+          <p class="micro">categorias distintas</p>
         </div>
       </div>
 
@@ -94,11 +88,11 @@
           <div id="grafico-risco" class="grafico-donut"></div>
         </section>
         <section class="bloco-painel">
-          <h2>Decisão do colaborador</h2>
+          <h2>Decisão após o aviso</h2>
           <div id="grafico-acao" class="grafico-donut"></div>
         </section>
         <section class="bloco-painel">
-          <h2>Sites com mais alertas</h2>
+          <h2>IAs com mais alertas</h2>
           <div id="barras-sites"></div>
         </section>
       </div>
@@ -106,7 +100,6 @@
       <div class="grade-duas">
         <section class="bloco-painel">
           <h2>Risco alto por departamento</h2>
-          <p class="micro">Alertas de risco alto / total de alertas.</p>
           <div id="barras-departamento"></div>
         </section>
         <section class="bloco-painel">
@@ -120,16 +113,15 @@
           <h2>Efetividade dos avisos por departamento</h2>
           <form id="form-limiar" class="form-inline">
             <label class="campo-inline">
-              <span class="rotulo">Limite de criticidade (%)</span>
+              <span class="rotulo">
+                Limite de criticidade (%)
+                <span class="dica-icone" role="img" aria-label="Crítico: ao menos 3 alertas e proporção de risco alto igual ou maior que este limite." title="Crítico: ao menos 3 alertas e proporção de risco alto igual ou maior que este limite.">i</span>
+              </span>
               <input type="number" id="limiar" min="0" max="100" value="{{ limiar_padrao }}" />
             </label>
             <button type="submit" class="botao">Aplicar</button>
           </form>
         </div>
-        <p class="micro">
-          Barra escura = proporção de envios após o aviso. Quanto maior, menor a efetividade.
-        </p>
-
         <div class="tabela-rolagem">
           <table class="tabela">
             <thead>
@@ -145,10 +137,6 @@
           </table>
         </div>
 
-        <p class="nota" id="nota-limiar">
-          Crítico = ao menos 3 alertas e {{ limiar_padrao }}% deles em risco alto. Em observação =
-          menos de 3 alertas.
-        </p>
         <div id="gargalos"></div>
       </section>
 
@@ -163,18 +151,12 @@
 
     <section class="secao" data-painel="regras">
       <header class="secao-cabecalho">
-        <div>
-          <h1>Regras de detecção</h1>
-          <p class="subtitulo">
-            Cada regra pertence a uma área e define um nível de risco. As alterações chegam às
-            extensões em até 1 minuto.
-          </p>
-        </div>
+        <h1>Regras de detecção</h1>
         <button type="button" class="botao primario" id="nova-regra">Nova regra</button>
       </header>
 
       <div class="barra-ferramentas">
-        <input type="search" id="busca-regras" placeholder="Buscar por nome, área ou palavra-chave…" aria-label="Buscar regras" />
+        <input type="search" id="busca-regras" placeholder="Buscar por nome, departamento ou palavra-chave…" aria-label="Buscar regras" />
         <span class="rotulo" id="contador-regras"></span>
       </div>
 
@@ -183,7 +165,7 @@
           <thead>
             <tr>
               <th>Regra</th>
-              <th>Área</th>
+              <th>Departamento</th>
               <th>Tipo</th>
               <th>Risco</th>
               <th>Ativa</th>
@@ -198,14 +180,8 @@
 
     <section class="secao" data-painel="areas">
       <header class="secao-cabecalho">
-        <div>
-          <h1>Áreas de risco</h1>
-          <p class="subtitulo">
-            As áreas organizam as regras e são os departamentos que o colaborador escolhe na
-            extensão. Ao excluir uma área, o histórico de alertas é preservado.
-          </p>
-        </div>
-        <button type="button" class="botao primario" id="nova-area">Nova área</button>
+        <h1>Departamentos</h1>
+        <button type="button" class="botao primario" id="nova-area">Novo departamento</button>
       </header>
 
       <ul id="lista-areas" class="lista-areas"></ul>
@@ -213,25 +189,14 @@
 
     <section class="secao" data-painel="mensagens">
       <header class="secao-cabecalho">
-        <div>
-          <h1>Mensagens educativas</h1>
-          <p class="subtitulo">
-            Texto exibido no aviso da extensão, abaixo dos tipos detectados.
-          </p>
-        </div>
+        <h1>Mensagens educativas</h1>
       </header>
       <div id="mensagens" class="grade-mensagens"></div>
     </section>
 
     <section class="secao" data-painel="alertas">
       <header class="secao-cabecalho">
-        <div>
-          <h1>Alertas</h1>
-          <p class="subtitulo">
-            Registro de metadados: colaborador, site, IP, origem, nível de risco, tipos detectados
-            e decisão. Nenhum prompt é armazenado.
-          </p>
-        </div>
+        <h1>Alertas</h1>
         <div class="acoes-cabecalho">
           <a class="botao" id="exportar" href="{{ url_for('api_exportar_csv') }}">Exportar CSV</a>
           <a class="botao" id="exportar-pdf" href="{{ url_for('api_exportar_pdf') }}">Exportar PDF</a>
@@ -280,7 +245,7 @@
               <th>Departamento</th>
               <th>Colaborador</th>
               <th>IP</th>
-              <th>Site</th>
+              <th>IA</th>
               <th>Origem</th>
               <th>Nível</th>
               <th>Decisão</th>
@@ -301,13 +266,7 @@
 
     <section class="secao" data-painel="instalacao">
       <header class="secao-cabecalho">
-        <div>
-          <h1>Instalação e acesso</h1>
-          <p class="subtitulo">
-            Use o endereço do servidor e o código de instalação para conectar a extensão aos
-            computadores da empresa. Sem o código, o servidor recusa o registro de alertas.
-          </p>
-        </div>
+        <h1>Instalação e administradores</h1>
         <div class="marcas-cabecalho">
           <span class="badge versao" id="instalacao-versao">—</span>
         </div>
@@ -315,19 +274,16 @@
 
       <section class="bloco-painel">
         <div class="linha-titulo">
-          <div>
-            <h2>Pacote e código de instalação</h2>
-            <p class="micro">
-              Entregue o ZIP e o código aos funcionários. O pacote já vem com o endereço do
-              servidor.
-            </p>
-          </div>
+          <h2>Pacote e código de instalação</h2>
           <button type="button" class="botao" id="renovar-token">Renovar código</button>
         </div>
 
         <div class="instalacao-entrega">
           <div class="codigo-bloco">
-            <p class="rotulo">Código de instalação</p>
+            <p class="rotulo">
+              Código de instalação
+              <span class="dica-icone" role="img" aria-label="Sem o código, o servidor recusa o registro de alertas." title="Sem o código, o servidor recusa o registro de alertas.">i</span>
+            </p>
             <code id="instalacao-token" class="codigo-valor">—</code>
           </div>
           <div class="instalacao-entrega-acoes">
@@ -337,6 +293,7 @@
             </a>
           </div>
         </div>
+        <p class="micro">Entregue o pacote e o código aos funcionários.</p>
 
         <dl class="resumo-detalhe">
           <div>
@@ -362,8 +319,6 @@
           <button type="button" class="botao primario" id="novo-admin"{% if not superadmin %} hidden{% endif %}>Novo administrador</button>
         </div>
 
-        <p class="nota" id="admin-nota"></p>
-
         <div class="tabela-rolagem">
           <table class="tabela">
             <thead>
@@ -381,69 +336,34 @@
     </section>
 
     <section class="secao" data-painel="monitoramento">
-      <header class="secao-cabecalho">
-        <div>
-          <h1>Monitoramento</h1>
-          <p class="subtitulo">
-            Defina onde a extensão atua, cadastre chats e acompanhe os dispositivos conectados.
-          </p>
+      <header class="secao-cabecalho secao-cabecalho-monitoramento">
+        <h1>Monitoramento</h1>
+        <div class="monitoramento-mestre">
+          <span class="rotulo">Ativação geral</span>
+          <label class="interruptor-monitoramento">
+            <input type="checkbox" id="monitoramento-ativo" />
+            <span class="interruptor-trilho" aria-hidden="true"></span>
+            <span class="interruptor-texto" id="monitoramento-ativo-texto">Pausada</span>
+          </label>
+          <span class="badge monitoramento-badge" id="monitoramento-status">—</span>
         </div>
-        <span class="badge monitoramento-badge" id="monitoramento-status">—</span>
       </header>
 
       <div class="monitoramento-kpis">
         <div class="monitoramento-kpi">
-          <span class="rotulo">Chats ativos</span>
+          <span class="rotulo">IAs ativas</span>
           <strong id="monitoramento-chats">—</strong>
-          <small>de chats cadastrados</small>
         </div>
         <div class="monitoramento-kpi">
           <span class="rotulo">Dispositivos</span>
           <strong id="monitoramento-dispositivos">—</strong>
-          <small>com contato registrado</small>
-        </div>
-        <div class="monitoramento-kpi">
-          <span class="rotulo">Código atual</span>
-          <strong id="monitoramento-codigo">—</strong>
-          <small>versão de instalação</small>
-        </div>
-        <div class="monitoramento-kpi">
-          <span class="rotulo">Atualização</span>
-          <strong>1 min</strong>
-          <small>consulta automática</small>
         </div>
       </div>
 
-      <section class="bloco-painel bloco-ativacao">
-        <div class="linha-titulo">
-          <div>
-            <h2>Ativação geral</h2>
-            <p class="micro">
-              Pausar interrompe a análise e os avisos em todos os chats. A seleção de chats e as
-              regras continuam salvas.
-            </p>
-          </div>
-          <label class="interruptor-monitoramento">
-            <input type="checkbox" id="monitoramento-ativo" />
-            <span class="interruptor-trilho" aria-hidden="true"></span>
-            <span class="interruptor-texto" id="monitoramento-ativo-texto">Pausado</span>
-          </label>
-        </div>
-        <div class="faixa-status" id="faixa-monitoramento">
-          <span class="ponto-status-painel" aria-hidden="true"></span>
-          <p id="texto-monitoramento">Carregando política…</p>
-        </div>
-      </section>
-
       <section class="bloco-painel">
         <div class="linha-titulo">
-          <div>
-            <h2>Chats monitorados</h2>
-            <p class="micro">
-              Ative ou pause cada chat, edite a URL quando o endereço mudar ou adicione uma nova IA.
-            </p>
-          </div>
-          <button type="button" class="botao primario" id="adicionar-chat">Adicionar chat</button>
+          <h2>IAs monitoradas</h2>
+          <button type="button" class="botao primario" id="adicionar-chat">Adicionar IA</button>
         </div>
 
         <div class="sites-painel" id="sites-monitorados"></div>
@@ -452,24 +372,12 @@
           <button type="button" class="botao primario" id="salvar-monitoramento">
             Salvar ativação
           </button>
-          <button type="button" class="botao" id="sincronizar-todos">
-            Sincronizar todos agora
-          </button>
         </div>
-        <p class="micro" id="sincronizacao-monitoramento">
-          As alterações são aplicadas automaticamente.
-        </p>
       </section>
 
       <section class="bloco-painel">
         <div class="linha-titulo">
-          <div>
-            <h2>Dispositivos conectados</h2>
-            <p class="micro">
-              Cada dispositivo é identificado pelo colaborador e por um ID técnico, usado para
-              desconectar uma máquina específica.
-            </p>
-          </div>
+          <h2>Dispositivos conectados</h2>
           <button type="button" class="botao" id="atualizar-dispositivos">Atualizar</button>
         </div>
 
@@ -480,7 +388,6 @@
             <thead>
               <tr>
                 <th>Colaborador</th>
-                <th>Dispositivo</th>
                 <th>Departamento</th>
                 <th>IP</th>
                 <th>Código</th>
@@ -491,10 +398,6 @@
             <tbody id="tabela-dispositivos"></tbody>
           </table>
         </div>
-        <p class="nota">
-          Desconectar bloqueia novas regras e alertas daquele dispositivo. Ao renovar o código, a
-          máquina volta a conectar depois de salvar o novo código nas Opções.
-        </p>
       </section>
     </section>
   </main>
@@ -520,7 +423,7 @@
 
     <div class="grade-form">
       <label class="campo">
-        <span class="rotulo">Área</span>
+        <span class="rotulo">Departamento</span>
         <select id="regra-area" required></select>
       </label>
       <label class="campo">
@@ -568,13 +471,13 @@
   </form>
 </dialog>
 
-<!-- Diálogo: área -->
+<!-- Diálogo: departamento -->
 <dialog id="dialogo-area" class="dialogo">
   <form id="form-area" class="formulario-dialogo">
     <div class="dialogo-topo">
       <div>
-        <p class="rotulo">Área da matriz</p>
-        <h2 id="titulo-area">Nova área</h2>
+        <p class="rotulo">Departamento</p>
+        <h2 id="titulo-area">Novo departamento</h2>
       </div>
       <button type="button" class="fechar-dialogo" data-fecha="dialogo-area" aria-label="Fechar">×</button>
     </div>
@@ -582,17 +485,20 @@
     <input type="hidden" id="area-id" />
 
     <label class="campo">
-      <span class="rotulo">Nome</span>
+      <span class="rotulo">
+        Nome
+        <span class="dica-icone" role="img" aria-label="Departamento é a categoria da regra e o local que o colaborador escolhe na extensão." title="Departamento é a categoria da regra e o local que o colaborador escolhe na extensão.">i</span>
+      </span>
       <input type="text" id="area-nome" maxlength="60" placeholder="Ex.: Operações" required />
     </label>
     <label class="campo">
       <span class="rotulo">Descrição</span>
-      <textarea id="area-descricao" rows="3" maxlength="240" placeholder="Que tipo de informação esta área protege?"></textarea>
+      <textarea id="area-descricao" rows="3" maxlength="240" placeholder="Que tipo de informação este departamento protege?"></textarea>
     </label>
 
     <div class="dialogo-acoes">
       <button type="button" class="botao" data-fecha="dialogo-area">Cancelar</button>
-      <button type="submit" class="botao primario">Salvar área</button>
+      <button type="submit" class="botao primario">Salvar departamento</button>
     </div>
   </form>
 </dialog>
@@ -627,11 +533,6 @@
       <p class="rotulo">Tipos detectados</p>
       <ul class="lista-itens" id="detalhe-itens"></ul>
     </div>
-    <p class="nota">
-      O texto da mensagem nunca foi enviado ao servidor nem armazenado. Este registro contém
-      apenas os metadados acima.
-    </p>
-
     <div class="dialogo-acoes">
       <button type="button" class="botao" data-fecha="dialogo-alerta">Fechar</button>
       <button type="button" class="botao perigo" id="detalhe-excluir">Excluir alerta</button>
@@ -639,13 +540,13 @@
   </div>
 </dialog>
 
-<!-- Diálogo: chat monitorado -->
+<!-- Diálogo: IA monitorada -->
 <dialog id="dialogo-site" class="dialogo dialogo-estreito">
   <form id="form-site" class="formulario-dialogo">
     <div class="dialogo-topo">
       <div>
-        <p class="rotulo">Chat de IA</p>
-        <h2 id="titulo-site">Adicionar chat</h2>
+        <p class="rotulo">IA monitorada</p>
+        <h2 id="titulo-site">Adicionar IA</h2>
       </div>
       <button type="button" class="fechar-dialogo" data-fecha="dialogo-site" aria-label="Fechar">×</button>
     </div>
@@ -653,21 +554,17 @@
     <input type="hidden" id="site-id" />
 
     <label class="campo">
-      <span class="rotulo">Nome do chat</span>
+      <span class="rotulo">Nome da IA</span>
       <input type="text" id="site-nome" maxlength="60" placeholder="Ex.: Assistente interno" required />
     </label>
     <label class="campo">
-      <span class="rotulo">URL do chat</span>
-      <input type="url" id="site-url" placeholder="https://chat.exemplo.com" required />
+      <span class="rotulo">URL da IA</span>
+      <input type="url" id="site-url" placeholder="https://ia.exemplo.com" required />
     </label>
-    <p class="micro" id="site-dica">
-      A extensão usa o domínio para reconhecer a página. Depois de salvar, autorize o novo
-      domínio nas Opções da extensão em cada computador.
-    </p>
 
     <div class="dialogo-acoes">
       <button type="button" class="botao" data-fecha="dialogo-site">Cancelar</button>
-      <button type="submit" class="botao primario">Salvar chat</button>
+      <button type="submit" class="botao primario">Salvar IA</button>
     </div>
   </form>
 </dialog>
@@ -697,8 +594,6 @@
       <span class="rotulo">Nova senha (mínimo 8 caracteres)</span>
       <input type="password" id="admin-senha" minlength="8" autocomplete="new-password" required />
     </label>
-    <p class="micro" id="admin-dica"></p>
-
     <div class="dialogo-acoes">
       <button type="button" class="botao" data-fecha="dialogo-admin">Cancelar</button>
       <button type="submit" class="botao primario">Salvar</button>

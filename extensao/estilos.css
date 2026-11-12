@@ -6,9 +6,9 @@
   --cinza-claro: #8a8a84;
   --linha: #dcdad4;
   --linha-forte: #c9c7c0;
-  --baixo: #3c7a5a;
-  --medio: #9a6a15;
-  --alto: #a83227;
+  --baixo: #16a34a;
+  --medio: #f59e0b;
+  --alto: #dc2626;
 }
 
 * {
@@ -68,7 +68,7 @@ dd {
 }
 
 .ponto-status.on {
-  background: var(--baixo);
+  background: var(--tinta);
 }
 
 .ponto-status.off {
@@ -174,7 +174,7 @@ body.popup {
 
 .botao.perigo {
   color: var(--alto);
-  border-color: rgba(168, 50, 39, 0.35);
+  border-color: color-mix(in srgb, var(--alto) 35%, transparent);
 }
 
 .switch {
@@ -345,13 +345,26 @@ body.opcoes {
   padding-left: 26px;
 }
 
+.acoes-teste {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.obrigatorio {
+  color: var(--alto);
+  font-weight: 600;
+}
+
 .resultado {
   font-size: 11px;
   color: var(--cinza);
 }
 
 .resultado.ok {
-  color: var(--baixo);
+  color: var(--tinta);
 }
 
 .resultado.erro {
@@ -502,6 +515,7 @@ body.opcoes {
   }
 
   .acoes,
+  .acoes-teste,
   .linha-opcao {
     padding-left: 0;
   }

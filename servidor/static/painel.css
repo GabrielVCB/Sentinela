@@ -7,12 +7,12 @@
   --cinza-claro: #8a8a84;
   --linha: #e0ded8;
   --linha-forte: #cfcdc6;
-  --baixo: #3c7a5a;
-  --baixo-bg: #edf4ef;
-  --medio: #96691a;
-  --medio-bg: #f7f1e3;
-  --alto: #a83227;
-  --alto-bg: #f8ece9;
+  --baixo: #16a34a;
+  --baixo-bg: #f0fdf4;
+  --medio: #f59e0b;
+  --medio-bg: #fffbeb;
+  --alto: #dc2626;
+  --alto-bg: #fef2f2;
   --serif: Georgia, "Times New Roman", serif;
   --sans: Inter, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
@@ -319,12 +319,31 @@ button {
 }
 
 .secao-cabecalho h1 {
-  margin-top: 12px;
+  margin-top: 0;
   font-family: var(--serif);
   font-weight: 400;
   font-size: 34px;
   line-height: 1.08;
   letter-spacing: -0.025em;
+}
+
+.dica-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-left: 5px;
+  border: 1px solid var(--linha-forte);
+  border-radius: 50%;
+  font-family: var(--serif);
+  font-size: 9px;
+  font-style: italic;
+  line-height: 1;
+  color: var(--cinza);
+  cursor: help;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .marcas-cabecalho {
@@ -387,7 +406,7 @@ button {
 
 .botao.perigo {
   color: var(--alto);
-  border-color: rgba(168, 50, 39, 0.35);
+  border-color: color-mix(in srgb, var(--alto) 35%, transparent);
 }
 
 .botao.perigo:hover {
@@ -494,7 +513,7 @@ textarea:focus {
 
 .monitoramento-kpis {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   border-top: 1px solid var(--linha);
   border-bottom: 1px solid var(--linha);
   margin-bottom: 22px;
@@ -525,16 +544,36 @@ textarea:focus {
   font-size: 10px;
 }
 
+.secao-cabecalho-monitoramento {
+  align-items: center;
+}
+
+.monitoramento-mestre {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .monitoramento-badge.status-ativo {
-  color: var(--baixo);
-  border-color: color-mix(in srgb, var(--baixo) 30%, transparent);
-  background: color-mix(in srgb, var(--baixo) 8%, transparent);
+  color: var(--tinta);
+  border-color: var(--linha-forte);
+  background: var(--papel-2);
 }
 
 .monitoramento-badge.status-pausado {
   color: var(--medio);
   border-color: color-mix(in srgb, var(--medio) 30%, transparent);
   background: color-mix(in srgb, var(--medio) 8%, transparent);
+}
+
+.monitoramento-badge.status-ativo::before {
+  background: var(--tinta);
+}
+
+.monitoramento-badge.status-pausado::before {
+  background: var(--medio);
 }
 
 .bloco-ativacao {
@@ -579,7 +618,7 @@ textarea:focus {
 }
 
 .interruptor-monitoramento input:checked + .interruptor-trilho {
-  background: var(--baixo);
+  background: var(--tinta);
 }
 
 .interruptor-monitoramento input:checked + .interruptor-trilho::after {
@@ -654,8 +693,8 @@ textarea:focus {
 }
 
 .site-card-ativo {
-  border-color: color-mix(in srgb, var(--baixo) 32%, var(--linha));
-  background: color-mix(in srgb, var(--baixo) 4%, rgba(255, 255, 255, 0.55));
+  border-color: color-mix(in srgb, var(--tinta) 28%, var(--linha));
+  background: color-mix(in srgb, var(--tinta) 3%, rgba(255, 255, 255, 0.55));
 }
 
 .site-card-topo {
@@ -721,12 +760,50 @@ textarea:focus {
   font-size: 10px;
   color: var(--tinta-suave, #55554f);
   cursor: pointer;
+  user-select: none;
 }
 
 .interruptor-site input {
-  accent-color: var(--baixo);
-  width: 14px;
-  height: 14px;
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.interruptor-site-trilho {
+  display: inline-block;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--linha-forte);
+  position: relative;
+  flex: 0 0 auto;
+  transition: background 0.18s ease;
+}
+
+.interruptor-site-trilho::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(16, 16, 15, 0.18);
+  transition: transform 0.18s ease;
+}
+
+.interruptor-site input:checked + .interruptor-site-trilho {
+  background: var(--tinta);
+}
+
+.interruptor-site input:checked + .interruptor-site-trilho::after {
+  transform: translateX(14px);
+}
+
+.interruptor-site input:focus-visible + .interruptor-site-trilho {
+  outline: 2px solid var(--tinta);
+  outline-offset: 3px;
 }
 
 .site-card-acoes {
@@ -754,16 +831,16 @@ textarea:focus {
   font-size: 11px;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 540px) {
   .monitoramento-kpis {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
   }
 
-  .monitoramento-kpi:nth-child(2) {
+  .monitoramento-kpi {
     border-right: 0;
   }
 
-  .monitoramento-kpi:nth-child(-n + 2) {
+  .monitoramento-kpi:first-child {
     border-bottom: 1px solid var(--linha);
   }
 }
@@ -907,16 +984,16 @@ textarea:focus {
   width: 8px;
   height: 8px;
   display: inline-block;
-  background: #c2412d;
+  background: #1b1b1a;
 }
 
 .legenda-grafico i.claro {
-  background: #e4e1d9;
+  background: #d8d6cf;
 }
 
 .barra-item {
   display: grid;
-  grid-template-columns: 130px 1fr 54px;
+  grid-template-columns: 130px 1fr 68px;
   gap: 12px;
   align-items: center;
   padding: 9px 0;
@@ -1012,33 +1089,33 @@ textarea:focus {
 }
 
 .badge.risco-baixo {
-  color: var(--baixo);
-  border-color: rgba(60, 122, 90, 0.35);
-  background: var(--baixo-bg);
-}
-
-.badge.risco-baixo::before {
+  color: #102016;
+  border-color: var(--baixo);
   background: var(--baixo);
 }
 
-.badge.risco-medio {
-  color: var(--medio);
-  border-color: rgba(150, 105, 26, 0.35);
-  background: var(--medio-bg);
+.badge.risco-baixo::before {
+  background: currentColor;
 }
 
-.badge.risco-medio::before {
+.badge.risco-medio {
+  color: #2b1d00;
+  border-color: var(--medio);
   background: var(--medio);
 }
 
+.badge.risco-medio::before {
+  background: currentColor;
+}
+
 .badge.risco-alto {
-  color: var(--alto);
-  border-color: rgba(168, 50, 39, 0.35);
-  background: var(--alto-bg);
+  color: #fff;
+  border-color: var(--alto);
+  background: var(--alto);
 }
 
 .badge.risco-alto::before {
-  background: var(--alto);
+  background: currentColor;
 }
 
 .status-gargalo {
@@ -1069,6 +1146,11 @@ textarea:focus {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
+}
+
+.tabela th.direita,
+.tabela td.direita {
+  text-align: right;
 }
 
 .tabela th {
@@ -1404,7 +1486,7 @@ textarea:focus {
 }
 
 .resultado.ok {
-  color: var(--baixo);
+  color: var(--tinta);
 }
 
 .resultado.erro {
@@ -1709,15 +1791,7 @@ textarea:focus {
 
 /* 2.2 · Instalação */
 .tabela-dispositivos {
-  min-width: 900px;
-}
-
-.tabela-dispositivos .id-dispositivo {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--cinza);
-  max-width: 210px;
-  overflow-wrap: anywhere;
+  min-width: 760px;
 }
 
 .codigo-dispositivo {
@@ -1725,7 +1799,7 @@ textarea:focus {
   align-items: center;
   gap: 4px;
   font-size: 10px;
-  color: var(--baixo);
+  color: var(--tinta);
 }
 
 .codigo-dispositivo.anterior {

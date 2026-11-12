@@ -37,20 +37,16 @@ const TEXTO_INICIAL =
 
 const EXEMPLOS_DEMO = [
   {
-    rotulo: "CPF",
-    texto: "O CPF do novo analista é 529.982.247-25. Pode conferir os dados para o contrato?",
-  },
-  {
-    rotulo: "Token",
-    texto: "Estou com erro na API. Minha chave é sk-proj-8fJ2kLm9Qr4Tz7Xb1Nc6Vd3.",
-  },
-  {
-    rotulo: "Senha",
-    texto: "My password is Hunter2!",
-  },
-  {
-    rotulo: "Sem risco",
+    rotulo: "Baixo",
     texto: "Pode revisar a redação deste e-mail de agradecimento para o cliente?",
+  },
+  {
+    rotulo: "Médio",
+    texto: "Preciso revisar o orçamento interno do trimestre e o cronograma do projeto Atlas.",
+  },
+  {
+    rotulo: "Alto",
+    texto: "Estou com erro na API. Minha chave é sk-proj-8fJ2kLm9Qr4Tz7Xb1Nc6Vd3.",
   },
 ];
 
@@ -69,13 +65,54 @@ const ETAPAS = [
     numero: "03",
     titulo: "Aviso antes do envio",
     texto:
-      "Um aviso aparece antes do envio, classifica o risco e orienta o colaborador. Em risco médio ou alto, pede confirmação.",
+      "Classifica o risco, orienta o colaborador e, em risco médio ou alto, pede confirmação.",
   },
   {
     numero: "04",
     titulo: "Auditoria sem conteúdo",
     texto:
-      "O painel recebe colaborador, IP e decisão, mas não o prompt. A empresa acompanha o risco sem acessar a conversa.",
+      "O painel recebe só metadados do alerta (colaborador, departamento, IP, nível e decisão), nunca o conteúdo.",
+  },
+];
+
+const RECURSOS = [
+  {
+    grupo: "Análise",
+    itens: [
+      {
+        titulo: "Imagens",
+        texto:
+          "O texto é extraído por OCR no próprio computador, classificado e descartado. A imagem nunca é enviada.",
+      },
+      {
+        titulo: "PDFs",
+        texto: "O texto é extraído localmente e passa pela mesma análise.",
+      },
+      {
+        titulo: "Colagens grandes",
+        texto:
+          "A colagem é analisada antes de chegar ao site. Blocos longos, listas e código têm classificação própria.",
+      },
+    ],
+  },
+  {
+    grupo: "Administração",
+    itens: [
+      {
+        titulo: "Gestão centralizada",
+        texto:
+          "IAs monitoradas, ativação e departamentos são definidos no painel e valem para todas as extensões.",
+      },
+      {
+        titulo: "Acesso controlado",
+        texto: "Cada extensão precisa do código de instalação para registrar alertas.",
+      },
+      {
+        titulo: "Relatórios",
+        texto:
+          "Os alertas filtrados por data, departamento e nível podem ser exportados em CSV ou PDF.",
+      },
+    ],
   },
 ];
 
@@ -138,11 +175,10 @@ export default function Landing() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
             >
-              <p className="rotulo">Governança de IA · privacidade</p>
-              <h1 className="mt-6 max-w-xl font-serif text-[2.9rem] leading-[0.98] tracking-tight text-balance sm:text-6xl lg:text-[4.15rem]">
-                O que é confidencial não deveria virar <em className="italic">prompt</em>.
+              <h1 className="max-w-xl font-serif text-[2.9rem] leading-[0.98] tracking-tight text-balance sm:text-6xl lg:text-[4.15rem]">
+                O que é confidencial não deveria virar <em className="italic">conteúdo</em>.
               </h1>
-              <p className="mt-7 max-w-md text-sm leading-7 text-muted-foreground">
+              <p className="mt-7 max-w-md text-justify text-sm leading-7 text-muted-foreground">
                 Painel de governança e letramento em IA para reduzir o vazamento de informações
                 corporativas. A extensão analisa localmente o que é digitado no ChatGPT, Gemini,
                 Claude e Copilot e avisa antes do envio. O texto nunca sai do navegador.
@@ -160,20 +196,6 @@ export default function Landing() {
                 </Button>
               </div>
 
-              <dl className="mt-12 grid max-w-md grid-cols-3 gap-4 border-t border-border pt-5">
-                <div>
-                  <dt className="rotulo">Sites monitorados</dt>
-                  <dd className="mt-1 font-serif text-2xl">{FERRAMENTAS_MONITORADAS.length}</dd>
-                </div>
-                <div>
-                  <dt className="rotulo">Áreas de risco</dt>
-                  <dd className="mt-1 font-serif text-2xl">{AREAS_SEED.length}</dd>
-                </div>
-                <div>
-                  <dt className="rotulo">Textos de conversa armazenados</dt>
-                  <dd className="mt-1 font-serif text-2xl">0</dd>
-                </div>
-              </dl>
             </motion.div>
 
             {/* Demonstração ao vivo */}
@@ -186,7 +208,7 @@ export default function Landing() {
               <div className="border border-border bg-card">
                 <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
                   <span className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
-                    <span className="size-1.5 rounded-full bg-risco-baixo" aria-hidden />
+                    <span className="size-1.5 rounded-full bg-foreground" aria-hidden />
                     ChatGPT
                   </span>
                   <span className="rotulo">prévia</span>
@@ -224,10 +246,8 @@ export default function Landing() {
                 </div>
               </div>
 
-              <p className="mt-3 flex items-start gap-2 text-[11px] leading-5 text-muted-foreground">
-                <span className="mt-1.5 block size-1 shrink-0 bg-foreground/40" aria-hidden />
-                A prévia usa as mesmas regras da extensão. Experimente:
-                “My password is Hunter2!”, “minha senha é 123” ou “senha:123”.
+              <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
+                Roda no seu navegador. Nada é enviado.
               </p>
             </motion.div>
           </div>
@@ -236,7 +256,7 @@ export default function Landing() {
         {/* Faixa de sites monitorados */}
         <div className="border-y border-border">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-            <span className="rotulo">Sites monitorados</span>
+            <span className="rotulo">IAs monitoradas</span>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-muted-foreground">
               {FERRAMENTAS_MONITORADAS.map((site, indice) => (
                 <span key={site} className="flex items-center gap-3">
@@ -260,9 +280,10 @@ export default function Landing() {
               <h2 className="mt-5 font-serif text-4xl leading-[1.05] tracking-tight text-balance">
                 A política existe. O hábito não acompanha.
               </h2>
-              <p className="mt-5 max-w-sm text-sm leading-7 text-muted-foreground">
-                Ferramentas de IA públicas são úteis e vão continuar sendo usadas. O que precisa
-                mudar é o que entra nelas.
+              <p className="mt-5 max-w-sm text-justify text-sm leading-7 text-muted-foreground">
+                As pessoas querem automatizar tarefas simples, e a IA virou o caminho mais rápido.
+                O problema é que uma tarefa simples pode custar caro quando leva dados
+                confidenciais junto.
               </p>
             </div>
 
@@ -286,7 +307,7 @@ export default function Landing() {
               ].map((item) => (
                 <div key={item.titulo} className="border-b border-border py-6">
                   <h3 className="text-sm font-medium">{item.titulo}</h3>
-                  <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
+                  <p className="mt-2 max-w-lg text-justify text-sm leading-6 text-muted-foreground">
                     {item.texto}
                   </p>
                 </div>
@@ -319,46 +340,42 @@ export default function Landing() {
                 aria-hidden
               >
                 <div className="flex items-center justify-between gap-4">
-                  <span className="rotulo">Fluxo local</span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="size-1.5 rounded-full bg-risco-baixo" />
-                    <span className="size-1.5 rounded-full bg-border" />
-                    <span className="size-1.5 rounded-full bg-border" />
-                  </span>
+                  <span className="rotulo">Fluxo do conteúdo</span>
                 </div>
 
                 <div className="relative mt-8">
                   <div className="absolute inset-x-4 top-1/2 h-px -translate-y-1/2 bg-border" />
-                  <div className="relative grid grid-cols-3 gap-2.5">
-                    {[
-                      ["Texto", "entrada"],
-                      ["Regra", "local"],
-                      ["Alerta", "metadados"],
-                    ].map(([titulo, detalhe]) => (
-                      <div
-                        key={titulo}
-                        className="border border-border bg-background px-2 py-3 text-center"
-                      >
-                        <p className="font-serif text-sm tracking-tight">{titulo}</p>
-                        <p className="mt-1 font-mono text-[8px] tracking-wider text-muted-foreground uppercase">
-                          {detalhe}
-                        </p>
-                      </div>
-                    ))}
+                  <div className="relative grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5">
+                    <div className="border border-border bg-background px-2 py-3 text-center">
+                      <p className="font-serif text-sm tracking-tight">Texto</p>
+                      <p className="mt-1 font-mono text-[8px] tracking-wider text-muted-foreground uppercase">
+                        chat
+                      </p>
+                    </div>
+                    <span className="text-muted-foreground" aria-hidden>
+                      →
+                    </span>
+                    <div className="border border-border bg-background px-2 py-3 text-center">
+                      <p className="font-serif text-sm tracking-tight">Alerta</p>
+                      <p className="mt-1 font-mono text-[8px] tracking-wider text-muted-foreground uppercase">
+                        extensão
+                      </p>
+                    </div>
+                    <span className="text-muted-foreground" aria-hidden>
+                      →
+                    </span>
+                    <div className="border border-border bg-background px-2 py-3 text-center">
+                      <p className="font-serif text-sm tracking-tight">Regra</p>
+                      <p className="mt-1 font-mono text-[8px] tracking-wider text-muted-foreground uppercase">
+                        painel
+                      </p>
+                    </div>
                   </div>
-                  <motion.span
-                    className="absolute top-1/2 left-4 size-1.5 -translate-y-1/2 rounded-full bg-risco-baixo"
-                    animate={{ left: ["16%", "50%", "84%"] }}
-                    transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
-                  />
                 </div>
 
-                <div className="mt-7 flex items-end justify-between gap-4 border-t border-border pt-4">
+                <div className="mt-7 flex items-end gap-4 border-t border-border pt-4">
                   <span className="max-w-[9.5rem] text-[10px] leading-5 text-muted-foreground">
-                    O navegador é o limite.
-                  </span>
-                  <span className="font-serif text-[2.7rem] leading-none tracking-tight text-foreground/15 italic">
-                    local
+                    A análise acontece no navegador.
                   </span>
                 </div>
               </motion.div>
@@ -369,22 +386,22 @@ export default function Landing() {
                 {
                   titulo: "Analisa no navegador",
                   texto:
-                    "A extensão examina o texto no próprio computador. Nada do que é digitado é transmitido.",
+                    "A extensão examina o texto localmente. Nada do que é digitado é guardado.",
                 },
                 {
                   titulo: "Classifica por risco",
                   texto:
-                    "Cada regra pertence a uma área e a um nível. O maior nível encontrado define o alerta.",
+                    "Cada regra pertence a um departamento e a um nível. O maior nível encontrado define o alerta.",
                 },
                 {
                   titulo: "Registra o alerta",
                   texto:
-                    "Metadados do alerta: site, departamento, colaborador, IP, origem, nível, tipos detectados e decisão. O prompt não é armazenado.",
+                    "O painel recebe só o essencial: quem enviou, em qual departamento, qual risco e a decisão. O texto digitado não vai junto.",
                 },
               ].map((item) => (
                 <div key={item.titulo}>
                   <h3 className="font-serif text-xl tracking-tight">{item.titulo}</h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.texto}</p>
+                  <p className="mt-2 text-justify text-sm leading-6 text-muted-foreground">{item.texto}</p>
                 </div>
               ))}
             </div>
@@ -401,7 +418,7 @@ export default function Landing() {
             <div>
               <p className="rotulo">Matriz de risco</p>
               <h2 className="mt-5 font-serif text-4xl leading-[1.05] tracking-tight">
-                {AREAS_ORDENADAS.length} áreas, uma escala de risco.
+                {AREAS_ORDENADAS.length} departamentos, uma escala de risco.
               </h2>
             </div>
             <p className="max-w-xs text-xs leading-6 text-muted-foreground">
@@ -413,7 +430,7 @@ export default function Landing() {
             <table className="w-full min-w-[820px] border-collapse text-left align-top">
               <thead>
                 <tr className="border-b border-border">
-                  <th className="rotulo py-3 pr-5 font-normal">Área</th>
+                  <th className="rotulo py-3 pr-5 font-normal">Departamento</th>
                   {(["baixo", "medio", "alto"] as Risco[]).map((risco) => (
                     <th key={risco} className="rotulo py-3 pr-5 font-normal">
                       <span className="flex items-center gap-2">
@@ -466,7 +483,7 @@ export default function Landing() {
             </table>
           </div>
 
-          <p className="mt-4 text-[11px] text-muted-foreground">
+          <p className="mt-4 text-justify text-[11px] text-muted-foreground">
             Regras editáveis no painel; as extensões recebem as alterações automaticamente.
           </p>
         </motion.section>
@@ -496,61 +513,33 @@ export default function Landing() {
                 <div key={etapa.numero}>
                   <p className="tabular text-[10px] text-muted-foreground">{etapa.numero}</p>
                   <h3 className="mt-3 font-serif text-xl tracking-tight">{etapa.titulo}</h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{etapa.texto}</p>
+                  <p className="mt-2 text-justify text-sm leading-6 text-muted-foreground">{etapa.texto}</p>
                 </div>
               ))}
             </div>
 
-            <div className="mt-14 grid gap-6 border-t border-border pt-8 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                {
-                  marca: "Imagem",
-                  titulo: "Imagens",
-                  texto:
-                    "O texto é extraído por OCR no próprio computador, classificado e descartado. A imagem nunca é enviada.",
-                },
-                {
-                  marca: "PDF",
-                  titulo: "PDFs",
-                  texto: "O texto é extraído localmente e passa pela mesma análise.",
-                },
-                {
-                  marca: "Colagem",
-                  titulo: "Colagens grandes",
-                  texto:
-                    "A colagem é analisada antes de chegar ao site. Blocos longos, listas e código têm classificação própria.",
-                },
-                {
-                  marca: "Gestão",
-                  titulo: "Gestão centralizada",
-                  texto:
-                    "Sites monitorados, ativação e departamentos são definidos no painel e valem para todas as extensões.",
-                },
-                {
-                  marca: "Acesso",
-                  titulo: "Acesso controlado",
-                  texto:
-                    "Cada extensão precisa do código de instalação para registrar alertas.",
-                },
-                {
-                  marca: "Relatórios",
-                  titulo: "Relatórios",
-                  texto:
-                    "Os alertas filtrados por data, departamento e nível podem ser exportados em CSV ou PDF.",
-                },
-                {
-                  marca: "Sincronia",
-                  titulo: "Regras sincronizadas",
-                  texto:
-                    "Alterações no painel chegam a todas as extensões em até 1 minuto.",
-                },
-              ].map((recurso) => (
-                <div key={recurso.titulo}>
-                  <span className="inline-block border border-border px-2 py-0.5 font-mono text-[9px] tracking-wider text-muted-foreground uppercase">
-                    {recurso.marca}
-                  </span>
-                  <h3 className="mt-3 text-xs font-medium">{recurso.titulo}</h3>
-                  <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{recurso.texto}</p>
+            <p className="mt-10 max-w-2xl text-justify text-sm leading-7 text-muted-foreground">
+              Nada é fixo: regras, departamentos e o limite de criticidade começam com uma sugestão
+              inicial e podem ser ajustados no painel.
+            </p>
+
+            <div className="mt-10 space-y-10 border-t border-border pt-8">
+              {RECURSOS.map((grupo, indice) => (
+                <div
+                  key={grupo.grupo}
+                  className={indice > 0 ? "border-t border-border pt-8" : undefined}
+                >
+                  <p className="rotulo">{grupo.grupo}</p>
+                  <div className="mt-5 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {grupo.itens.map((recurso) => (
+                      <div key={recurso.titulo}>
+                        <h3 className="text-xs font-medium">{recurso.titulo}</h3>
+                        <p className="mt-1.5 text-justify text-xs leading-5 text-muted-foreground">
+                          {recurso.texto}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
@@ -571,28 +560,26 @@ export default function Landing() {
               <h2 className="mt-5 max-w-xl font-serif text-4xl leading-[1.05] tracking-tight text-balance lg:text-5xl">
                 “Enviou mesmo assim” é o número que importa.
               </h2>
-              <p className="mt-6 max-w-lg text-sm leading-7 text-background/65">
+              <p className="mt-6 max-w-lg text-justify text-sm leading-7 text-background/65">
                 O painel compara envios e cancelamentos por departamento. Não para punir, mas para
                 mostrar onde o aviso ainda não está funcionando e onde o letramento precisa ser
                 reforçado.
               </p>
-              <div className="mt-8 border-t border-background/15 pt-6 text-xs text-background/60">
-                Relatórios por data, departamento e nível, com exportação em CSV e PDF.
-              </div>
             </div>
 
             <div className="lg:border-l lg:border-background/15 lg:pl-12">
-              <p className="font-serif text-7xl leading-none tracking-tight">30%</p>
-              <p className="mt-4 max-w-xs text-sm leading-6 text-background/65">
-                Quando 30% ou mais dos alertas de risco alto são enviados mesmo após o aviso,
-                com no mínimo três registros no departamento, o departamento é marcado como
-                crítico. O limite de criticidade é configurável no painel.
+              <p className="max-w-xs font-serif text-5xl leading-[0.95] tracking-tight">
+                Limite de criticidade
+              </p>
+              <p className="mt-4 max-w-xs text-justify text-sm leading-6 text-background/65">
+                Quando a proporção de alertas de risco alto de um departamento atinge ou passa do
+                limite definido no painel, com no mínimo três registros, ele é marcado como crítico.
               </p>
               <div className="mt-8 border-t border-background/15 pt-4">
                 <p className="text-[10px] tracking-[0.18em] text-background/45 uppercase">
                   Como ler
                 </p>
-                <p className="mt-2 text-xs leading-6 text-background/60">
+                <p className="mt-2 text-justify text-xs leading-6 text-background/60">
                   Muitos cancelamentos indicam que o aviso está funcionando. Muitos envios em risco
                   alto indicam que o aviso precisa de contexto, treinamento ou uma ferramenta
                   corporativa autorizada.
@@ -610,9 +597,9 @@ export default function Landing() {
               Comece pelo painel. Depois instale a extensão.
             </h2>
             <p className="mt-5 max-w-md text-sm leading-7 text-muted-foreground">
-              O painel é de uso exclusivo dos administradores: regras, áreas, mensagens educativas,
-              auditoria e relatórios de letramento em um só lugar. Os colaboradores não fazem login;
-              usam apenas a extensão.
+              O painel é de uso exclusivo dos administradores: regras, departamentos, mensagens
+              educativas, auditoria e relatórios de letramento em um só lugar. Os colaboradores não
+              fazem login; usam apenas a extensão.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
               <Button asChild className="rounded-sm">
@@ -622,7 +609,7 @@ export default function Landing() {
                 </a>
               </Button>
               <Button asChild variant="outline" className="rounded-sm">
-                <a href="#matriz">Ver a matriz de risco</a>
+                <a href="#funciona">Como funciona</a>
               </Button>
             </div>
           </div>
@@ -644,14 +631,8 @@ export default function Landing() {
           <div className="flex flex-wrap gap-x-14 gap-y-6 text-[11px]">
             <div className="flex flex-col gap-2">
               <span className="rotulo">Painel</span>
-              <a href={`${URL_PAINEL}/painel`} className="text-muted-foreground hover:text-foreground">
-                Visão geral
-              </a>
-              <a href={`${URL_PAINEL}/painel`} className="text-muted-foreground hover:text-foreground">
-                Alertas
-              </a>
-              <a href={`${URL_PAINEL}/painel`} className="text-muted-foreground hover:text-foreground">
-                Regras de detecção
+              <a href={destino} className="text-muted-foreground hover:text-foreground">
+                Entrar
               </a>
             </div>
             <div className="flex flex-col gap-2">
@@ -672,9 +653,6 @@ export default function Landing() {
                 Baixar projeto
               </BaixarProjetoLink>
             </div>
-            <p className="max-w-[11rem] text-[10px] leading-5 text-muted-foreground">
-              Nenhum prompt é armazenado nesse sistema.
-            </p>
           </div>
         </div>
         <div className="border-t border-border/70">

@@ -30,8 +30,7 @@
   <main>
     <section class="lp-hero lp-limite">
       <div class="lp-hero-texto">
-        <p class="rotulo">Governança de IA · privacidade</p>
-        <h1>O que é confidencial não deveria virar <em>prompt</em>.</h1>
+        <h1>O que é confidencial não deveria virar <em>conteúdo</em>.</h1>
         <p class="lp-entrada">
           Painel de governança e letramento em IA para reduzir o vazamento de informações
           corporativas. A extensão analisa localmente o que é digitado no ChatGPT, Gemini, Claude e
@@ -46,11 +45,6 @@
           <a class="botao" href="#matriz">Ver a matriz de risco</a>
         </div>
 
-        <dl class="lp-numeros">
-          <div><dt>Sites monitorados</dt><dd>4</dd></div>
-          <div><dt>Áreas de risco</dt><dd>{{ areas|length }}</dd></div>
-          <div><dt>Textos de conversa armazenados</dt><dd>0</dd></div>
-        </dl>
       </div>
 
       <div class="lp-demo">
@@ -77,25 +71,20 @@
           <div class="lp-demo-rodape">
             <span class="rotulo">Testar</span>
             <div class="lp-demo-exemplos">
-              <button type="button" data-texto="O CPF do novo analista é 529.982.247-25. Pode conferir os dados para o contrato?">CPF</button>
-              <button type="button" data-texto="Estou com erro na API. Minha chave é sk-proj-8fJ2kLm9Qr4Tz7Xb1Nc6Vd3.">Token</button>
-              <button type="button" data-texto="My password is Hunter2!">Senha</button>
-              <button type="button" data-texto="Pode revisar a redação deste e-mail de agradecimento para o cliente?">Sem risco</button>
+              <button type="button" data-texto="Pode revisar a redação deste e-mail de agradecimento para o cliente?">Baixo</button>
+              <button type="button" data-texto="Preciso revisar o orçamento interno do trimestre e o cronograma do projeto Atlas.">Médio</button>
+              <button type="button" data-texto="Estou com erro na API. Minha chave é sk-proj-8fJ2kLm9Qr4Tz7Xb1Nc6Vd3.">Alto</button>
             </div>
           </div>
         </div>
 
-        <p class="lp-demo-observacao">
-          <span aria-hidden="true"></span>
-          A prévia usa as mesmas regras da extensão. Experimente:
-          “My password is Hunter2!”, “minha senha é 123” ou “senha:123”.
-        </p>
+        <p class="lp-demo-observacao">Roda no seu navegador. Nada é enviado.</p>
       </div>
     </section>
 
     <div class="lp-faixa">
       <div class="lp-limite lp-faixa-linha">
-        <span class="rotulo">Sites monitorados</span>
+        <span class="rotulo">IAs monitoradas</span>
         <div class="lp-faixa-sites">
           <span>ChatGPT</span><i>/</i>
           <span>Gemini</span><i>/</i>
@@ -110,8 +99,8 @@
         <p class="rotulo">O problema</p>
         <h2>A política existe.<br />O hábito não acompanha.</h2>
         <p class="lp-entrada">
-          Ferramentas de IA públicas são úteis e vão continuar sendo usadas. O que precisa mudar
-          é o que entra nelas.
+          As pessoas querem automatizar tarefas simples, e a IA virou o caminho mais rápido. O
+          problema é que uma tarefa simples pode custar caro quando leva dados confidenciais junto.
         </p>
       </div>
 
@@ -141,22 +130,19 @@
 
           <div class="lp-fluxo-local" aria-hidden="true">
             <div class="lp-fluxo-topo">
-              <span class="rotulo">Fluxo local</span>
-              <span class="lp-fluxo-dots">
-                <i></i><i></i><i></i>
-              </span>
+              <span class="rotulo">Fluxo do conteúdo</span>
             </div>
             <div class="lp-fluxo-trilha">
               <div class="lp-fluxo-grade">
-                <div class="lp-fluxo-node"><strong>Texto</strong><span>entrada</span></div>
-                <div class="lp-fluxo-node"><strong>Regra</strong><span>local</span></div>
-                <div class="lp-fluxo-node"><strong>Alerta</strong><span>metadados</span></div>
+                <div class="lp-fluxo-node"><strong>Texto</strong><span>chat</span></div>
+                <span class="lp-fluxo-seta" aria-hidden="true">→</span>
+                <div class="lp-fluxo-node"><strong>Alerta</strong><span>extensão</span></div>
+                <span class="lp-fluxo-seta" aria-hidden="true">→</span>
+                <div class="lp-fluxo-node"><strong>Regra</strong><span>painel</span></div>
               </div>
-              <i class="lp-fluxo-sinal"></i>
             </div>
             <div class="lp-fluxo-base">
-              <span>O navegador é o limite.</span>
-              <b>local</b>
+              <span>A análise acontece no navegador.</span>
             </div>
           </div>
         </div>
@@ -164,15 +150,15 @@
         <div class="lp-tres-colunas">
           <div>
             <h3>Analisa no navegador</h3>
-            <p>A extensão examina o texto no próprio computador. Nada do que é digitado é transmitido.</p>
+            <p>A extensão examina o texto localmente. Nada do que é digitado é guardado.</p>
           </div>
           <div>
             <h3>Classifica por risco</h3>
-            <p>Cada regra pertence a uma área e a um nível. O maior nível encontrado define o alerta.</p>
+            <p>Cada regra pertence a um departamento e a um nível. O maior nível encontrado define o alerta.</p>
           </div>
           <div>
             <h3>Registra o alerta</h3>
-            <p>Metadados do alerta: site, departamento, colaborador, IP, origem, nível, tipos detectados e decisão. O prompt não é armazenado.</p>
+            <p>O painel recebe só o essencial: quem enviou, em qual departamento, qual risco e a decisão. O texto digitado não vai junto.</p>
           </div>
         </div>
       </div>
@@ -182,7 +168,7 @@
       <div class="lp-cabecalho-duplo">
         <div>
           <p class="rotulo">Matriz de risco</p>
-          <h2>{{ areas|length }} áreas, uma escala de risco.</h2>
+          <h2>{{ areas|length }} departamentos, uma escala de risco.</h2>
         </div>
         <p>
           O maior nível encontrado define o alerta. As regras funcionam em português e inglês.
@@ -193,7 +179,7 @@
         <table class="lp-matriz">
           <thead>
             <tr>
-              <th class="rotulo">Área</th>
+              <th class="rotulo">Departamento</th>
               <th class="rotulo"><span class="lp-risco-dot baixo"></span> Baixo</th>
               <th class="rotulo"><span class="lp-risco-dot medio"></span> Médio</th>
               <th class="rotulo"><span class="lp-risco-dot alto"></span> Alto</th>
@@ -252,50 +238,55 @@
           <div>
             <p class="lp-num">03</p>
             <h3>Aviso antes do envio</h3>
-            <p>Um aviso aparece antes do envio, classifica o risco e orienta o colaborador. Em risco médio ou alto, pede confirmação.</p>
+            <p>Classifica o risco, orienta o colaborador e, em risco médio ou alto, pede confirmação.</p>
           </div>
           <div>
             <p class="lp-num">04</p>
             <h3>Auditoria sem conteúdo</h3>
-            <p>O painel recebe colaborador, IP e decisão, mas não o prompt. A empresa acompanha o risco sem acessar a conversa.</p>
+            <p>O painel recebe só metadados do alerta (colaborador, departamento, IP, nível e decisão), nunca o conteúdo.</p>
           </div>
         </div>
 
-        <div class="lp-recursos">
-          <div class="lp-recurso">
-            <span class="lp-recurso-marca">Imagem</span>
-            <h3>Imagens</h3>
-            <p>O texto é extraído por OCR no próprio computador, classificado e descartado. A imagem nunca é enviada.</p>
+        <p class="lp-recursos-intro">
+          Nada é fixo: regras, departamentos e o limite de criticidade começam com uma sugestão
+          inicial e podem ser ajustados no painel.
+        </p>
+
+        <div class="lp-recursos-grupos">
+          <div class="lp-recursos-grupo">
+            <p class="rotulo">Análise</p>
+            <div class="lp-recursos">
+              <div class="lp-recurso">
+                <h3>Imagens</h3>
+                <p>O texto é extraído por OCR no próprio computador, classificado e descartado. A imagem nunca é enviada.</p>
+              </div>
+              <div class="lp-recurso">
+                <h3>PDFs</h3>
+                <p>O texto é extraído localmente e passa pela mesma análise.</p>
+              </div>
+              <div class="lp-recurso">
+                <h3>Colagens grandes</h3>
+                <p>A colagem é analisada antes de chegar ao site. Blocos longos, listas e código têm classificação própria.</p>
+              </div>
+            </div>
           </div>
-          <div class="lp-recurso">
-            <span class="lp-recurso-marca">PDF</span>
-            <h3>PDFs</h3>
-            <p>O texto é extraído localmente e passa pela mesma análise.</p>
-          </div>
-          <div class="lp-recurso">
-            <span class="lp-recurso-marca">Colagem</span>
-            <h3>Colagens grandes</h3>
-            <p>A colagem é analisada antes de chegar ao site. Blocos longos, listas e código têm classificação própria.</p>
-          </div>
-          <div class="lp-recurso">
-            <span class="lp-recurso-marca">Gestão</span>
-            <h3>Gestão centralizada</h3>
-            <p>Sites monitorados, ativação e departamentos são definidos no painel e valem para todas as extensões.</p>
-          </div>
-          <div class="lp-recurso">
-            <span class="lp-recurso-marca">Acesso</span>
-            <h3>Acesso controlado</h3>
-            <p>Cada extensão precisa do código de instalação para registrar alertas.</p>
-          </div>
-          <div class="lp-recurso">
-            <span class="lp-recurso-marca">Relatórios</span>
-            <h3>Relatórios</h3>
-            <p>Os alertas filtrados por data, departamento e nível podem ser exportados em CSV ou PDF.</p>
-          </div>
-          <div class="lp-recurso">
-            <span class="lp-recurso-marca">Sincronia</span>
-            <h3>Regras sincronizadas</h3>
-            <p>Alterações no painel chegam a todas as extensões em até 1 minuto.</p>
+
+          <div class="lp-recursos-grupo">
+            <p class="rotulo">Administração</p>
+            <div class="lp-recursos">
+              <div class="lp-recurso">
+                <h3>Gestão centralizada</h3>
+                <p>IAs monitoradas, ativação e departamentos são definidos no painel e valem para todas as extensões.</p>
+              </div>
+              <div class="lp-recurso">
+                <h3>Acesso controlado</h3>
+                <p>Cada extensão precisa do código de instalação para registrar alertas.</p>
+              </div>
+              <div class="lp-recurso">
+                <h3>Relatórios</h3>
+                <p>Os alertas filtrados por data, departamento e nível podem ser exportados em CSV ou PDF.</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -311,16 +302,12 @@
             mostrar onde o aviso ainda não está funcionando e onde o letramento precisa ser
             reforçado.
           </p>
-          <div class="lp-letramento-lista">
-            <span>Relatórios por data, departamento e nível, com exportação em CSV e PDF.</span>
-          </div>
         </div>
         <div class="lp-letramento-numero">
-          <p class="lp-big">30%</p>
+          <p class="lp-big lp-big-texto">Limite de criticidade</p>
           <p>
-            Quando 30% ou mais dos alertas de risco alto são enviados mesmo após o aviso, com no
-            mínimo três registros no departamento, o departamento é marcado como crítico. O limite
-            de criticidade é configurável no painel.
+            Quando a proporção de alertas de risco alto de um departamento atinge ou passa do
+            limite definido no painel, com no mínimo três registros, ele é marcado como crítico.
           </p>
           <div class="lp-como-ler">
             <p class="rotulo lp-rotulo-claro">Como ler</p>
@@ -338,13 +325,13 @@
       <p class="rotulo">Painel administrativo</p>
       <h2>Comece pelo painel. Depois instale a extensão.</h2>
       <p class="lp-entrada">
-        O painel é de uso exclusivo dos administradores: regras, áreas, mensagens educativas,
+        O painel é de uso exclusivo dos administradores: regras, departamentos, mensagens educativas,
         auditoria e relatórios de letramento em um só lugar. Os colaboradores não fazem login;
         usam apenas a extensão.
       </p>
       <div class="lp-acoes">
         <a class="botao primario" href="{{ url_for('login') }}">Entrar no painel <span aria-hidden="true">→</span></a>
-        <a class="botao" href="#matriz">Ver a matriz de risco</a>
+        <a class="botao" href="#funciona">Como funciona</a>
       </div>
     </section>
   </main>
@@ -365,9 +352,6 @@
         <div>
           <span class="rotulo">Painel</span>
           <a href="{{ url_for('login') }}">Entrar</a>
-          <a href="{{ url_for('login') }}">Visão geral</a>
-          <a href="{{ url_for('login') }}">Alertas</a>
-          <a href="{{ url_for('login') }}">Regras de detecção</a>
         </div>
         <div>
           <span class="rotulo">Projeto</span>
@@ -375,7 +359,6 @@
           <a href="#matriz">Matriz de risco</a>
           <a href="#funciona">Como funciona</a>
         </div>
-        <p>Nenhum prompt é armazenado nesse sistema.</p>
       </div>
     </div>
     <div class="lp-rodape-base">
