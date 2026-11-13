@@ -11,10 +11,6 @@
       <div>
         <p class="marca">Sentinela</p>
         <h1>Configuração da extensão</h1>
-        <p class="subtitulo">
-          Conecte ao servidor da empresa e informe o departamento e o colaborador. A ativação e
-          as IAs monitoradas são definidas pelo painel administrativo.
-        </p>
         <p class="micro">Extensão versão <strong id="versao-extensao">2.9</strong></p>
       </div>
       <span id="status-ponto" class="ponto-status" aria-hidden="true"></span>
@@ -25,11 +21,6 @@
         <div class="secao-titulo">
           <div>
             <h2>Servidor</h2>
-            <p>
-              O pacote baixado pelo painel já preenche a URL do servidor. Copie o código de
-              instalação em <strong>Instalação e administradores</strong>. Sem ele, o servidor
-              recusa os alertas.
-            </p>
           </div>
         </div>
         <div class="grade">
@@ -43,11 +34,6 @@
               placeholder="Cole o código exibido no painel" />
           </label>
         </div>
-        <p class="dica">
-          O código não dá acesso ao painel: ele apenas autoriza a extensão a registrar alertas no
-          servidor da empresa. Se ele for apagado (por exemplo, ao reinstalar a extensão), o popup
-          avisa que os alertas pararam de ser registrados.
-        </p>
         <div class="acoes-teste">
           <button id="testar" class="botao" type="button">Testar conexão</button>
           <p id="resultado-conexao" class="resultado" role="status"></p>
@@ -58,10 +44,6 @@
         <div class="secao-titulo">
           <div>
             <h2>Identificação</h2>
-            <p>
-              Sem departamento e sem colaborador o alerta não é registrado, para não haver
-              anonimato na auditoria.
-            </p>
           </div>
         </div>
         <div class="grade">
@@ -77,19 +59,12 @@
               placeholder="Ex.: maria.souza" />
           </label>
         </div>
-        <p class="dica">
-          A lista de departamentos é definida no painel e aparece assim que o código de instalação
-          está preenchido. Não é preciso salvar antes.
-        </p>
       </section>
 
       <section class="secao">
         <div class="secao-titulo">
           <div>
             <h2>IAs monitoradas</h2>
-            <p>
-              O painel define quais IAs são analisadas. Domínios novos são autorizados ao salvar.
-            </p>
           </div>
         </div>
 
@@ -103,10 +78,6 @@
         <div class="secao-titulo">
           <div>
             <h2>Atualização automática</h2>
-            <p>
-              Regras, mensagens e IAs são sincronizadas automaticamente enquanto o navegador
-              estiver aberto. Não existe botão de sincronização manual aqui.
-            </p>
           </div>
         </div>
         <dl class="resumo" id="resumo">
@@ -120,10 +91,6 @@
         <button id="salvar" class="botao primario" type="button">Salvar configurações</button>
       </div>
 
-      <p class="nota">
-        O alerta contém apenas metadados: IA, departamento, colaborador, IP, origem, nível, tipos
-        detectados e decisão. O conteúdo analisado não é gravado nem transmitido.
-      </p>
     </main>
 
     <script src="config.js"></script>

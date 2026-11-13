@@ -192,9 +192,7 @@ function desenharSites(sites, pendentes) {
       "Domínios pendentes: " + sitesPendentes.join(", ") + ". Salve para autorizar.";
     el.permissaoSites.className = "dica erro";
   } else {
-    el.permissaoSites.textContent = sitesConhecidos.length
-      ? "Todos os domínios configurados estão autorizados neste navegador."
-      : "";
+    el.permissaoSites.textContent = "";
     el.permissaoSites.className = "dica";
   }
 }

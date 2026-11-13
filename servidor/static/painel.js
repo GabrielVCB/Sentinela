@@ -222,7 +222,6 @@ async function carregarResumo() {
 
   desenharGrafico(dados.evolucao);
   const porNivel = dados.por_nivel || {
-    baixo: dados.total - dados.total_alto,
     medio: 0,
     alto: dados.total_alto,
   };
@@ -233,9 +232,8 @@ async function carregarResumo() {
   desenharDonut(
     "grafico-risco",
     [
-      { rotulo: "Alto", valor: porNivel.alto, cor: "#DC2626" },
-      { rotulo: "Médio", valor: porNivel.medio, cor: "#F59E0B" },
-      { rotulo: "Baixo", valor: porNivel.baixo, cor: "#16A34A" },
+      { rotulo: "Alto", valor: porNivel.alto, cor: "#1b1b1a" },
+      { rotulo: "Médio", valor: porNivel.medio, cor: "#d8d6cf" },
     ],
     "Distribuição dos alertas por nível de risco",
   );
@@ -603,6 +601,20 @@ function preencherSelectAreas() {
   if (valorAtual && estado.areas.some(function (area) { return String(area.id) === valorAtual; })) {
     select.value = valorAtual;
   }
+
+  const filtro = $("filtro-area-regras");
+  if (!filtro) return;
+  const filtroAtual = filtro.value;
+  limpar(filtro);
+  const todas = criar("option", "", "Todos os departamentos");
+  todas.value = "";
+  filtro.appendChild(todas);
+  estado.areas.forEach(function (area) {
+    const opcao = criar("option", "", area.nome);
+    opcao.value = String(area.id);
+    filtro.appendChild(opcao);
+  });
+  filtro.value = filtroAtual;
 }
 
 function renderizarAreas() {
@@ -682,7 +694,12 @@ function renderizarRegras() {
   limpar(corpo);
 
   const termo = normalizar($("busca-regras").value.trim());
+  const areaFiltro = $("filtro-area-regras").value;
+  const statusFiltro = $("filtro-status-regras").value;
   const filtradas = estado.regras.filter(function (regra) {
+    if (areaFiltro && String(regra.area_id) !== areaFiltro) return false;
+    if (statusFiltro === "ativas" && !regra.ativo) return false;
+    if (statusFiltro === "inativas" && regra.ativo) return false;
     if (!termo) return true;
     return normalizar(
       [regra.nome, regra.area, regra.padrao, rotuloTipo(regra.tipo), ROTULO_NIVEL[regra.risco]].join(" "),
@@ -690,10 +707,10 @@ function renderizarRegras() {
   });
 
   $("contador-regras").textContent =
-    plural(estado.regras.length, "regra", "regras") +
+    plural(filtradas.length, "regra", "regras") +
     " · " +
     plural(
-      estado.regras.filter(function (regra) { return regra.ativo; }).length,
+      filtradas.filter(function (regra) { return regra.ativo; }).length,
       "ativa",
       "ativas",
     );
@@ -723,14 +740,24 @@ function renderizarRegras() {
     linha.appendChild(risco);
 
     const ativa = criar("td");
+    const alternativa = criar("label", "interruptor-regra");
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = regra.ativo;
     checkbox.setAttribute("aria-label", "Ativar regra " + regra.nome);
+    const textoAtiva = criar(
+      "span",
+      "interruptor-site-texto",
+      checkbox.checked ? "Ativa" : "Pausada",
+    );
     checkbox.addEventListener("change", function () {
+      textoAtiva.textContent = checkbox.checked ? "Ativa" : "Pausada";
       atualizarAtivo(regra, checkbox.checked, checkbox);
     });
-    ativa.appendChild(checkbox);
+    alternativa.appendChild(checkbox);
+    alternativa.appendChild(criar("span", "interruptor-site-trilho", null));
+    alternativa.appendChild(textoAtiva);
+    ativa.appendChild(alternativa);
     linha.appendChild(ativa);
 
     const acoes = criar("td", "direita");
@@ -1348,7 +1375,7 @@ async function carregarAdmins() {
     const perfil = criar("td");
     const selo = criar(
       "span",
-      "badge " + (admin.superadmin ? "risco-alto" : "risco-baixo"),
+      "badge admin-badge",
       admin.superadmin ? "Superadmin" : "Administrador",
     );
     perfil.appendChild(selo);
@@ -1479,11 +1506,9 @@ function desenharSitesMonitorados(disponiveis, ativos) {
     const card = criar("article", "site-card" + (selecionados.has(site.id) ? " site-card-ativo" : ""));
 
     const topo = criar("div", "site-card-topo");
-    const avatar = criar("span", "site-avatar", (site.nome || "?").slice(0, 1).toUpperCase());
     const identidade = criar("div", "site-identidade");
     identidade.appendChild(criar("h3", null, site.nome || site.id));
     identidade.appendChild(criar("p", "site-url", urlDoSite(site)));
-    topo.appendChild(avatar);
     topo.appendChild(identidade);
     card.appendChild(topo);
 
@@ -1651,6 +1676,8 @@ function ligarEventos() {
   $("form-regra").addEventListener("submit", salvarRegra);
   $("testar-regra").addEventListener("click", testarRegra);
   $("busca-regras").addEventListener("input", renderizarRegras);
+  $("filtro-area-regras").addEventListener("change", renderizarRegras);
+  $("filtro-status-regras").addEventListener("change", renderizarRegras);
 
   $("nova-area").addEventListener("click", function () { abrirArea(null); });
   $("form-area").addEventListener("submit", salvarArea);
@@ -1777,6 +1804,32 @@ function ligarEventos() {
         }
       },
     );
+  });
+
+  const INFORMACOES_ABAS = {
+    visao:
+      "Indicadores de alertas, risco, decisões, IAs e departamentos. Os gráficos usam os alertas registrados no período.",
+    alertas:
+      "Auditoria dos alertas com filtros por data, departamento e nível. Exporte em CSV ou PDF e defina a retenção.",
+    regras:
+      "Regras editáveis da matriz. Cada regra pertence a um departamento, tem um tipo e um nível de risco.",
+    areas:
+      "Departamento é a categoria da regra e o local escolhido pelo colaborador na extensão.",
+    mensagens:
+      "Textos exibidos no aviso para os níveis baixo, médio e alto.",
+    monitoramento:
+      "Ativação geral, IAs monitoradas e dispositivos conectados. As alterações valem para todas as extensões.",
+    instalacao:
+      "Endereço do servidor, código de instalação, download da extensão e contas de administrador.",
+  };
+
+  document.querySelectorAll(".info-aba").forEach(function (botao) {
+    botao.addEventListener("click", function () {
+      const chave = botao.dataset.info;
+      $("titulo-info").textContent = botao.getAttribute("aria-label").replace("Sobre ", "");
+      $("texto-info").textContent = INFORMACOES_ABAS[chave] || "";
+      $("dialogo-info").showModal();
+    });
   });
 
   document.querySelectorAll("[data-fecha]").forEach(function (botao) {

@@ -1359,7 +1359,7 @@
     descricao.textContent =
       "Esta mensagem contém dados classificados como risco " +
       ROTULOS[analise.nivel].toLowerCase() +
-      ". O alerta será registrado no painel, sem o texto da mensagem.";
+      ". O alerta será registrado no painel.";
 
     var lista = document.createElement("ul");
     analise.deteccoes.forEach(function (deteccao) {
@@ -1388,9 +1388,6 @@
         lista.appendChild(item);
       });
     }
-
-    var mensagem = document.createElement("p");
-    mensagem.textContent = mensagemDoNivel(analise.nivel);
 
     var acoes = document.createElement("div");
     acoes.className = "acoes";
@@ -1433,7 +1430,6 @@
     modal.appendChild(titulo);
     modal.appendChild(descricao);
     if (analise.deteccoes.length > 0 || estado.anexos.length > 0) modal.appendChild(lista);
-    modal.appendChild(mensagem);
     modal.appendChild(acoes);
     overlay.appendChild(modal);
     estado.raizModal.appendChild(overlay);

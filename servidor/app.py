@@ -62,7 +62,7 @@ import pdf
 VERSAO = "2.9"
 # A versão do produto continua 2.9; este sufixo invalida o cache dos arquivos
 # estáticos quando a interface muda sem alterar a versão exibida.
-VERSAO_ASSETS = "2.9.12"
+VERSAO_ASSETS = "2.9.13"
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------------------

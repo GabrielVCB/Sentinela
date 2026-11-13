@@ -175,13 +175,17 @@ export default function Landing() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.65, ease: [0.22, 1, 0.36, 1] }}
             >
-              <h1 className="max-w-xl font-serif text-[2.9rem] leading-[0.98] tracking-tight text-balance sm:text-6xl lg:text-[4.15rem]">
-                O que é confidencial não deveria virar <em className="italic">conteúdo</em>.
+              <h1 className="max-w-xl font-serif text-[2.45rem] leading-[0.98] tracking-tight text-balance sm:text-6xl lg:text-[4.15rem]">
+                O que é confidencial não deveria virar <em className="italic">prompt</em>.
               </h1>
               <p className="mt-7 max-w-md text-justify text-sm leading-7 text-muted-foreground">
                 Painel de governança e letramento em IA para reduzir o vazamento de informações
                 corporativas. A extensão analisa localmente o que é digitado no ChatGPT, Gemini,
                 Claude e Copilot e avisa antes do envio. O texto nunca sai do navegador.
+              </p>
+              <p className="mt-3 max-w-md text-xs leading-6 text-muted-foreground">
+                Você define as regras, os departamentos e o limite de criticidade. A Sentinela
+                cuida do resto.
               </p>
 
               <div className="mt-9 flex flex-wrap items-center gap-3">
@@ -246,9 +250,6 @@ export default function Landing() {
                 </div>
               </div>
 
-              <p className="mt-3 text-[11px] leading-5 text-muted-foreground">
-                Roda no seu navegador. Nada é enviado.
-              </p>
             </motion.div>
           </div>
         </section>
@@ -373,11 +374,6 @@ export default function Landing() {
                   </div>
                 </div>
 
-                <div className="mt-7 flex items-end gap-4 border-t border-border pt-4">
-                  <span className="max-w-[9.5rem] text-[10px] leading-5 text-muted-foreground">
-                    A análise acontece no navegador.
-                  </span>
-                </div>
               </motion.div>
             </div>
 
@@ -502,10 +498,6 @@ export default function Landing() {
                   Do campo de texto à auditoria.
                 </h2>
               </div>
-              <p className="max-w-xs text-xs leading-6 text-muted-foreground">
-                Uma extensão para Chrome e Edge, um painel administrativo e uma API na nuvem. Em
-                quatro etapas.
-              </p>
             </div>
 
             <div className="mt-12 grid gap-x-10 gap-y-10 border-t border-border pt-8 sm:grid-cols-2 lg:grid-cols-4">
@@ -517,11 +509,6 @@ export default function Landing() {
                 </div>
               ))}
             </div>
-
-            <p className="mt-10 max-w-2xl text-justify text-sm leading-7 text-muted-foreground">
-              Nada é fixo: regras, departamentos e o limite de criticidade começam com uma sugestão
-              inicial e podem ser ajustados no painel.
-            </p>
 
             <div className="mt-10 space-y-10 border-t border-border pt-8">
               {RECURSOS.map((grupo, indice) => (

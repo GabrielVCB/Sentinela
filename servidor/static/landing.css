@@ -21,6 +21,17 @@
   padding-right: 22px;
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
 #problema,
 #privacidade,
 #matriz,
@@ -141,6 +152,14 @@
 
 .lp-hero h1 em {
   font-style: italic;
+}
+
+.lp-hero-nota {
+  max-width: 31rem;
+  margin: 12px 0 0;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--cinza);
 }
 
 .lp-entrada,

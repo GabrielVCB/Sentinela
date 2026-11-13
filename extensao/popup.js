@@ -31,7 +31,7 @@ async function enviar(mensagem) {
 function pintarStatus(conectado, texto) {
   var ponto = elementos.statusPonto;
   ponto.className = "ponto-status " + (conectado ? "on" : "off");
-  elementos.statusTexto.textContent = texto || (conectado ? "Servidor conectado" : "Servidor offline");
+  elementos.statusTexto.textContent = texto || (conectado ? "Conectado" : "Desconectado");
 }
 
 async function carregar() {
@@ -44,42 +44,25 @@ async function carregar() {
   const configuracao = estado.configuracao || {};
   elementos.monitoramento.textContent =
     configuracao.monitoramentoAtivo === true
-      ? "Ativo · definido no painel"
+      ? "Ativo"
       : configuracao.monitoramentoAtivo === false
-        ? "Desativado · definido no painel"
-        : "Aguardando painel";
+        ? "Desativado"
+        : "Aguardando configuração";
   elementos.departamento.textContent = configuracao.departamento || "não configurado";
   elementos.colaborador.textContent = configuracao.colaborador || "não configurado";
-  elementos.servidor.textContent = configuracao.serverUrl || "—";
   elementos.regras.textContent = estado.cache ? estado.cache.totalRegras : 0;
   elementos.sincronizacao.textContent = estado.cache
     ? formatarQuando(estado.cache.atualizadoEm)
     : "nunca";
-
-  const ultimo = estado.ultimoAlerta;
-  if (ultimo && ultimo.em) {
-    elementos.ultimoAlerta.textContent = formatarQuando(ultimo.em);
-    elementos.ultimoAlerta.title = ultimo.mensagem || "";
-  } else {
-    elementos.ultimoAlerta.textContent = "nenhum ainda";
-  }
-  if (ultimo && ultimo.ok === false) {
-    elementos.detalheAlerta.textContent = ultimo.enfileirado
-      ? "Alerta na fila para reenvio. " + (ultimo.mensagem || "")
-      : "Falha ao registrar: " + (ultimo.mensagem || "servidor recusou o alerta.");
-    elementos.detalheAlerta.hidden = false;
-  } else {
-    elementos.detalheAlerta.hidden = true;
-  }
 
   if (!(configuracao.apiToken || "").trim()) {
     pintarStatus(false, "Cole o código de instalação nas opções.");
   } else if (!(configuracao.departamento || "").trim() || !(configuracao.colaborador || "").trim()) {
     pintarStatus(false, "Informe departamento e colaborador nas opções.");
   } else if (estado.status && estado.status.conectado) {
-    pintarStatus(true, estado.status.mensagem || "Servidor conectado");
+    pintarStatus(true, "Conectado");
   } else if (estado.status && estado.status.mensagem) {
-    pintarStatus(false, estado.status.mensagem);
+    pintarStatus(false, "Sem conexão");
   } else {
     pintarStatus(false, "Nenhuma sincronização ainda.");
   }
@@ -95,7 +78,7 @@ async function testarConexao() {
     Boolean(resposta.ok),
     resposta.ok
       ? "Online · " + (resposta.latenciaMs || 0) + " ms"
-      : "Falha: " + (resposta.mensagem || resposta.erro || "servidor indisponível"),
+      : "Falha: " + (resposta.mensagem || resposta.erro || "indisponível"),
   );
 }
 
@@ -105,11 +88,8 @@ document.addEventListener("DOMContentLoaded", function () {
   elementos.monitoramento = document.getElementById("monitoramento");
   elementos.departamento = document.getElementById("departamento");
   elementos.colaborador = document.getElementById("colaborador");
-  elementos.servidor = document.getElementById("servidor");
   elementos.regras = document.getElementById("regras");
   elementos.sincronizacao = document.getElementById("sincronizacao");
-  elementos.ultimoAlerta = document.getElementById("ultimo-alerta");
-  elementos.detalheAlerta = document.getElementById("detalhe-alerta");
   elementos.testar = document.getElementById("testar");
   elementos.opcoes = document.getElementById("opcoes");
 

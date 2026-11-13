@@ -95,7 +95,6 @@ export function ModalRisco({
   aberto,
   nivel,
   deteccoes,
-  mensagem,
   onOpenChange,
   onCancelar,
   onEnviar,
@@ -104,7 +103,6 @@ export function ModalRisco({
   aberto: boolean;
   nivel: Risco;
   deteccoes: Deteccao[];
-  mensagem: string;
   onOpenChange: (aberto: boolean) => void;
   onCancelar: () => void;
   onEnviar: () => void;
@@ -146,8 +144,6 @@ export function ModalRisco({
             </li>
           ))}
         </ul>
-
-        <p className="text-xs leading-5 text-muted-foreground">{mensagem}</p>
 
         <DialogFooter className="gap-2 border-t border-border pt-4">
           <Button type="button" variant="outline" onClick={onCancelar} disabled={enviando}>

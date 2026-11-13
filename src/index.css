@@ -3,6 +3,14 @@
 @import "tw-animate-css";
 @custom-variant dark (&:is(.dark *));
 
+html,
+body,
+#root {
+  min-height: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 /* DO NOT CHANGE */
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);

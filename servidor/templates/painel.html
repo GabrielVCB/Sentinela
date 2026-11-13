@@ -47,7 +47,10 @@
 
     <section class="secao ativa" data-painel="visao">
       <header class="secao-cabecalho">
-        <h1>Visão geral</h1>
+        <div class="secao-titulo-principal">
+          <h1>Visão geral</h1>
+          <button type="button" class="info-aba" data-info="visao" aria-label="Sobre Visão geral">i</button>
+        </div>
         <button type="button" class="botao" id="atualizar-resumo">Atualizar</button>
       </header>
 
@@ -151,12 +154,23 @@
 
     <section class="secao" data-painel="regras">
       <header class="secao-cabecalho">
-        <h1>Regras de detecção</h1>
+        <div class="secao-titulo-principal">
+          <h1>Regras de detecção</h1>
+          <button type="button" class="info-aba" data-info="regras" aria-label="Sobre Regras de detecção">i</button>
+        </div>
         <button type="button" class="botao primario" id="nova-regra">Nova regra</button>
       </header>
 
       <div class="barra-ferramentas">
         <input type="search" id="busca-regras" placeholder="Buscar por nome, departamento ou palavra-chave…" aria-label="Buscar regras" />
+        <select id="filtro-area-regras" class="filtro-regras" aria-label="Filtrar regras por departamento">
+          <option value="">Todos os departamentos</option>
+        </select>
+        <select id="filtro-status-regras" class="filtro-regras" aria-label="Filtrar regras por status">
+          <option value="">Todas</option>
+          <option value="ativas">Ativas</option>
+          <option value="inativas">Inativas</option>
+        </select>
         <span class="rotulo" id="contador-regras"></span>
       </div>
 
@@ -180,7 +194,10 @@
 
     <section class="secao" data-painel="areas">
       <header class="secao-cabecalho">
-        <h1>Departamentos</h1>
+        <div class="secao-titulo-principal">
+          <h1>Departamentos</h1>
+          <button type="button" class="info-aba" data-info="areas" aria-label="Sobre Departamentos">i</button>
+        </div>
         <button type="button" class="botao primario" id="nova-area">Novo departamento</button>
       </header>
 
@@ -189,14 +206,20 @@
 
     <section class="secao" data-painel="mensagens">
       <header class="secao-cabecalho">
-        <h1>Mensagens educativas</h1>
+        <div class="secao-titulo-principal">
+          <h1>Mensagens educativas</h1>
+          <button type="button" class="info-aba" data-info="mensagens" aria-label="Sobre Mensagens educativas">i</button>
+        </div>
       </header>
       <div id="mensagens" class="grade-mensagens"></div>
     </section>
 
     <section class="secao" data-painel="alertas">
       <header class="secao-cabecalho">
-        <h1>Alertas</h1>
+        <div class="secao-titulo-principal">
+          <h1>Alertas</h1>
+          <button type="button" class="info-aba" data-info="alertas" aria-label="Sobre Alertas">i</button>
+        </div>
         <div class="acoes-cabecalho">
           <a class="botao" id="exportar" href="{{ url_for('api_exportar_csv') }}">Exportar CSV</a>
           <a class="botao" id="exportar-pdf" href="{{ url_for('api_exportar_pdf') }}">Exportar PDF</a>
@@ -266,7 +289,10 @@
 
     <section class="secao" data-painel="instalacao">
       <header class="secao-cabecalho">
-        <h1>Instalação e administradores</h1>
+        <div class="secao-titulo-principal">
+          <h1>Instalação e administradores</h1>
+          <button type="button" class="info-aba" data-info="instalacao" aria-label="Sobre Instalação e administradores">i</button>
+        </div>
         <div class="marcas-cabecalho">
           <span class="badge versao" id="instalacao-versao">—</span>
         </div>
@@ -337,7 +363,10 @@
 
     <section class="secao" data-painel="monitoramento">
       <header class="secao-cabecalho secao-cabecalho-monitoramento">
-        <h1>Monitoramento</h1>
+        <div class="secao-titulo-principal">
+          <h1>Monitoramento</h1>
+          <button type="button" class="info-aba" data-info="monitoramento" aria-label="Sobre Monitoramento">i</button>
+        </div>
         <div class="monitoramento-mestre">
           <span class="rotulo">Ativação geral</span>
           <label class="interruptor-monitoramento">
@@ -377,7 +406,7 @@
 
       <section class="bloco-painel">
         <div class="linha-titulo">
-          <h2>Dispositivos conectados</h2>
+          <h2>Dispositivos Conectados</h2>
           <button type="button" class="botao" id="atualizar-dispositivos">Atualizar</button>
         </div>
 
@@ -618,6 +647,23 @@
       <button type="submit" class="botao primario">Excluir alertas</button>
     </div>
   </form>
+</dialog>
+
+<!-- Diálogo: informação da aba -->
+<dialog id="dialogo-info" class="dialogo dialogo-estreito">
+  <div class="formulario-dialogo">
+    <div class="dialogo-topo">
+      <div>
+        <p class="rotulo">Sobre esta tela</p>
+        <h2 id="titulo-info">Informação</h2>
+      </div>
+      <button type="button" class="fechar-dialogo" data-fecha="dialogo-info" aria-label="Fechar">×</button>
+    </div>
+    <p id="texto-info" class="subtitulo"></p>
+    <div class="dialogo-acoes">
+      <button type="button" class="botao" data-fecha="dialogo-info">Fechar</button>
+    </div>
+  </div>
 </dialog>
 
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
