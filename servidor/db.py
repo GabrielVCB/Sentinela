@@ -44,13 +44,15 @@ def senha_ja_hasheada(valor: str) -> bool:
 
 
 NIVEIS = ("baixo", "medio", "alto")
+# Mensagens também cobrem o estado sem detecções, que não é um nível de alerta.
+NIVEIS_MENSAGEM = ("baixo", "sem_deteccao", "medio", "alto")
 ACOES = ("enviou", "cancelou")
 TIPOS_REGRA = ("regex", "palavra-chave")
 ORIGENS = ("texto", "colagem", "imagem", "pdf", "anexo")
 
 # Versão da matriz. Ao subir a versão, o seed atualiza regras existentes sem
 # apagar regras criadas no painel.
-VERSAO_MATRIZ = "3"
+VERSAO_MATRIZ = "4"
 
 # A fonte única da matriz e das mensagens é `dados/`; o React importa os mesmos
 # arquivos, então não existe uma segunda cópia para divergir.
@@ -84,10 +86,19 @@ MENSAGENS_DA_VERSAO_ANTERIOR = {
     ),
 }
 
+# Textos usados até a versão 2.9.1. A atualização só ocorre enquanto o texto ainda
+# for o padrão; mensagens personalizadas no painel nunca são sobrescritas.
+MENSAGENS_DA_VERSAO_2_9 = {
+    "baixo": "Foram identificados dados de baixo risco. Revise o conteúdo e compartilhe apenas o necessário.",
+    "medio": "Este conteúdo contém dados internos da empresa. Compartilhe apenas o necessário e consulte a política de uso de IA antes de enviar.",
+    "alto": "Este conteúdo contém dados confidenciais ou sensíveis. Não envie para uma IA pública. Remova as informações sensíveis ou use uma ferramenta corporativa autorizada.",
+}
+
 # Nomes de regras padrão que mudaram sem alterar o identificador da regra.
 # A atualização preserva o histórico e só atinge o nome exato da versão anterior.
 RENOMEACOES_DE_REGRAS = {
     "Nome de conta ou setor": "Nome de conta ou departamento",
+    "Nome do funcionário": "Nome do colaborador",
 }
 
 MENSAGENS_PADRAO = json.loads(CAMINHO_MENSAGENS.read_text(encoding="utf-8"))
@@ -116,7 +127,7 @@ CREATE TABLE IF NOT EXISTS regras (
 CREATE INDEX IF NOT EXISTS idx_regras_area ON regras(area_id);
 
 CREATE TABLE IF NOT EXISTS mensagens (
-    nivel text PRIMARY KEY CHECK (nivel IN ('baixo', 'medio', 'alto')),
+    nivel text PRIMARY KEY CHECK (nivel IN ('baixo', 'sem_deteccao', 'medio', 'alto')),
     texto text NOT NULL
 );
 
@@ -360,6 +371,14 @@ MIGRACOES = [
         );
         """,
     ),
+    (
+        "006_mensagem_sem_deteccao",
+        """
+        ALTER TABLE mensagens DROP CONSTRAINT IF EXISTS mensagens_nivel_check;
+        ALTER TABLE mensagens ADD CONSTRAINT mensagens_nivel_check
+            CHECK (nivel IN ('baixo', 'sem_deteccao', 'medio', 'alto'));
+        """,
+    ),
 ]
 
 
@@ -538,6 +557,11 @@ def inicializar_banco(usuario: str, senha: str) -> None:
                 "UPDATE mensagens SET texto = ? WHERE nivel = ? AND texto = ?",
                 (MENSAGENS_PADRAO[nivel], nivel, texto_anterior),
             )
+        for nivel, texto_anterior in MENSAGENS_DA_VERSAO_2_9.items():
+            conexao_aberta.execute(
+                "UPDATE mensagens SET texto = ? WHERE nivel = ? AND texto = ?",
+                (MENSAGENS_PADRAO[nivel], nivel, texto_anterior),
+            )
 
         # Textos antigos que circularam em bancos de demonstração. O LIKE cobre
         # variações do mesmo aviso sem tocar em mensagens personalizadas.
@@ -575,7 +599,7 @@ def inicializar_banco(usuario: str, senha: str) -> None:
             ("sites_ativos", json.dumps(SITES_PADRAO)),
         )
 
-        # 2.2: código de instalação usado pelas extensões quando o servidor está
+        # 2.2: código de verificação usado pelas extensões quando o servidor está
         # publicado na internet. Gerado uma vez e guardado no banco.
         conexao_aberta.execute(
             """
@@ -671,12 +695,12 @@ def gravar_configuracao(chave: str, valor: str) -> None:
 
 
 def token_api() -> str:
-    """Código de instalação que as extensões enviam para o servidor."""
+    """Código de verificação que as extensões enviam para o servidor."""
     return ler_configuracao("api_token")
 
 
 def token_versao_api() -> int:
-    """Versão do código de instalação, usada para classificar dispositivos."""
+    """Versão do código de verificação, usada para classificar dispositivos."""
     try:
         return int(ler_configuracao("api_token_versao", "1"))
     except (TypeError, ValueError):

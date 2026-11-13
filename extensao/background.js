@@ -4,20 +4,20 @@
  * Centraliza TODAS as chamadas de rede, evitando CORS/mixed content nas
  * páginas das IAs. Funciona igual no Chrome e no Microsoft Edge.
  *
- * Cada pedido leva X-API-Token com o código de instalação copiado do painel
- * (Instalação e administradores). Sem o código, o servidor recusa o envio. O popup
+ * Cada pedido leva X-API-Token com o código de verificação copiado do painel
+ * (Monitoramento > Verificação da extensão). Sem o código, o servidor recusa o envio. O popup
  * mostra o aviso em vez de falhar em silêncio. Alertas que falham por rede
  * entram em uma fila persistente e são reenviados por alarme; o cache de regras
  * mantém o aviso funcionando enquanto o servidor estiver fora do ar.
  */
 "use strict";
 
-// O ZIP baixado pelo painel injeta aqui a URL pública do servidor. Assim a
+// O arquivo baixado pelo painel injeta aqui a URL pública do servidor. Assim a
 // extensão já chega configurada e o colaborador só informa a identificação.
 try {
   importScripts("config.js");
 } catch (erro) {
-  /* pacote antigo sem config.js: a URL pode ser informada nas Opções */
+  /* configuração antiga sem config.js: a URL pode ser informada nas Opções */
 }
 
 // A extensão consulta só a versão da configuração a cada 30 segundos. A matriz
@@ -34,7 +34,7 @@ const ALARME_SYNC = "sentinela-sync";
 const ALARME_FILA = "sentinela-fila";
 
 // Sem endereço local: a extensão só fala com o servidor publicado na nuvem.
-// O pacote baixado pelo painel traz a URL real; no ZIP público ela fica vazia
+// O arquivo baixado pelo painel traz a URL real; no ZIP público ela fica vazia
 // e pode ser informada em Opções.
 const SERVIDOR_PADRAO = String(globalThis.SENTINELA_SERVIDOR_PADRAO || "").trim();
 
@@ -325,7 +325,7 @@ async function requisitar(caminho, opcoes, configuracaoExplicita) {
   const configuracao = configuracaoExplicita || (await obterConfiguracao());
   const base = normalizarUrl(configuracao.serverUrl);
   if (!base) {
-    throw new Error("Configure a URL do servidor nas Opções. Copie o endereço do painel em Instalação e administradores.");
+    throw new Error("Configure a URL do servidor nas Opções. Copie o endereço do painel em Monitoramento.");
   }
 
   const controlador = new AbortController();
@@ -333,7 +333,7 @@ async function requisitar(caminho, opcoes, configuracaoExplicita) {
 
   try {
     const cabecalhos = { ...(opcoes && opcoes.headers ? opcoes.headers : {}) };
-    // Código de instalação copiado do painel, guardado nas Opções.
+    // Código de verificação copiado do painel, guardado nas Opções.
     const codigo = (configuracao.apiToken || "").trim();
     if (codigo) cabecalhos["X-API-Token"] = codigo;
     // O painel usa este identificador para listar e desconectar um dispositivo
@@ -356,7 +356,7 @@ async function requisitar(caminho, opcoes, configuracaoExplicita) {
         /* resposta sem JSON */
       }
       if (resposta.status === 401) {
-        detalhe = "Código de instalação inválido ou ausente nas Opções.";
+        detalhe = "Código de verificação inválido ou ausente nas Opções.";
       }
       throw new Error(detalhe);
     }
@@ -538,7 +538,7 @@ async function sincronizarConfig(forcar, verificarRemoto) {
     }
     if (!(configuracao.apiToken || "").trim()) {
       throw new Error(
-        "Código de instalação não configurado. Abra Opções e cole o código do painel, em Instalação e administradores.",
+        "Código de verificação não configurado. Abra Opções e cole o código do painel, em Monitoramento.",
       );
     }
 
@@ -642,7 +642,7 @@ function sanearAlerta(alerta) {
 }
 
 function erroDefinitivo(mensagem) {
-  return /Código de instalação|Departamento não|Colaborador não|desconectado|HTTP 400|HTTP 401|HTTP 403/.test(
+  return /Código de verificação|Departamento não|Colaborador não|desconectado|HTTP 400|HTTP 401|HTTP 403/.test(
     String(mensagem || ""),
   );
 }
@@ -670,7 +670,7 @@ async function enviarAlerta(alerta) {
   }
   if (!(configuracao.apiToken || "").trim()) {
     return recusar(
-      "Código de instalação não configurado. Abra Opções e cole o código do painel, em Instalação e administradores.",
+      "Código de verificação não configurado. Abra Opções e cole o código do painel, em Monitoramento.",
     );
   }
 
@@ -759,7 +759,7 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
           apiToken: String(mensagem.apiToken || "").trim(),
         };
         if (!configuracao.apiToken) {
-          responder({ ok: false, erro: "Cole o código de instalação para carregar os departamentos." });
+          responder({ ok: false, erro: "Cole o código de verificação para carregar os departamentos." });
           return;
         }
         try {
@@ -802,7 +802,7 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
           const base = normalizarUrl(configuracao.serverUrl);
           if (!base) {
             throw new Error(
-              "Configure a URL do servidor nas Opções. Copie o endereço do painel em Instalação e administradores.",
+              "Configure a URL do servidor nas Opções. Copie o endereço do painel em Monitoramento.",
             );
           }
           if (chrome.permissions && chrome.permissions.contains) {
@@ -816,7 +816,7 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
             }
           }
           // /api/ping prova que a rede e a URL funcionam; /api/config também
-          // confere o código de instalação.
+          // confere o código de verificação.
           await requisitar("/api/ping", { method: "GET" });
           const resposta = await requisitar("/api/config", { method: "GET" });
           await registrarDispositivo(configuracao);
@@ -903,7 +903,7 @@ chrome.runtime.onInstalled.addListener(async function () {
   // para colar o código, em vez de ficar recusando alertas em silêncio.
   const configuracao = await obterConfiguracao();
   if (!(configuracao.apiToken || "").trim()) {
-    await registrarStatus(false, "Código de instalação não configurado.");
+    await registrarStatus(false, "Código de verificação não configurado.");
     await chrome.runtime.openOptionsPage();
     return;
   }

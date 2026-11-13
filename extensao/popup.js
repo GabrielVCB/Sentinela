@@ -56,7 +56,7 @@ async function carregar() {
     : "nunca";
 
   if (!(configuracao.apiToken || "").trim()) {
-    pintarStatus(false, "Cole o código de instalação nas opções.");
+    pintarStatus(false, "Cole o código de verificação nas opções.");
   } else if (!(configuracao.departamento || "").trim() || !(configuracao.colaborador || "").trim()) {
     pintarStatus(false, "Informe departamento e colaborador nas opções.");
   } else if (estado.status && estado.status.conectado) {

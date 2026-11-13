@@ -1,8 +1,8 @@
 /** Sentinela — página de opções. */
 "use strict";
 
-// O pacote do painel injeta a URL pública em config.js. No ZIP público, o
-// campo continua editável como alternativa.
+// A configuração do painel injeta a URL pública em config.js. No ZIP público,
+// o campo continua editável como alternativa.
 const PADROES = {
   serverUrl: String(globalThis.SENTINELA_SERVIDOR_PADRAO || "").trim(),
   apiToken: "",
@@ -123,7 +123,7 @@ async function carregarAreas(mostrarErro) {
   const atual = el.departamento.value;
 
   if (!/^https:\/\//i.test(servidor) || !codigo) {
-    montarDepartamentos([], atual, "Cole a URL e o código de instalação");
+    montarDepartamentos([], atual, "Cole a URL e o código de verificação");
     return;
   }
 
@@ -249,6 +249,12 @@ async function carregar() {
   const configuracao = Object.assign({}, PADROES, estado.configuracao || {});
   if (!String(configuracao.serverUrl || "").trim()) configuracao.serverUrl = PADROES.serverUrl;
   el.servidor.value = configuracao.serverUrl || "";
+  // Na configuração entregue pelo painel, a URL já vem definida: o colaborador
+  // só precisa informar o código de verificação.
+  el.servidor.readOnly = Boolean(PADROES.serverUrl);
+  el.servidor.title = PADROES.serverUrl
+    ? "Endereço definido pela configuração da extensão."
+    : "Informe a URL do servidor fornecido pelo administrador.";
   el.token.value = configuracao.apiToken || "";
   el.colaborador.value = configuracao.colaborador || "";
 
@@ -282,7 +288,7 @@ async function salvar(silencioso, completo) {
   if (/suaempresa\.com/i.test(servidor)) {
     avisar(
       el.resultadoSalvar,
-      "Troque a URL de exemplo pela URL do servidor que aparece no painel, em Instalação e administradores.",
+      "Troque a URL de exemplo pela URL do servidor que aparece no painel, em Monitoramento.",
       "erro",
     );
     return false;
@@ -292,7 +298,7 @@ async function salvar(silencioso, completo) {
   if (!codigo) {
     avisar(
       el.resultadoSalvar,
-      "Cole o código de instalação que aparece no painel, em Instalação e administradores.",
+      "Cole o código de verificação que aparece no painel, em Monitoramento.",
       "erro",
     );
     return false;
@@ -348,7 +354,7 @@ async function salvar(silencioso, completo) {
     } else if (!sincronizado.ok) {
       avisar(
         el.resultadoSalvar,
-        "Configurações salvas, mas o servidor recusou o código. Copie o valor de Instalação e administradores e salve de novo.",
+        "Configurações salvas, mas o servidor recusou o código. Copie o valor de Verificação da extensão e salve de novo.",
         "erro",
       );
     } else {

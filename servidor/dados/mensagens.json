@@ -1,5 +1,6 @@
 {
-  "baixo": "Foram identificados dados de baixo risco. Revise o conteúdo e compartilhe apenas o necessário.",
-  "medio": "Este conteúdo contém dados internos da empresa. Compartilhe apenas o necessário e consulte a política de uso de IA antes de enviar.",
-  "alto": "Este conteúdo contém dados confidenciais ou sensíveis. Não envie para uma IA pública. Remova as informações sensíveis ou use uma ferramenta corporativa autorizada."
+  "baixo": "Vale uma revisão rápida antes de enviar.",
+  "sem_deteccao": "Nenhum dado sensível detectado.",
+  "medio": "Compartilhe só o necessário e confira a política de uso de IA antes de enviar.",
+  "alto": "Remova os dados sensíveis antes de enviar."
 }

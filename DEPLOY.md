@@ -90,9 +90,9 @@ visita demora cerca de 1 minuto.
 2. Entre com `SENTINELA_ADMIN_USUARIO` e a senha informada.
 3. Em **Monitoramento**, ative a chave geral, escolha as IAs ou adicione uma nova IA
    com nome e URL.
-4. Confira **Instalação e administradores**:
+4. Confira **Monitoramento → Verificação da extensão**:
    - a URL pública;
-   - o código de instalação;
+   - o código de verificação;
    - a versão **2.9**;
    - o administrador inicial marcado como **Superadmin**.
 5. Confira **Regras de detecção**: devem existir 44 regras iniciais.
@@ -103,8 +103,8 @@ visita demora cerca de 1 minuto.
 
 ## 6. Instalar a extensão
 
-O botão **Baixar extensão (.zip)** monta o pacote na hora com `config.js` contendo a URL pública deste
-servidor. Ele fica no mesmo bloco do código de instalação, para os dois serem entregues juntos
+O botão **Baixar extensão (.zip)** monta o arquivo na hora com `config.js` contendo a URL pública deste
+servidor. Ele fica no mesmo bloco do código de verificação
 aos funcionários. O `public/sentinela-extensao.zip` do repositório é só o fallback de
 demonstração e pode ser regenerado com:
 
@@ -115,10 +115,10 @@ zip -qr public/sentinela-extensao.zip extensao -x '*.DS_Store'
 
 O ZIP deve conter a pasta `extensao/` com `manifest.json` dentro. Em cada computador:
 
-1. Baixe o ZIP pelo painel em **Instalação e administradores → Baixar extensão (.zip)**. A URL do servidor já vem
+1. Baixe o ZIP pelo painel em **Monitoramento → Verificação da extensão → Baixar extensão (.zip)**. A URL do servidor já vem
    preenchida; o ZIP público do repositório continua disponível para demonstração.
 2. Descompacte e recarregue em `chrome://extensions` ou `edge://extensions`.
-3. Abra **Opções** e confirme a URL preenchida; informe o código de instalação, o departamento e
+3. Abra **Opções** e confirme a URL preenchida; informe o código de verificação, o departamento e
    o colaborador.
 4. Salve e use **Testar conexão**. Domínios novos são autorizados no mesmo salvamento.
 5. Abra o ChatGPT/Gemini/Claude/Copilot e teste texto + imagem/PDF.
@@ -149,7 +149,8 @@ No painel:
 - [ ] criar/editar/excluir uma regra e recarregar em outra instância mostra a mudança;
 - [ ] um alerta de teste aparece com site, departamento, colaborador, IP, nível, tipos e origem;
 - [ ] texto + imagem no mesmo conteúdo gera detecções das duas origens;
-- [ ] **Instalação e administradores** mostra o endereço e o código corretos;
+- [ ] **Monitoramento → Verificação da extensão** mostra o endereço e o código corretos;
+- [ ] **Administradores** lista as contas de acesso ao painel;
 - [ ] **Monitoramento** ativa/pausa globalmente e por IA, adiciona IA com URL e move os
   dispositivos conectados para a mesma seção;
 - [ ] um dispositivo desconectado volta a conectar depois de renovar o código e salvar o novo
@@ -174,7 +175,7 @@ as colunas de lockout e a tabela `schema_migrations` são aditivas.
 - **UptimeRobot Free:** intervalo de 5 minutos e limites de monitores.
 - **Cloud Run:** alternativa com cota gratuita mensal e `min-instances=0`, mas exige faturamento
   ativo; `min-instances=1` tem custo.
-- **Código de instalação:** único para o workspace. Para muitas extensões, o próximo passo é
+- **Código de verificação:** único para o workspace. Para muitas extensões, o próximo passo é
   token por dispositivo com revogação individual.
 
 Se o objetivo é uma demo de portfólio, o conjunto Render + Neon + UptimeRobot é suficiente e

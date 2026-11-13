@@ -19,16 +19,17 @@
 
   var ROTULOS = { baixo: "Baixo", medio: "Médio", alto: "Alto" };
   var MENSAGENS = {};
+  var regras = [];
   try {
     var dados = document.getElementById("dados-sentinela");
     MENSAGENS = JSON.parse(dados ? dados.dataset.mensagens : "{}");
+    regras = JSON.parse(dados ? dados.dataset.regras : "[]");
   } catch (erro) {
-    console.warn("Mensagens padrão indisponíveis.", erro);
+    console.warn("Dados padrão da demonstração indisponíveis.", erro);
   }
 
-  // Esta página é pública: a prévia usa os detectores embutidos, sem pedir ao
-  // servidor a matriz da empresa (que agora exige o código de instalação).
-  var regras = [];
+  // A prévia usa as regras iniciais embutidas na página. A matriz editável do
+  // painel exige o código de verificação e não é exposta na landing pública.
   var ultimo = "";
 
   function renderizar(resultado) {
@@ -64,7 +65,8 @@
       tipos.appendChild(item);
     });
 
-    mensagem.textContent = MENSAGENS[resultado.nivel] || "";
+    var chaveMensagem = totalTipos > 0 ? resultado.nivel : "sem_deteccao";
+    mensagem.textContent = MENSAGENS[chaveMensagem] || "";
 
     // Reinicia a animação de entrada apenas quando o conteúdo muda.
     if (assinatura !== ultimo) {

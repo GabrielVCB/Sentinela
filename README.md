@@ -75,12 +75,12 @@ flowchart LR
 
 | Nível | Quando aparece | O que o colaborador vê |
 | --- | --- | --- |
-| **Alto** | Há dados confidenciais ou sensíveis. | Orientação para não enviar e pedido de confirmação. |
-| **Médio** | Há dados internos da empresa. | Orientação para compartilhar só o necessário e pedido de confirmação. |
-| **Baixo** | Há dados de baixo risco. | Um convite a uma leve revisão antes do envio. |
-| **Baixo, sem detecções** | Nada sensível foi encontrado. | Um selo de verificação, útil em colagens, imagens ou PDFs com muita informação. |
+| **Alto** | Há dados confidenciais ou sensíveis. | “Remova os dados sensíveis antes de enviar.” |
+| **Médio** | Há dados internos da empresa. | “Compartilhe só o necessário e confira a política de uso de IA antes de enviar.” |
+| **Baixo, com detecções** | Há dados de baixo risco. | “Vale uma revisão rápida antes de enviar.” |
+| **Sem detecções** | Nada sensível foi encontrado. | “Nenhum dado sensível detectado.” |
 
-Em risco médio ou alto, o envio pede confirmação.
+Em risco médio ou alto, o envio pede confirmação. O Sentinela orienta e pede confirmação; **não bloqueia** a decisão do colaborador.
 
 ### Matriz de risco
 
@@ -97,7 +97,7 @@ O mesmo cadastro de departamentos classifica as regras e identifica onde o colab
 | **Segurança da Informação** | Código de verificação ou MFA, dump ou backup de banco, dados de clientes, acesso remoto ou VPN | Documento confidencial, relatório de vulnerabilidade, arquivo de ambiente |
 | **TI** | Senha ou credencial, token ou chave de API, chave privada, string de conexão, código-fonte interno | Sem regras neste nível |
 
-O Sentinela vem com mais de 40 regras iniciais. Regras, departamentos, mensagens e o limite de criticidade podem ser ajustados no painel.
+O Sentinela vem com mais de 40 regras iniciais, incluindo validações técnicas de CPF, CNPJ e cartões. Regras, departamentos, mensagens e o limite de criticidade podem ser ajustados no painel, e novas regras podem ser criadas por palavra-chave ou expressão regular (regex).
 
 ### Sincronização
 
@@ -111,9 +111,9 @@ A extensão consulta periodicamente a versão da configuração e baixa a matriz
 | **Alertas** | Auditoria com filtros por data, departamento e nível, retenção e exportação em CSV e PDF. |
 | **Regras de detecção** | Busca, criação, edição, ativação e exclusão de regras. |
 | **Departamentos** | Matriz de risco e regras de cada departamento. Ao excluir um departamento, o histórico de alertas é preservado. |
-| **Mensagens educativas** | Texto exibido no aviso para os níveis baixo, médio e alto. |
-| **Monitoramento** | Ativação geral, IAs monitoradas e dispositivos conectados, com desconexão individual. |
-| **Instalação e administradores** | Endereço do servidor, código de instalação, download da extensão e contas de administrador. |
+| **Mensagens educativas** | Textos exibidos no aviso para risco alto, médio, baixo com detecções e sem detecções. |
+| **Monitoramento** | Ativação geral, IAs monitoradas, dispositivos conectados, código de verificação e download da extensão. |
+| **Administradores** | Contas com acesso ao painel. O superadmin cria e exclui administradores; contas comuns trocam a própria senha. |
 
 ### Letramento
 
@@ -132,8 +132,8 @@ O limite de criticidade é configurável na **Visão geral**.
 ### Dispositivos e acessos
 
 - Cada instalação da extensão aparece no painel com colaborador, departamento, IP e situação do código, e pode ser desconectada individualmente.
-- Ao renovar o código de instalação, cada dispositivo volta a conectar assim que o novo código é salvo nas Opções da extensão, sem reinstalar.
-- A política é central: a ativação e as IAs monitoradas são definidas no painel e valem para todos os computadores. As Opções da extensão guardam apenas o que é específico de cada máquina: URL do servidor, código de instalação, departamento e identificador do colaborador.
+- Ao renovar o código de verificação, cada dispositivo volta a conectar assim que o novo código é salvo nas Opções da extensão, sem reinstalar.
+- A política é central: a ativação e as IAs monitoradas são definidas no painel e valem para todos os computadores. As Opções da extensão guardam apenas o que é específico de cada máquina: URL do servidor, código de verificação, departamento e identificador do colaborador.
 - O primeiro administrador criado pelo servidor é o **superadmin**. Ele não pode ser excluído e é o único que cria e exclui outros administradores. Contas comuns trocam a própria senha.
 
 ## Privacidade e segurança
@@ -148,22 +148,21 @@ Apenas o registro do alerta: a IA utilizada, o departamento, o colaborador, o IP
 
 - O painel é de uso exclusivo de administradores autorizados, com login e sessão de duração limitada.
 - As contas de administrador são criadas somente pelo superadmin.
-- O código de instalação autoriza a extensão a registrar alertas, mas não dá acesso ao painel.
+- O código de verificação autoriza a extensão a registrar alertas, mas não dá acesso ao painel.
 
 ## Arquitetura e tecnologias
 
 ```mermaid
 flowchart LR
-    E["Extensão<br/>Chrome e Edge"] <--> F["Servidor<br/>landing · painel · API"] <--> P[("Banco de dados")]
+    E["Extensão<br/>Chrome e Edge"] <--> P["Painel"] <--> D[("Banco de dados")]
 ```
 
-A extensão envia os alertas ao servidor e recebe as regras e a configuração.
+A extensão envia os alertas ao painel e recebe as regras e a configuração.
 
 | Camada | Tecnologia |
 | --- | --- |
 | **Extensão** | Manifest V3 (Chrome e Edge), JavaScript puro e Shadow DOM |
-| **Servidor** | Flask (Python): landing, painel e API |
-| **Painel** | Jinja, HTML e CSS |
+| **Painel** | Flask (Python), Jinja, HTML e CSS |
 | **Banco de dados** | Postgres (Neon) |
 | **Hospedagem** | Render |
 | **Automação** | GitHub Actions |
@@ -176,14 +175,14 @@ Cada regra do painel pode ser uma **palavra-chave** ou uma **expressão regular 
 
 ## Instalação da extensão
 
-Cada colaborador instala a extensão no próprio Chrome ou Edge. O pacote e o código de instalação são fornecidos pelo administrador.
+Cada colaborador instala a extensão no próprio Chrome ou Edge. O administrador fornece o código de verificação; o download feito pelo painel já inclui o endereço do servidor.
 
-1. O administrador fornece o pacote da extensão (.zip) e o código de instalação. O pacote já vem com o endereço do servidor. Para testes sem o painel, há também o [ZIP público](./public/sentinela-extensao.zip).
+1. O administrador fornece o código de verificação. Para testes sem o painel, há também o [ZIP público](./public/sentinela-extensao.zip).
 2. O arquivo é extraído em uma pasta de fácil acesso.
 3. A página de extensões do Chrome é `chrome://extensions`, e a do Edge é `edge://extensions`.
 4. Nessa página, o **Modo do desenvolvedor** é ativado.
 5. Com a opção **Carregar sem compactação**, é selecionada a pasta `extensao`.
-6. Nas **Opções** da extensão, é informado o código de instalação recebido. Com o ZIP público, informa-se também o endereço do servidor.
+6. Nas **Opções** da extensão, é informado apenas o código de verificação recebido. No download feito pelo painel, a URL do servidor já vem preenchida; no ZIP público de demonstração, ela também pode ser informada.
 7. Em seguida, são escolhidos o departamento e o identificador do colaborador.
 8. Ao salvar, a autorização de acesso ao servidor é confirmada, se solicitada, e o botão **Testar conexão** verifica a ligação.
 9. Por fim, um teste com um dado fictício no ChatGPT, Gemini, Claude ou Copilot confirma que o aviso aparece.

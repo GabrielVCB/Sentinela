@@ -62,7 +62,7 @@ import pdf
 VERSAO = "2.9"
 # A versão do produto continua 2.9; este sufixo invalida o cache dos arquivos
 # estáticos quando a interface muda sem alterar a versão exibida.
-VERSAO_ASSETS = "2.9.13"
+VERSAO_ASSETS = "2.9.17"
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------------------
@@ -256,7 +256,7 @@ def limite_utc(data_texto: str, fim: bool = False) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Código de instalação e IP de origem
+# Código de verificação e IP de origem
 # ---------------------------------------------------------------------------
 
 def ip_do_cliente() -> str:
@@ -274,11 +274,11 @@ def token_esperado() -> str:
 
 
 def conferir_token():
-    """Devolve uma resposta de erro ou None quando o código de instalação confere."""
+    """Devolve uma resposta de erro ou None quando o código de verificação confere."""
     recebido = (request.headers.get("X-API-Token") or "").strip()
     esperado = token_esperado()
     if not recebido or not esperado or not hmac.compare_digest(recebido, esperado):
-        return jsonify({"erro": "Código de instalação inválido ou ausente."}), 401
+        return jsonify({"erro": "Código de verificação inválido ou ausente."}), 401
     return None
 
 
@@ -328,6 +328,12 @@ def texto_opcional(valor, campo: str, maximo: int = 120):
 def validar_nivel(valor, campo: str = "Nível") -> str:
     if valor not in db.NIVEIS:
         raise ErroValidacao(f"{campo} deve ser baixo, medio ou alto.")
+    return valor
+
+
+def validar_nivel_mensagem(valor: str) -> str:
+    if valor not in db.NIVEIS_MENSAGEM:
+        raise ErroValidacao("Mensagem deve ser baixo, sem_deteccao, medio ou alto.")
     return valor
 
 
@@ -387,7 +393,7 @@ def dispositivo_revogado() -> bool:
     """Confere o dispositivo enviado pela extensão, quando presente.
 
     Extensões antigas não mandam X-Device-ID; elas continuam funcionando com
-    o código de instalação. Instalações novas podem ser desconectadas.
+    o código de verificação. Conexões novas podem ser desconectadas.
     """
     dispositivo_id = (request.headers.get("X-Device-ID") or "").strip()
     if not dispositivo_id:
@@ -664,23 +670,23 @@ def baixar_extensao_configurada():
 
     O ZIP estático do repositório continua disponível para demonstração, mas o
     download pelo painel evita que o colaborador precise descobrir/colar a URL
-    do Render. O código de instalação continua sendo copiado à parte.
+    do Render. O código de verificação continua sendo copiado à parte.
     """
     base = RAIZ_PROJETO / "extensao"
     if not base.is_dir():
-        return jsonify({"erro": "Pacote da extensão não encontrado no servidor."}), 404
+        return jsonify({"erro": "Arquivo da extensão não encontrado no servidor."}), 404
 
     url = url_publica_do_servidor()
     conteudo = BytesIO()
-    with zipfile.ZipFile(conteudo, "w", zipfile.ZIP_DEFLATED) as pacote:
+    with zipfile.ZipFile(conteudo, "w", zipfile.ZIP_DEFLATED) as arquivo:
         for caminho in sorted(base.rglob("*")):
             if not caminho.is_file():
                 continue
             relativo = caminho.relative_to(base).as_posix()
             if relativo == "config.js":
                 continue
-            pacote.write(caminho, "extensao/" + relativo)
-        pacote.writestr(
+            arquivo.write(caminho, "extensao/" + relativo)
+        arquivo.writestr(
             "extensao/config.js",
             "/** URL injetada pelo painel da Sentinela. */\n"
             "globalThis.SENTINELA_SERVIDOR_PADRAO = " + json.dumps(url) + ";\n",
@@ -800,7 +806,7 @@ def api_config():
             ],
             "mensagens": {
                 nivel: mensagens.get(nivel, db.MENSAGENS_PADRAO[nivel])
-                for nivel in db.NIVEIS
+                for nivel in db.NIVEIS_MENSAGEM
             },
             "areas": areas,
             "atualizado_em": agora_iso(),
@@ -839,7 +845,7 @@ def api_registrar_dispositivo():
             jsonify(
                 {
                     "erro": "Este dispositivo foi desconectado pelo painel. "
-                    "Renove o código de instalação no painel e cole o novo código nas Opções."
+                    "Renove o código de verificação no painel e cole o novo código nas Opções."
                 }
             ),
             403,
@@ -856,7 +862,7 @@ def api_registrar_dispositivo():
 @app.post("/api/alertas")
 @exigir_token_api
 def api_criar_alerta():
-    # O código de instalação já foi conferido por @exigir_token_api antes de
+    # O código de verificação já foi conferido por @exigir_token_api antes de
     # qualquer gravação.
     corpo = ler_corpo()
     ip = ip_do_cliente()
@@ -1016,9 +1022,22 @@ def areas_para_landing() -> list:
 
 
 def contexto_landing() -> dict:
+    regras_demo = [
+        {
+            "nome": regra["nome"],
+            "tipo": regra["tipo"],
+            "padrao": regra["padrao"],
+            "risco": regra["risco"],
+            "area": area["nome"],
+            "ativo": True,
+        }
+        for area in db.AREAS
+        for regra in area["regras"]
+    ]
     return {
         "areas": areas_para_landing(),
         "mensagens": db.MENSAGENS_PADRAO,
+        "regras_demo": regras_demo,
         "ano": datetime.now(FUSO).year,
     }
 
@@ -1367,25 +1386,30 @@ def api_remover_alerta(alerta_id: int):
         conexao_aberta.close()
 
 
-@app.post("/api/admin/alertas/limpar-idade")
+@app.post("/api/admin/alertas/limpar-periodo")
 @exigir_sessao_api
-def api_limpar_por_idade():
+def api_limpar_por_periodo():
     corpo = ler_corpo()
+    de = str(corpo.get("de") or "").strip()
+    ate = str(corpo.get("ate") or "").strip()
     try:
-        dias = int(corpo.get("dias"))
-    except (TypeError, ValueError) as erro:
-        raise ErroValidacao("Informe um número de dias válido.") from erro
-    if dias < 1 or dias > 3650:
-        raise ErroValidacao("O número de dias deve ficar entre 1 e 3650.")
+        data_de = datetime.strptime(de, "%Y-%m-%d").date()
+        data_ate = datetime.strptime(ate, "%Y-%m-%d").date()
+    except ValueError as erro:
+        raise ErroValidacao("Informe as duas datas no formato AAAA-MM-DD.") from erro
+    if data_de > data_ate:
+        raise ErroValidacao("A data inicial não pode ser posterior à data final.")
 
-    limite = (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=dias)).isoformat(
-        timespec="seconds"
-    )
+    inicio = limite_utc(de)
+    fim = limite_utc(ate, fim=True)
     conexao_aberta = conexao()
     try:
-        cursor = conexao_aberta.execute("DELETE FROM alertas WHERE data_hora < ?", (limite,))
+        cursor = conexao_aberta.execute(
+            "DELETE FROM alertas WHERE data_hora >= ? AND data_hora < ?",
+            (inicio, fim),
+        )
         conexao_aberta.commit()
-        return jsonify({"removidos": cursor.rowcount, "limite": limite})
+        return jsonify({"removidos": cursor.rowcount, "de": de, "ate": ate})
     finally:
         conexao_aberta.close()
 
@@ -1660,7 +1684,7 @@ def api_desconectar_dispositivo(dispositivo_id: str):
         return jsonify({"erro": "Dispositivo não encontrado ou já desconectado."}), 404
     return jsonify(
         {
-            "mensagem": "Dispositivo desconectado. Ele pode voltar ao salvar um código de instalação renovado nas Opções."
+            "mensagem": "Dispositivo desconectado. Ele pode voltar ao salvar um código de verificação renovado nas Opções."
         }
     )
 
@@ -2060,7 +2084,7 @@ def api_listar_mensagens():
     return jsonify(
         [
             {"nivel": nivel, "texto": salvas.get(nivel, db.MENSAGENS_PADRAO[nivel])}
-            for nivel in db.NIVEIS
+            for nivel in db.NIVEIS_MENSAGEM
         ]
     )
 
@@ -2068,7 +2092,7 @@ def api_listar_mensagens():
 @app.put("/api/admin/mensagens/<nivel>")
 @exigir_sessao_api
 def api_atualizar_mensagem(nivel: str):
-    validar_nivel(nivel)
+    validar_nivel_mensagem(nivel)
     corpo = ler_corpo()
     texto = texto_obrigatorio(corpo.get("texto"), "Mensagem", 600)
     conexao_aberta = conexao()
@@ -2312,7 +2336,7 @@ def avisar_configuracao() -> None:
         print("[AVISO] SECRET_KEY de desenvolvimento. Defina SENTINELA_SECRET_KEY.")
     print("[Sentinela] Banco: Postgres externo (SENTINELA_DB_URL)")
     print(f"[Sentinela] Usuário admin: {ADMIN_USUARIO}")
-    print("[Sentinela] Código de instalação: painel → Instalação e administradores.")
+    print("[Sentinela] Código de verificação: painel → Monitoramento.")
 
 
 avisar_configuracao()

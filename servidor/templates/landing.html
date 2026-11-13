@@ -6,7 +6,7 @@
 {% endblock %}
 
 {% block corpo %}
-<div id="dados-sentinela" data-mensagens="{{ mensagens|tojson|forceescape }}" hidden></div>
+<div id="dados-sentinela" data-mensagens="{{ mensagens|tojson|forceescape }}" data-regras="{{ regras_demo|tojson|forceescape }}" hidden></div>
 <div class="landing">
   <header class="lp-topo">
     <div class="lp-limite lp-topo-linha">
@@ -37,24 +37,16 @@
           Copilot e avisa antes do envio. O texto nunca sai do navegador.
         </p>
         <p class="lp-hero-nota">
-          Você define as regras, os departamentos e o limite de criticidade. A Sentinela cuida do
+          Você define as regras, os departamentos e o limite de criticidade. O Sentinela cuida do
           resto.
         </p>
-
-        <div class="lp-acoes">
-          <a class="botao primario" href="{{ url_for('login') }}">
-            Entrar no painel
-            <span aria-hidden="true">→</span>
-          </a>
-          <a class="botao" href="#matriz">Ver a matriz de risco</a>
-        </div>
 
       </div>
 
       <div class="lp-demo">
         <div class="lp-demo-caixa" id="demo-caixa">
           <div class="lp-demo-topo">
-            <span class="lp-demo-site"><span class="lp-ponto" aria-hidden="true"></span> ChatGPT</span>
+            <span class="lp-demo-site">ChatGPT</span>
             <span class="rotulo">prévia</span>
           </div>
 
@@ -123,6 +115,34 @@
       </div>
     </section>
 
+    <section class="lp-secao lp-limite lp-solucao" id="solucao">
+      <div class="lp-cabecalho-duplo">
+        <div>
+          <p class="rotulo">A solução</p>
+          <h2>O risco fica visível antes de virar vazamento.</h2>
+        </div>
+      </div>
+
+      <div class="lp-solucao-grade">
+        <div>
+          <h3>Avisa antes do envio</h3>
+          <p>O alerta aparece no campo de texto, antes de o conteúdo sair da empresa.</p>
+        </div>
+        <div>
+          <h3>Ensina no momento certo</h3>
+          <p>Uma mensagem curta explica o risco e o que fazer com o conteúdo.</p>
+        </div>
+        <div>
+          <h3>Registra a decisão</h3>
+          <p>O painel acompanha envios e cancelamentos por IA e departamento.</p>
+        </div>
+        <div>
+          <h3>Controla o risco, não a conversa</h3>
+          <p>O conteúdo não é guardado. O que chega ao painel é apenas o registro do alerta.</p>
+        </div>
+      </div>
+    </section>
+
     <section class="lp-faixa-principio" id="privacidade">
       <div class="lp-limite lp-secao">
         <div class="lp-cabecalho-duplo">
@@ -141,25 +161,26 @@
                 <span class="lp-fluxo-seta" aria-hidden="true">→</span>
                 <div class="lp-fluxo-node"><strong>Alerta</strong><span>extensão</span></div>
                 <span class="lp-fluxo-seta" aria-hidden="true">→</span>
-                <div class="lp-fluxo-node"><strong>Regra</strong><span>painel</span></div>
+                <div class="lp-fluxo-node"><strong>Registro</strong><span>painel</span></div>
               </div>
             </div>
           </div>
         </div>
 
-        <div class="lp-tres-colunas">
-          <div>
-            <h3>Analisa no navegador</h3>
-            <p>A extensão examina o texto localmente. Nada do que é digitado é guardado.</p>
+        <div class="lp-privacidade-grade">
+          <div class="lp-privacidade-bloco">
+            <p class="rotulo">Chega ao painel</p>
+            <p>IA, departamento, colaborador, IP, origem, nível, tipos e decisão.</p>
           </div>
-          <div>
-            <h3>Classifica por risco</h3>
-            <p>Cada regra pertence a um departamento e a um nível. O maior nível encontrado define o alerta.</p>
+          <div class="lp-privacidade-bloco">
+            <p class="rotulo">Nunca chega</p>
+            <p>Texto, imagens, PDFs.</p>
           </div>
-          <div>
-            <h3>Registra o alerta</h3>
-            <p>O painel recebe só o essencial: quem enviou, em qual departamento, qual risco e a decisão. O texto digitado não vai junto.</p>
-          </div>
+        </div>
+
+        <div class="lp-acesso-controlado">
+          <p class="rotulo">Acesso controlado</p>
+          <p>O código de verificação não dá acesso ao painel. Só o superadmin cria administradores.</p>
         </div>
       </div>
     </section>
@@ -206,6 +227,21 @@
           </tbody>
         </table>
       </div>
+      <div class="lp-matriz-profundidade">
+        <div>
+          <h3>Mais de 40 regras iniciais</h3>
+          <p>Cobertura pronta para os principais departamentos da empresa.</p>
+        </div>
+        <div>
+          <h3>Validações técnicas</h3>
+          <p>CPF, CNPJ, cartões, tokens, senhas e código-fonte.</p>
+        </div>
+        <div>
+          <h3>Palavra-chave ou regex</h3>
+          <p>Crie regras próprias no painel, sem depender de uma nova versão.</p>
+        </div>
+      </div>
+
       <p class="lp-nota-matriz">
         Regras editáveis no painel; as extensões recebem as alterações automaticamente.
       </p>
@@ -224,7 +260,7 @@
           <div>
             <p class="lp-num">01</p>
             <h3>Implantação em minutos</h3>
-            <p>A extensão é instalada no Chrome ou no Edge a partir do pacote fornecido pelo painel.</p>
+            <p>A extensão é instalada no Chrome ou no Edge com o código de verificação fornecido pelo painel.</p>
           </div>
           <div>
             <p class="lp-num">02</p>
@@ -234,7 +270,7 @@
           <div>
             <p class="lp-num">03</p>
             <h3>Aviso antes do envio</h3>
-            <p>Classifica o risco, orienta o colaborador e, em risco médio ou alto, pede confirmação.</p>
+            <p>Orienta o colaborador e pede confirmação em risco médio ou alto. Não bloqueia o envio: a decisão continua com ele.</p>
           </div>
           <div>
             <p class="lp-num">04</p>
@@ -270,10 +306,6 @@
                 <p>IAs monitoradas, ativação e departamentos são definidos no painel e valem para todas as extensões.</p>
               </div>
               <div class="lp-recurso">
-                <h3>Acesso controlado</h3>
-                <p>Cada extensão precisa do código de instalação para registrar alertas.</p>
-              </div>
-              <div class="lp-recurso">
                 <h3>Relatórios</h3>
                 <p>Os alertas filtrados por data, departamento e nível podem ser exportados em CSV ou PDF.</p>
               </div>
@@ -300,12 +332,21 @@
             Quando a proporção de alertas de risco alto de um departamento atinge ou passa do
             limite definido no painel, com no mínimo três registros, ele é marcado como crítico.
           </p>
+          <div class="lp-estados">
+            <span class="critico">Crítico</span>
+            <span class="observacao">Em observação</span>
+            <span class="normal">Normal</span>
+          </div>
           <div class="lp-como-ler">
             <p class="rotulo lp-rotulo-claro">Como ler</p>
             <p>
               Muitos cancelamentos indicam que o aviso está funcionando. Muitos envios em risco
               alto indicam que o aviso precisa de contexto, treinamento ou uma ferramenta
               corporativa autorizada.
+            </p>
+            <p>
+              Use esse indicador para decidir onde investir em treinamento: comece pelos
+              departamentos críticos e acompanhe a evolução dos que estão em observação.
             </p>
           </div>
         </div>
@@ -320,10 +361,6 @@
         auditoria e relatórios de letramento em um só lugar. Os colaboradores não fazem login;
         usam apenas a extensão.
       </p>
-      <div class="lp-acoes">
-        <a class="botao primario" href="{{ url_for('login') }}">Entrar no painel <span aria-hidden="true">→</span></a>
-        <a class="botao" href="#funciona">Como funciona</a>
-      </div>
     </section>
   </main>
 

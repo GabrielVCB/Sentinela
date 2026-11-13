@@ -62,11 +62,7 @@ export function BannerRisco({
           </span>
         </div>
 
-        {semDeteccoes ? (
-          <p className="text-xs text-muted-foreground">
-            Nenhum tipo de informação corporativa monitorada foi identificado.
-          </p>
-        ) : (
+        {!semDeteccoes && (
           <ul className="flex flex-wrap gap-1.5">
             {deteccoes.map((deteccao) => (
               <li

@@ -13,7 +13,7 @@ import {
   type Risco,
 } from "@/lib/dados";
 import type { RegraEntrada } from "@/lib/detectores";
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 
 // A prévia não tem login próprio: o painel real é servido pelo Flask.
 // Configure VITE_SENTINELA_URL com a URL pública do servidor.
@@ -54,7 +54,7 @@ const ETAPAS = [
   {
     numero: "01",
     titulo: "Implantação em minutos",
-    texto: "A extensão é instalada no Chrome ou no Edge a partir do pacote fornecido pelo painel.",
+    texto: "A extensão é instalada no Chrome ou no Edge com o código de verificação fornecido pelo painel.",
   },
   {
     numero: "02",
@@ -65,7 +65,7 @@ const ETAPAS = [
     numero: "03",
     titulo: "Aviso antes do envio",
     texto:
-      "Classifica o risco, orienta o colaborador e, em risco médio ou alto, pede confirmação.",
+      "Orienta o colaborador e pede confirmação em risco médio ou alto. Não bloqueia o envio: a decisão continua com ele.",
   },
   {
     numero: "04",
@@ -104,10 +104,6 @@ const RECURSOS = [
           "IAs monitoradas, ativação e departamentos são definidos no painel e valem para todas as extensões.",
       },
       {
-        titulo: "Acesso controlado",
-        texto: "Cada extensão precisa do código de instalação para registrar alertas.",
-      },
-      {
         titulo: "Relatórios",
         texto:
           "Os alertas filtrados por data, departamento e nível podem ser exportados em CSV ou PDF.",
@@ -127,7 +123,9 @@ export default function Landing() {
   const [texto, setTexto] = useState(TEXTO_INICIAL);
   const regras = useMemo<RegraEntrada[]>(() => REGRAS_DEMO, []);
   const { analise, analisando } = useAnaliseComDebounce(texto, regras);
-  const mensagem = MENSAGENS_PADRAO[analise.nivel];
+  const mensagem = analise.deteccoes.length
+    ? MENSAGENS_PADRAO[analise.nivel]
+    : MENSAGENS_PADRAO.sem_deteccao;
   const destino = `${URL_PAINEL}/painel`;
 
   return (
@@ -159,7 +157,7 @@ export default function Landing() {
 
           <Button asChild variant="outline" className="rounded-sm">
             <a href={destino}>
-              Abrir painel
+              Entrar
               <ArrowUpRight className="size-3.5" />
             </a>
           </Button>
@@ -184,21 +182,10 @@ export default function Landing() {
                 Claude e Copilot e avisa antes do envio. O texto nunca sai do navegador.
               </p>
               <p className="mt-3 max-w-md text-xs leading-6 text-muted-foreground">
-                Você define as regras, os departamentos e o limite de criticidade. A Sentinela
+                Você define as regras, os departamentos e o limite de criticidade. O Sentinela
                 cuida do resto.
               </p>
 
-              <div className="mt-9 flex flex-wrap items-center gap-3">
-                <Button asChild className="rounded-sm">
-                  <a href={destino}>
-                    Abrir o painel
-                    <ArrowRight className="size-4" />
-                  </a>
-                </Button>
-                <Button asChild variant="ghost" className="rounded-sm">
-                  <a href="#matriz">Ver a matriz de risco</a>
-                </Button>
-              </div>
 
             </motion.div>
 
@@ -211,10 +198,7 @@ export default function Landing() {
             >
               <div className="border border-border bg-card">
                 <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5">
-                  <span className="flex items-center gap-2 font-mono text-[11px] text-muted-foreground">
-                    <span className="size-1.5 rounded-full bg-foreground" aria-hidden />
-                    ChatGPT
-                  </span>
+                  <span className="font-mono text-[11px] text-muted-foreground">ChatGPT</span>
                   <span className="rotulo">prévia</span>
                 </div>
 
@@ -317,6 +301,49 @@ export default function Landing() {
           </div>
         </motion.section>
 
+        {/* A solução */}
+        <motion.section
+          id="solucao"
+          {...fade}
+          className="scroll-mt-20 border-y border-border bg-muted/25"
+        >
+          <div className="mx-auto w-full max-w-6xl px-5 py-20 sm:px-8 lg:py-24">
+            <div className="max-w-2xl">
+              <p className="rotulo">A solução</p>
+              <h2 className="mt-5 font-serif text-4xl leading-[1.05] tracking-tight text-balance lg:text-5xl">
+                O risco fica visível antes de virar vazamento.
+              </h2>
+            </div>
+            <div className="mt-12 grid gap-8 border-t border-border pt-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-10">
+              {[
+                {
+                  titulo: "Avisa antes do envio",
+                  texto: "O alerta aparece no campo de texto, antes de o conteúdo sair da empresa.",
+                },
+                {
+                  titulo: "Ensina no momento certo",
+                  texto: "Uma mensagem curta explica o risco e o que fazer com o conteúdo.",
+                },
+                {
+                  titulo: "Registra a decisão",
+                  texto: "O painel acompanha envios e cancelamentos por IA e departamento.",
+                },
+                {
+                  titulo: "Controla o risco, não a conversa",
+                  texto: "O conteúdo não é guardado. O que chega ao painel é apenas o registro do alerta.",
+                },
+              ].map((item) => (
+                <div key={item.titulo}>
+                  <h3 className="font-serif text-xl tracking-tight">{item.titulo}</h3>
+                  <p className="mt-2 text-justify text-sm leading-6 text-muted-foreground">
+                    {item.texto}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.section>
+
         {/* Privacidade */}
         <motion.section
           id="privacidade"
@@ -366,7 +393,7 @@ export default function Landing() {
                       →
                     </span>
                     <div className="border border-border bg-background px-2 py-3 text-center">
-                      <p className="font-serif text-sm tracking-tight">Regra</p>
+                      <p className="font-serif text-sm tracking-tight">Registro</p>
                       <p className="mt-1 font-mono text-[8px] tracking-wider text-muted-foreground uppercase">
                         painel
                       </p>
@@ -377,29 +404,26 @@ export default function Landing() {
               </motion.div>
             </div>
 
-            <div className="mt-14 grid gap-8 border-t border-border pt-8 md:grid-cols-3 md:gap-12">
-              {[
-                {
-                  titulo: "Analisa no navegador",
-                  texto:
-                    "A extensão examina o texto localmente. Nada do que é digitado é guardado.",
-                },
-                {
-                  titulo: "Classifica por risco",
-                  texto:
-                    "Cada regra pertence a um departamento e a um nível. O maior nível encontrado define o alerta.",
-                },
-                {
-                  titulo: "Registra o alerta",
-                  texto:
-                    "O painel recebe só o essencial: quem enviou, em qual departamento, qual risco e a decisão. O texto digitado não vai junto.",
-                },
-              ].map((item) => (
-                <div key={item.titulo}>
-                  <h3 className="font-serif text-xl tracking-tight">{item.titulo}</h3>
-                  <p className="mt-2 text-justify text-sm leading-6 text-muted-foreground">{item.texto}</p>
-                </div>
-              ))}
+            <div className="mt-14 grid border-y border-border md:grid-cols-2">
+              <div className="border-b border-border p-6 md:border-r md:border-b-0 lg:p-8">
+                <p className="rotulo">Chega ao painel</p>
+                <p className="mt-3 text-justify text-sm leading-6 text-muted-foreground">
+                  IA, departamento, colaborador, IP, origem, nível, tipos e decisão.
+                </p>
+              </div>
+              <div className="p-6 lg:p-8">
+                <p className="rotulo">Nunca chega</p>
+                <p className="mt-3 text-justify text-sm leading-6 text-muted-foreground">
+                  Texto, imagens, PDFs.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-8 grid gap-3 border border-border bg-background/60 p-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start sm:gap-5">
+              <p className="rotulo">Acesso controlado</p>
+              <p className="text-justify text-sm leading-6 text-muted-foreground">
+                O código de verificação não dá acesso ao painel. Só o superadmin cria administradores.
+              </p>
             </div>
           </div>
         </motion.section>
@@ -477,6 +501,36 @@ export default function Landing() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          <div className="mt-8 grid border-y border-border sm:grid-cols-3">
+            {[
+              {
+                titulo: "Mais de 40 regras iniciais",
+                texto: "Cobertura pronta para os principais departamentos da empresa.",
+              },
+              {
+                titulo: "Validações técnicas",
+                texto: "CPF, CNPJ, cartões, tokens, senhas e código-fonte.",
+              },
+              {
+                titulo: "Palavra-chave ou regex",
+                texto: "Crie regras próprias no painel, sem depender de uma nova versão.",
+              },
+            ].map((item, indice) => (
+              <div
+                key={item.titulo}
+                className={
+                  "py-5 sm:px-5 " +
+                  (indice > 0 ? "border-t border-border sm:border-t-0 sm:border-l" : "")
+                }
+              >
+                <h3 className="text-xs font-medium">{item.titulo}</h3>
+                <p className="mt-2 text-justify text-[11px] leading-5 text-muted-foreground">
+                  {item.texto}
+                </p>
+              </div>
+            ))}
           </div>
 
           <p className="mt-4 text-justify text-[11px] text-muted-foreground">
@@ -562,6 +616,17 @@ export default function Landing() {
                 Quando a proporção de alertas de risco alto de um departamento atinge ou passa do
                 limite definido no painel, com no mínimo três registros, ele é marcado como crítico.
               </p>
+
+              <div className="mt-6 flex flex-wrap gap-2 text-[10px] tracking-[0.08em] uppercase">
+                <span className="border border-risco-alto/60 px-2 py-1 text-risco-alto">Crítico</span>
+                <span className="border border-risco-medio/60 px-2 py-1 text-risco-medio">
+                  Em observação
+                </span>
+                <span className="border border-background/25 px-2 py-1 text-background/70">
+                  Normal
+                </span>
+              </div>
+
               <div className="mt-8 border-t border-background/15 pt-4">
                 <p className="text-[10px] tracking-[0.18em] text-background/45 uppercase">
                   Como ler
@@ -570,6 +635,10 @@ export default function Landing() {
                   Muitos cancelamentos indicam que o aviso está funcionando. Muitos envios em risco
                   alto indicam que o aviso precisa de contexto, treinamento ou uma ferramenta
                   corporativa autorizada.
+                </p>
+                <p className="mt-4 text-justify text-xs leading-6 text-background/70">
+                  Use esse indicador para decidir onde investir em treinamento: comece pelos
+                  departamentos críticos e acompanhe a evolução dos que estão em observação.
                 </p>
               </div>
             </div>
@@ -588,17 +657,6 @@ export default function Landing() {
               educativas, auditoria e relatórios de letramento em um só lugar. Os colaboradores não
               fazem login; usam apenas a extensão.
             </p>
-            <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Button asChild className="rounded-sm">
-                <a href={destino}>
-                  Entrar no painel
-                  <ArrowRight className="size-4" />
-                </a>
-              </Button>
-              <Button asChild variant="outline" className="rounded-sm">
-                <a href="#funciona">Como funciona</a>
-              </Button>
-            </div>
           </div>
         </motion.section>
       </main>

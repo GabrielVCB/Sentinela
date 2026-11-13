@@ -65,7 +65,7 @@ export const AREAS_SEED: AreaSeed[] = matriz.areas.map((area) => ({
   })),
 }));
 
-export const MENSAGENS_PADRAO = mensagensJson as Record<Risco, string>;
+export const MENSAGENS_PADRAO = mensagensJson as Record<Risco | "sem_deteccao", string>;
 
 export const FERRAMENTAS_MONITORADAS = ["ChatGPT", "Gemini", "Claude", "Copilot"] as const;
 

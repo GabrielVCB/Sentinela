@@ -196,12 +196,11 @@
 
   // Espelho local das mensagens padrão (fallback quando o servidor nunca respondeu).
   var MENSAGENS_PADRAO = {
-    baixo:
-      "Foram identificados dados de baixo risco. Revise o conteúdo e compartilhe apenas o necessário.",
+    baixo: "Vale uma revisão rápida antes de enviar.",
+    sem_deteccao: "Nenhum dado sensível detectado.",
     medio:
-      "Este conteúdo contém dados internos da empresa. Compartilhe apenas o necessário e consulte a política de uso de IA antes de enviar.",
-    alto:
-      "Este conteúdo contém dados confidenciais ou sensíveis. Não envie para uma IA pública. Remova as informações sensíveis ou use uma ferramenta corporativa autorizada.",
+      "Compartilhe só o necessário e confira a política de uso de IA antes de enviar.",
+    alto: "Remova os dados sensíveis antes de enviar.",
   };
 
   var CONFIGURACAO_PADRAO = {
@@ -1225,7 +1224,9 @@
 
     var mensagem = document.createElement("p");
     mensagem.className = "mensagem";
-    mensagem.textContent = mensagemDoNivel(analise.nivel);
+    mensagem.textContent = mensagemDoNivel(
+      analise.deteccoes.length > 0 ? analise.nivel : "sem_deteccao",
+    );
     conteudo.appendChild(mensagem);
 
     var rodape = document.createElement("p");

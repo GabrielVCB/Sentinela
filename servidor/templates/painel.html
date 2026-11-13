@@ -28,8 +28,8 @@
       <button class="item" type="button" data-ir="monitoramento">
         <span><strong>Monitoramento</strong></span>
       </button>
-      <button class="item" type="button" data-ir="instalacao">
-        <span><strong>Instalação e administradores</strong></span>
+      <button class="item" type="button" data-ir="administradores">
+        <span><strong>Administradores</strong></span>
       </button>
     </nav>
 
@@ -223,7 +223,7 @@
         <div class="acoes-cabecalho">
           <a class="botao" id="exportar" href="{{ url_for('api_exportar_csv') }}">Exportar CSV</a>
           <a class="botao" id="exportar-pdf" href="{{ url_for('api_exportar_pdf') }}">Exportar PDF</a>
-          <button type="button" class="botao" id="abrir-idade">Excluir alertas antigos</button>
+          <button type="button" class="botao" id="abrir-periodo">Excluir alertas antigos</button>
           <button type="button" class="botao perigo" id="limpar-tudo">Excluir todos os alertas</button>
         </div>
       </header>
@@ -287,55 +287,13 @@
       </div>
     </section>
 
-    <section class="secao" data-painel="instalacao">
+    <section class="secao" data-painel="administradores">
       <header class="secao-cabecalho">
         <div class="secao-titulo-principal">
-          <h1>Instalação e administradores</h1>
-          <button type="button" class="info-aba" data-info="instalacao" aria-label="Sobre Instalação e administradores">i</button>
-        </div>
-        <div class="marcas-cabecalho">
-          <span class="badge versao" id="instalacao-versao">—</span>
+          <h1>Administradores</h1>
+          <button type="button" class="info-aba" data-info="administradores" aria-label="Sobre Administradores">i</button>
         </div>
       </header>
-
-      <section class="bloco-painel">
-        <div class="linha-titulo">
-          <h2>Pacote e código de instalação</h2>
-          <button type="button" class="botao" id="renovar-token">Renovar código</button>
-        </div>
-
-        <div class="instalacao-entrega">
-          <div class="codigo-bloco">
-            <p class="rotulo">
-              Código de instalação
-              <span class="dica-icone" role="img" aria-label="Sem o código, o servidor recusa o registro de alertas." title="Sem o código, o servidor recusa o registro de alertas.">i</span>
-            </p>
-            <code id="instalacao-token" class="codigo-valor">—</code>
-          </div>
-          <div class="instalacao-entrega-acoes">
-            <button type="button" class="botao" id="copiar-token">Copiar código</button>
-            <a class="botao primario" href="{{ url_for('baixar_extensao_configurada') }}" download>
-              Baixar extensão (.zip)
-            </a>
-          </div>
-        </div>
-        <p class="micro">Entregue o pacote e o código aos funcionários.</p>
-
-        <dl class="resumo-detalhe">
-          <div>
-            <dt>Endereço do servidor</dt>
-            <dd id="instalacao-url">—</dd>
-          </div>
-          <div>
-            <dt>Seu IP</dt>
-            <dd id="instalacao-origem">—</dd>
-          </div>
-          <div>
-            <dt>Armazenamento</dt>
-            <dd id="instalacao-banco">—</dd>
-          </div>
-        </dl>
-      </section>
 
       <section class="bloco-painel">
         <div class="linha-titulo">
@@ -374,7 +332,6 @@
             <span class="interruptor-trilho" aria-hidden="true"></span>
             <span class="interruptor-texto" id="monitoramento-ativo-texto">Pausada</span>
           </label>
-          <span class="badge monitoramento-badge" id="monitoramento-status">—</span>
         </div>
       </header>
 
@@ -388,6 +345,40 @@
           <strong id="monitoramento-dispositivos">—</strong>
         </div>
       </div>
+
+      <section class="bloco-painel">
+        <div class="linha-titulo">
+          <h2>Verificação da extensão</h2>
+          <button type="button" class="botao" id="renovar-token">Renovar código</button>
+        </div>
+
+        <div class="instalacao-entrega">
+          <div class="codigo-bloco">
+            <p class="rotulo">
+              Código de verificação
+              <button type="button" class="info-aba" data-info="codigo" aria-label="Sobre o código de verificação">i</button>
+            </p>
+            <code id="instalacao-token" class="codigo-valor">—</code>
+          </div>
+          <div class="instalacao-entrega-acoes">
+            <button type="button" class="botao" id="copiar-token">Copiar código</button>
+            <a class="botao primario" href="{{ url_for('baixar_extensao_configurada') }}" download>
+              Baixar extensão (.zip)
+            </a>
+          </div>
+        </div>
+
+        <dl class="resumo-detalhe">
+          <div>
+            <dt>Endereço do servidor</dt>
+            <dd id="instalacao-url">—</dd>
+          </div>
+          <div>
+            <dt>Seu IP</dt>
+            <dd id="instalacao-origem">—</dd>
+          </div>
+        </dl>
+      </section>
 
       <section class="bloco-painel">
         <div class="linha-titulo">
@@ -584,7 +575,7 @@
 
     <label class="campo">
       <span class="rotulo">Nome da IA</span>
-      <input type="text" id="site-nome" maxlength="60" placeholder="Ex.: Assistente interno" required />
+                    <input type="text" id="site-nome" maxlength="60" required />
     </label>
     <label class="campo">
       <span class="rotulo">URL da IA</span>
@@ -630,20 +621,24 @@
   </form>
 </dialog>
 
-<!-- Diálogo: alertas antigos -->
-<dialog id="dialogo-idade" class="dialogo dialogo-estreito">
-  <form id="form-idade" class="formulario-dialogo">
+<!-- Diálogo: alertas por período -->
+<dialog id="dialogo-periodo" class="dialogo dialogo-estreito">
+  <form id="form-periodo" class="formulario-dialogo">
     <p class="rotulo">Alertas antigos</p>
     <h2>Excluir alertas antigos</h2>
-    <p class="subtitulo">
-      Exclui definitivamente os alertas mais antigos que o período informado.
-    </p>
-    <label class="campo">
-      <span class="rotulo">Manter os últimos (dias)</span>
-      <input type="number" id="idade-dias" min="1" max="3650" value="30" required />
-    </label>
+    <p class="subtitulo">Selecione o período dos alertas que serão excluídos.</p>
+    <div class="campos-periodo">
+      <label class="campo">
+        <span class="rotulo">De</span>
+        <input type="date" id="periodo-de" required />
+      </label>
+      <label class="campo">
+        <span class="rotulo">Até</span>
+        <input type="date" id="periodo-ate" required />
+      </label>
+    </div>
     <div class="dialogo-acoes">
-      <button type="button" class="botao" data-fecha="dialogo-idade">Cancelar</button>
+      <button type="button" class="botao" data-fecha="dialogo-periodo">Cancelar</button>
       <button type="submit" class="botao primario">Excluir alertas</button>
     </div>
   </form>
@@ -660,9 +655,6 @@
       <button type="button" class="fechar-dialogo" data-fecha="dialogo-info" aria-label="Fechar">×</button>
     </div>
     <p id="texto-info" class="subtitulo"></p>
-    <div class="dialogo-acoes">
-      <button type="button" class="botao" data-fecha="dialogo-info">Fechar</button>
-    </div>
   </div>
 </dialog>
 

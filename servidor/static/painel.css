@@ -124,13 +124,6 @@ button {
   max-width: 440px;
 }
 
-.nota-rodape {
-  margin-top: 20px;
-  font-size: 10px;
-  line-height: 1.7;
-  color: var(--cinza-claro);
-}
-
 .login-formulario {
   width: 100%;
   display: flex;
@@ -138,9 +131,10 @@ button {
 }
 
 .login-caixa {
+  position: relative;
   width: 100%;
   max-width: 390px;
-  padding: 36px;
+  padding: 36px 36px 68px;
   border: 1px solid var(--linha);
   background: var(--papel);
 }
@@ -154,8 +148,19 @@ button {
 }
 
 .login-voltar {
-  width: 100%;
-  margin-top: 22px;
+  position: absolute;
+  left: 36px;
+  bottom: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--cinza-claro);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.login-voltar:hover {
+  color: var(--tinta);
 }
 
 .formulario-login {
@@ -342,6 +347,13 @@ button {
   cursor: pointer;
 }
 
+.rotulo .info-aba {
+  margin-left: 5px;
+  vertical-align: middle;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 .info-aba:hover,
 .info-aba:focus-visible {
   color: var(--tinta);
@@ -407,11 +419,14 @@ button {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-height: 34px;
   border: 1px solid var(--linha-forte);
   background: #fff;
   color: var(--tinta);
   font-size: 11px;
-  padding: 8px 13px;
+  font-weight: 500;
+  line-height: 1;
+  padding: 0 13px;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
@@ -445,8 +460,9 @@ button {
 }
 
 .botao.pequeno {
+  min-height: 27px;
   font-size: 10px;
-  padding: 5px 9px;
+  padding: 0 9px;
 }
 
 .botao.largo {
@@ -484,6 +500,18 @@ button {
   gap: 8px;
   font-size: 11px;
   color: var(--cinza);
+}
+
+.campos-periodo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .campos-periodo {
+    grid-template-columns: 1fr;
+  }
 }
 
 input[type="text"],
@@ -724,7 +752,6 @@ textarea:focus {
 }
 
 .site-card-ativo {
-  box-shadow: inset 2px 0 0 var(--tinta);
   background: color-mix(in srgb, var(--tinta) 2.5%, transparent);
 }
 
@@ -1116,6 +1143,7 @@ textarea:focus {
 
 .badge::before {
   content: "";
+  display: none;
   width: 5px;
   height: 5px;
   border-radius: 50%;
@@ -1129,6 +1157,7 @@ textarea:focus {
 }
 
 .badge.risco-baixo::before {
+  display: block;
   background: currentColor;
 }
 
@@ -1139,6 +1168,7 @@ textarea:focus {
 }
 
 .badge.risco-medio::before {
+  display: block;
   background: currentColor;
 }
 
@@ -1148,7 +1178,14 @@ textarea:focus {
   background: transparent;
 }
 
+.badge.risco-sem-deteccao {
+  color: var(--cinza);
+  border-color: var(--linha-forte);
+  background: transparent;
+}
+
 .badge.risco-alto::before {
+  display: block;
   background: currentColor;
 }
 
@@ -1156,10 +1193,6 @@ textarea:focus {
   color: var(--tinta);
   border-color: var(--linha-forte);
   background: #fff;
-}
-
-.badge.admin-badge::before {
-  background: var(--tinta);
 }
 
 .status-gargalo {
@@ -1377,7 +1410,7 @@ textarea:focus {
 
 .grade-mensagens {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 28px;
 }
 

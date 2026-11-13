@@ -24,7 +24,12 @@ const estado = {
   euSuperadmin: false,
 };
 
-const ROTULO_NIVEL = { baixo: "Baixo", medio: "Médio", alto: "Alto" };
+const ROTULO_NIVEL = {
+  baixo: "Baixo",
+  medio: "Médio",
+  alto: "Alto",
+  sem_deteccao: "Sem detecções",
+};
 const ROTULO_ORIGEM = {
   texto: "Texto digitado",
   colagem: "Colagem de texto longo",
@@ -129,7 +134,8 @@ function normalizar(texto) {
 }
 
 function badge(nivel) {
-  const elemento = criar("span", "badge risco-" + nivel, ROTULO_NIVEL[nivel] || nivel);
+  const classe = nivel === "sem_deteccao" ? "sem-deteccao" : nivel;
+  const elemento = criar("span", "badge risco-" + classe, ROTULO_NIVEL[nivel] || nivel);
   return elemento;
 }
 
@@ -192,10 +198,14 @@ function carregarSecao(secao) {
         return carregarAlertas(1);
       })
       .catch(tratarErro);
-  } else if (secao === "instalacao") {
-    Promise.all([carregarInstalacao(), carregarAdmins()]).catch(tratarErro);
+  } else if (secao === "administradores") {
+    carregarAdmins().catch(tratarErro);
   } else if (secao === "monitoramento") {
-    Promise.all([carregarMonitoramento(), carregarDispositivos()]).catch(tratarErro);
+    Promise.all([
+      carregarMonitoramento(),
+      carregarDispositivos(),
+      carregarInstalacao(),
+    ]).catch(tratarErro);
   }
 }
 
@@ -971,13 +981,16 @@ async function carregarMensagens() {
     const editor = criar("section", "mensagem-editor");
 
     const topo = criar("div", "topo-editor");
-    topo.appendChild(badge(mensagem.nivel));
+    const selo = badge(mensagem.nivel);
+    if (mensagem.nivel === "baixo") selo.textContent = "Baixo · com detecções";
+    topo.appendChild(selo);
     editor.appendChild(topo);
 
+    const rotuloNivel = ROTULO_NIVEL[mensagem.nivel] || mensagem.nivel;
     const campo = document.createElement("textarea");
     campo.value = mensagem.texto;
     campo.maxLength = 600;
-    campo.setAttribute("aria-label", "Mensagem educativa para risco " + mensagem.nivel);
+    campo.setAttribute("aria-label", "Mensagem educativa: " + rotuloNivel);
     editor.appendChild(campo);
 
     const rodape = criar("div", "rodape-editor");
@@ -1221,7 +1234,7 @@ async function exportarFiltrosAtuais() {
 }
 
 // ---------------------------------------------------------------------------
-// Instalação (código da extensão e administradores)
+// Verificação da extensão e administradores
 // ---------------------------------------------------------------------------
 
 async function carregarInstalacao() {
@@ -1231,8 +1244,6 @@ async function carregarInstalacao() {
   $("instalacao-token").textContent = dados.token;
   $("instalacao-token").dataset.valor = dados.token;
   $("instalacao-origem").textContent = dados.endereco_visto || "—";
-  $("instalacao-versao").textContent = "versão " + dados.versao;
-  $("instalacao-banco").textContent = "Nuvem";
 }
 
 async function carregarDispositivos() {
@@ -1277,7 +1288,7 @@ async function carregarDispositivos() {
     const selo = criar(
       "span",
       "codigo-dispositivo" + (dispositivo.codigo_atual ? "" : " anterior"),
-      dispositivo.codigo_atual ? "Atual" : "Anterior (versão " + dispositivo.codigo_versao + ")",
+      dispositivo.codigo_atual ? "Atual" : "Desatualizado",
     );
     codigo.appendChild(selo);
     linha.appendChild(codigo);
@@ -1317,7 +1328,7 @@ async function copiarToken() {
   if (!valor) return;
   try {
     await navigator.clipboard.writeText(valor);
-    avisar("Código copiado. Cole em Opções da extensão.");
+    avisar("Código de verificação copiado. Cole em Opções da extensão.");
   } catch (erro) {
     avisar("Não foi possível copiar. Selecione o código manualmente.", "erro");
   }
@@ -1338,7 +1349,7 @@ async function confirmarRenovacaoToken() {
     const dados = await api("/api/admin/instalacao");
     const total = Number(dados.dispositivos_vinculados) || 0;
     confirmar(
-      "Renovar o código de instalação?",
+      "Renovar o código de verificação?",
       total === 0
         ? "Nenhum dispositivo está vinculado ao código atual. As extensões existentes deixarão de registrar alertas até receber o novo valor."
         : "Há " +
@@ -1482,13 +1493,10 @@ function atualizarEstadoMonitoramento() {
   const ativo = Boolean(estado.monitoramento && estado.monitoramento.monitoramento_ativo);
   const totais = document.querySelectorAll("#sites-monitorados .site-toggle:checked");
   const totalSites = estado.sites.length;
-  const status = $("monitoramento-status");
 
   $("monitoramento-ativo").checked = ativo;
   $("monitoramento-ativo-texto").textContent = ativo ? "Ativa" : "Pausada";
   $("monitoramento-chats").textContent = totais.length + " de " + totalSites;
-  status.textContent = ativo ? "Ativo" : "Pausado";
-  status.className = "badge monitoramento-badge " + (ativo ? "status-ativo" : "status-pausado");
 }
 
 function desenharSitesMonitorados(disponiveis, ativos) {
@@ -1730,23 +1738,36 @@ function ligarEventos() {
   $("novo-admin").addEventListener("click", function () { abrirAdmin(null); });
   $("form-admin").addEventListener("submit", salvarAdmin);
 
-  $("abrir-idade").addEventListener("click", function () {
-    $("dialogo-idade").showModal();
+  $("abrir-periodo").addEventListener("click", function () {
+    $("periodo-de").value = "";
+    $("periodo-ate").value = "";
+    $("dialogo-periodo").showModal();
   });
 
-  $("form-idade").addEventListener("submit", async function (evento) {
+  $("form-periodo").addEventListener("submit", async function (evento) {
     evento.preventDefault();
-    const dias = Number($("idade-dias").value);
+    const de = $("periodo-de").value;
+    const ate = $("periodo-ate").value;
+    if (!de || !ate) {
+      avisar("Informe as duas datas do período.");
+      return;
+    }
+    if (de > ate) {
+      avisar("A data inicial não pode ser posterior à data final.");
+      return;
+    }
+
     try {
-      const resposta = await api("/api/admin/alertas/limpar-idade", {
+      const resposta = await api("/api/admin/alertas/limpar-periodo", {
         method: "POST",
-        body: JSON.stringify({ dias: dias }),
+        body: JSON.stringify({ de: de, ate: ate }),
       });
-      $("dialogo-idade").close();        avisar(
-          resposta.removidos === 0
-            ? "Nenhum alerta mais antigo que o período informado."
-            : plural(resposta.removidos, "alerta excluído", "alertas excluídos") + ".",
-        );
+      $("dialogo-periodo").close();
+      avisar(
+        resposta.removidos === 0
+          ? "Nenhum alerta encontrado no período."
+          : plural(resposta.removidos, "alerta excluído", "alertas excluídos") + ".",
+      );
       await carregarAlertas(1);
     } catch (erro) {
       tratarErro(erro);
@@ -1808,19 +1829,21 @@ function ligarEventos() {
 
   const INFORMACOES_ABAS = {
     visao:
-      "Indicadores de alertas, risco, decisões, IAs e departamentos. Os gráficos usam os alertas registrados no período.",
+      "Acompanhe alertas, níveis de risco e decisões dos colaboradores por IA e departamento. Os gráficos usam os alertas do período. O limite de criticidade é definido aqui.",
     alertas:
-      "Auditoria dos alertas com filtros por data, departamento e nível. Exporte em CSV ou PDF e defina a retenção.",
+      "Auditoria dos alertas, sem o conteúdo das conversas. Filtre por data, departamento e nível, exporte em CSV ou PDF e defina por quanto tempo os registros são guardados.",
     regras:
-      "Regras editáveis da matriz. Cada regra pertence a um departamento, tem um tipo e um nível de risco.",
+      "Edite as regras da matriz. Cada regra tem departamento, nível de risco e um padrão, que pode ser uma palavra-chave ou uma expressão regular.",
     areas:
-      "Departamento é a categoria da regra e o local escolhido pelo colaborador na extensão.",
+      "Cada departamento agrupa regras e identifica onde o colaborador trabalha, o que permite cruzar risco e letramento por área. Ao excluir um departamento, o histórico de alertas é mantido.",
     mensagens:
-      "Textos exibidos no aviso para os níveis baixo, médio e alto.",
+      "Textos exibidos ao colaborador no aviso, antes do envio, para cada nível: baixo com detecções, sem detecções, médio e alto.",
     monitoramento:
-      "Ativação geral, IAs monitoradas e dispositivos conectados. As alterações valem para todas as extensões.",
-    instalacao:
-      "Endereço do servidor, código de instalação, download da extensão e contas de administrador.",
+      "Ative ou pause o monitoramento, escolha quais IAs acompanhar e veja os dispositivos conectados, com desconexão individual. O código de verificação e o download da extensão também ficam aqui. As mudanças chegam a todas as extensões em até 1 minuto.",
+    administradores:
+      "Gerencie as contas com acesso ao painel. O superadmin cria e exclui administradores; contas comuns trocam a própria senha.",
+    codigo:
+      "O código de verificação permite que a extensão registre alertas, mas não dá acesso ao painel. Só o superadmin cria e exclui administradores.",
   };
 
   document.querySelectorAll(".info-aba").forEach(function (botao) {

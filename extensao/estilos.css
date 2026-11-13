@@ -68,7 +68,7 @@ dd {
 }
 
 .ponto-status.on {
-  background: var(--tinta);
+  display: none;
 }
 
 .ponto-status.off {
@@ -251,6 +251,12 @@ input[type="url"]:focus,
 select:focus {
   outline: none;
   border-color: var(--cinza);
+}
+
+input[readonly] {
+  background: var(--papel-2, #f4f3ef);
+  color: var(--cinza);
+  cursor: default;
 }
 
 /* ------------------------------ Opções ---------------------------------- */

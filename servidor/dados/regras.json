@@ -11,7 +11,7 @@
           "risco": "alto"
         },
         {
-          "nome": "Nome do funcionário",
+          "nome": "Nome do colaborador",
           "tipo": "palavra-chave",
           "padrao": "nome do funcionário, nome do colaborador, ficha do colaborador, employee name, employee record, staff name",
           "risco": "baixo"
