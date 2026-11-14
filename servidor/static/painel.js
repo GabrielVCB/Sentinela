@@ -37,6 +37,18 @@ const ROTULO_ORIGEM = {
   pdf: "Arquivo PDF",
   anexo: "Imagem e PDF",
 };
+const ROTULO_ATIVIDADE = {
+  regra: "Regra",
+  mensagem: "Mensagem",
+  alerta: "Alerta",
+  departamento: "Departamento",
+  administrador: "Administrador",
+  monitoramento: "Monitoramento",
+  configuracao: "Configuração",
+  ia: "IA monitorada",
+  codigo: "Código de verificação",
+  dispositivo: "Dispositivo",
+};
 
 // ---------------------------------------------------------------------------
 // Utilidades
@@ -199,7 +211,7 @@ function carregarSecao(secao) {
       })
       .catch(tratarErro);
   } else if (secao === "administradores") {
-    carregarAdmins().catch(tratarErro);
+    Promise.all([carregarAdmins(), carregarAtividades()]).catch(tratarErro);
   } else if (secao === "monitoramento") {
     Promise.all([
       carregarMonitoramento(),
@@ -1234,7 +1246,7 @@ async function exportarFiltrosAtuais() {
 }
 
 // ---------------------------------------------------------------------------
-// Verificação da extensão e administradores
+// Código de verificação e administradores
 // ---------------------------------------------------------------------------
 
 async function carregarInstalacao() {
@@ -1415,7 +1427,7 @@ async function carregarAdmins() {
             try {
               await api("/api/admin/usuarios/" + admin.id, { method: "DELETE" });
               avisar("Administrador excluído.");
-              await carregarAdmins();
+              await Promise.all([carregarAdmins(), carregarAtividades()]);
             } catch (erro) {
               tratarErro(erro);
             }
@@ -1430,6 +1442,42 @@ async function carregarAdmins() {
     }
     linha.appendChild(acoes);
     corpo.appendChild(linha);
+  });
+}
+
+async function carregarAtividades() {
+  const dados = await api("/api/admin/atividades?limite=30");
+  const lista = $("lista-atividades");
+  const atividades = dados.atividades || [];
+  limpar(lista);
+
+  if (!atividades.length) {
+    lista.appendChild(
+      criar("li", "atividade-vazia", "Nenhuma alteração administrativa registrada ainda."),
+    );
+    return;
+  }
+
+  atividades.forEach(function (atividade) {
+    const item = criar("li", "atividade");
+    const conteudo = criar("div", "atividade-conteudo");
+    const frase = criar("p");
+    frase.appendChild(criar("strong", null, atividade.usuario || "admin"));
+    frase.appendChild(document.createTextNode(" " + (atividade.descricao || "")));
+    conteudo.appendChild(frase);
+
+    const meta = criar("div", "atividade-meta");
+    const tipo = ROTULO_ATIVIDADE[atividade.entidade] || atividade.entidade || "Alteração";
+    meta.appendChild(criar("span", "atividade-tipo", tipo));
+    meta.appendChild(criar("span", "atividade-separador", "·"));
+    const horario = document.createElement("time");
+    horario.dateTime = atividade.criado_em || "";
+    horario.textContent = quando(atividade.criado_em);
+    meta.appendChild(horario);
+    conteudo.appendChild(meta);
+
+    item.appendChild(conteudo);
+    lista.appendChild(item);
   });
 }
 
@@ -1470,7 +1518,7 @@ async function salvarAdmin(evento) {
       avisar("Administrador criado.");
     }
     $("dialogo-admin").close();
-    await carregarAdmins();
+    await Promise.all([carregarAdmins(), carregarAtividades()]);
   } catch (erro) {
     tratarErro(erro);
   }
@@ -1489,14 +1537,18 @@ function urlDoSite(site) {
   return "https://" + ((site.hosts && site.hosts[0]) || "");
 }
 
-function atualizarEstadoMonitoramento() {
+function atualizarInterruptorMonitoramento() {
   const ativo = Boolean(estado.monitoramento && estado.monitoramento.monitoramento_ativo);
-  const totais = document.querySelectorAll("#sites-monitorados .site-toggle:checked");
-  const totalSites = estado.sites.length;
-
   $("monitoramento-ativo").checked = ativo;
   $("monitoramento-ativo-texto").textContent = ativo ? "Ativa" : "Pausada";
-  $("monitoramento-chats").textContent = totais.length + " de " + totalSites;
+}
+
+function atualizarEstadoMonitoramento() {
+  /* A contagem só muda ao carregar ou salvar; alternar um cartão não a altera. */
+  const ativos = document.querySelectorAll("#sites-monitorados .site-toggle:checked").length;
+  atualizarInterruptorMonitoramento();
+  $("monitoramento-chats-ativas").textContent = String(ativos);
+  $("monitoramento-chats-total").textContent = String(estado.sites.length);
 }
 
 function desenharSitesMonitorados(disponiveis, ativos) {
@@ -1536,7 +1588,6 @@ function desenharSitesMonitorados(disponiveis, ativos) {
     checkbox.addEventListener("change", function () {
       card.classList.toggle("site-card-ativo", checkbox.checked);
       textoInterruptor.textContent = checkbox.checked ? "Ativa" : "Pausada";
-      atualizarEstadoMonitoramento();
     });
     alternativa.appendChild(checkbox);
     alternativa.appendChild(criar("span", "interruptor-site-trilho", null));
@@ -1632,7 +1683,7 @@ async function salvarMonitoramento() {
     estado.monitoramento = dados;
     desenharSitesMonitorados(dados.sites_disponiveis, dados.sites_ativos);
     atualizarEstadoMonitoramento();
-    avisar("Monitoramento atualizado. As extensões aplicam em até 1 minuto.");
+    avisar("Monitoramento atualizado.");
   } catch (erro) {
     tratarErro(erro);
   }
@@ -1674,7 +1725,7 @@ function ligarEventos() {
     if (estado.monitoramento) {
       estado.monitoramento.monitoramento_ativo = $("monitoramento-ativo").checked;
     }
-    atualizarEstadoMonitoramento();
+    atualizarInterruptorMonitoramento();
   });
 
   $("adicionar-chat").addEventListener("click", function () { abrirSite(null); });
@@ -1733,6 +1784,10 @@ function ligarEventos() {
 
   $("atualizar-dispositivos").addEventListener("click", function () {
     carregarDispositivos().catch(tratarErro);
+  });
+
+  $("atualizar-atividades").addEventListener("click", function () {
+    carregarAtividades().catch(tratarErro);
   });
 
   $("novo-admin").addEventListener("click", function () { abrirAdmin(null); });
@@ -1839,11 +1894,11 @@ function ligarEventos() {
     mensagens:
       "Textos exibidos ao colaborador no aviso, antes do envio, para cada nível: baixo com detecções, sem detecções, médio e alto.",
     monitoramento:
-      "Ative ou pause o monitoramento, escolha quais IAs acompanhar e veja os dispositivos conectados, com desconexão individual. O código de verificação e o download da extensão também ficam aqui. As mudanças chegam a todas as extensões em até 1 minuto.",
+      "Ative ou pause o monitoramento, escolha quais IAs acompanhar e veja os dispositivos conectados, com desconexão individual. Aqui também ficam o código de verificação e o download da extensão. As alterações são aplicadas ao salvar a ativação.",
     administradores:
-      "Gerencie as contas com acesso ao painel. O superadmin cria e exclui administradores; contas comuns trocam a própria senha.",
+      "Gerencie as contas com acesso ao painel. O superadmin cria e exclui administradores; contas comuns trocam a própria senha. O histórico de atividades mostra quem fez cada alteração.",
     codigo:
-      "O código de verificação permite que a extensão registre alertas, mas não dá acesso ao painel. Só o superadmin cria e exclui administradores.",
+      "Conecta a extensão ao servidor e autoriza o envio de alertas ao painel.",
   };
 
   document.querySelectorAll(".info-aba").forEach(function (botao) {

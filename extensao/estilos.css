@@ -59,19 +59,15 @@ dd {
 }
 
 .ponto-status {
-  display: inline-block;
+  display: none;
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: var(--linha-forte);
   flex: 0 0 auto;
 }
 
-.ponto-status.on {
-  display: none;
-}
-
 .ponto-status.off {
+  display: inline-block;
   background: var(--alto);
 }
 
@@ -334,6 +330,10 @@ body.opcoes {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+}
+
+.grade-unica {
+  grid-template-columns: 1fr;
 }
 
 .campo {

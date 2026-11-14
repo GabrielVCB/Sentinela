@@ -1,14 +1,16 @@
 /** Sentinela — página de opções. */
 "use strict";
 
-// A configuração do painel injeta a URL pública em config.js. No ZIP público,
-// o campo continua editável como alternativa.
+// A configuração do painel injeta a URL pública em config.js. Ela não aparece
+// nas Opções: o colaborador informa apenas o código de verificação.
 const PADROES = {
   serverUrl: String(globalThis.SENTINELA_SERVIDOR_PADRAO || "").trim(),
   apiToken: "",
   departamento: "",
   colaborador: "",
 };
+
+let servidorAtual = PADROES.serverUrl;
 
 const el = {};
 let avisoPermissao = "";
@@ -114,16 +116,16 @@ function montarDepartamentos(areas, atual, vazioTexto) {
 let timerAreas = null;
 
 /**
- * Busca as áreas no servidor usando o endereço e o código que estão na tela,
- * sem gravar nada. Assim o seletor de departamento já abre preenchido.
+ * Busca as áreas no servidor usando o endereço definido pela configuração e o
+ * código que está na tela, sem gravar nada. Assim o seletor já abre preenchido.
  */
 async function carregarAreas(mostrarErro) {
-  const servidor = el.servidor.value.trim();
+  const servidor = servidorAtual.trim();
   const codigo = el.token.value.trim();
   const atual = el.departamento.value;
 
   if (!/^https:\/\//i.test(servidor) || !codigo) {
-    montarDepartamentos([], atual, "Cole a URL e o código de verificação");
+    montarDepartamentos([], atual, "Cole o código de verificação");
     return;
   }
 
@@ -247,14 +249,9 @@ async function carregar() {
   }
 
   const configuracao = Object.assign({}, PADROES, estado.configuracao || {});
-  if (!String(configuracao.serverUrl || "").trim()) configuracao.serverUrl = PADROES.serverUrl;
-  el.servidor.value = configuracao.serverUrl || "";
-  // Na configuração entregue pelo painel, a URL já vem definida: o colaborador
-  // só precisa informar o código de verificação.
-  el.servidor.readOnly = Boolean(PADROES.serverUrl);
-  el.servidor.title = PADROES.serverUrl
-    ? "Endereço definido pela configuração da extensão."
-    : "Informe a URL do servidor fornecido pelo administrador.";
+  servidorAtual = String(configuracao.serverUrl || PADROES.serverUrl || "")
+    .trim()
+    .replace(/\/+$/, "");
   el.token.value = configuracao.apiToken || "";
   el.colaborador.value = configuracao.colaborador || "";
 
@@ -272,27 +269,19 @@ async function salvar(silencioso, completo) {
 
   let endereco = null;
   try {
-    endereco = new URL(el.servidor.value.trim());
+    endereco = new URL(servidorAtual);
   } catch (erro) {
     endereco = null;
   }
   if (!endereco || endereco.protocol !== "https:") {
     avisar(
       el.resultadoSalvar,
-      "Cole a URL completa do servidor, começando com https://. Ex.: https://sentinela-xxxx.onrender.com",
+      "O endereço do servidor não está definido nesta instalação. Baixe a extensão pelo painel novamente.",
       "erro",
     );
     return false;
   }
   const servidor = endereco.origin;
-  if (/suaempresa\.com/i.test(servidor)) {
-    avisar(
-      el.resultadoSalvar,
-      "Troque a URL de exemplo pela URL do servidor que aparece no painel, em Monitoramento.",
-      "erro",
-    );
-    return false;
-  }
 
   const codigo = el.token.value.trim();
   if (!codigo) {
@@ -354,7 +343,7 @@ async function salvar(silencioso, completo) {
     } else if (!sincronizado.ok) {
       avisar(
         el.resultadoSalvar,
-        "Configurações salvas, mas o servidor recusou o código. Copie o valor de Verificação da extensão e salve de novo.",
+        "Configurações salvas, mas o servidor recusou o código. Copie o valor de Código de verificação e salve de novo.",
         "erro",
       );
     } else {
@@ -407,7 +396,6 @@ async function testar() {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-  el.servidor = document.getElementById("servidor");
   el.token = document.getElementById("token");
   el.departamento = document.getElementById("departamento");
   el.colaborador = document.getElementById("colaborador");
@@ -429,7 +417,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // A lista de departamentos acompanha o código digitado, sem salvar antes.
   el.token.addEventListener("input", agendarAreas);
-  el.servidor.addEventListener("change", agendarAreas);
 
   void carregar();
 });

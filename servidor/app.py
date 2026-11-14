@@ -62,7 +62,7 @@ import pdf
 VERSAO = "2.9"
 # A versão do produto continua 2.9; este sufixo invalida o cache dos arquivos
 # estáticos quando a interface muda sem alterar a versão exibida.
-VERSAO_ASSETS = "2.9.17"
+VERSAO_ASSETS = "2.9.19"
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------------------
@@ -227,6 +227,24 @@ def iso_para_navegador(valor):
         return como_utc(valor).isoformat(timespec="seconds") + "Z"
     except ValueError:
         return valor
+
+
+def registrar_atividade_admin(acao: str, entidade: str, descricao: str) -> None:
+    """Registra uma alteração feita por quem está na sessão.
+
+    O histórico é auxiliar: se a gravação falhar, a alteração principal já foi
+    concluída e não deve ser desfeita por causa do log.
+    """
+    try:
+        db.registrar_atividade(
+            session.get("admin_id"),
+            session.get("admin_usuario", "admin"),
+            acao,
+            entidade,
+            descricao,
+        )
+    except Exception:
+        app.logger.exception("Não foi possível registrar a atividade administrativa.")
 
 
 def hora_local(valor, formato: str = "%d/%m/%Y %H:%M") -> str:
@@ -425,6 +443,10 @@ def exigir_sessao_pagina(funcao):
         return funcao(*args, **kwargs)
 
     return interna
+
+
+def quantidade(total: int, singular: str, plural: str) -> str:
+    return f"{total} {singular if total == 1 else plural}"
 
 
 def percentual(parte: int, total: int) -> float:
@@ -1381,6 +1403,7 @@ def api_remover_alerta(alerta_id: int):
         conexao_aberta.commit()
         if cursor.rowcount == 0:
             return jsonify({"erro": "Alerta não encontrado."}), 404
+        registrar_atividade_admin("excluiu", "alerta", "excluiu um alerta.")
         return jsonify({"mensagem": "Alerta excluído.", "removidos": cursor.rowcount})
     finally:
         conexao_aberta.close()
@@ -1409,6 +1432,13 @@ def api_limpar_por_periodo():
             (inicio, fim),
         )
         conexao_aberta.commit()
+        if cursor.rowcount:
+            registrar_atividade_admin(
+                "excluiu",
+                "alerta",
+                f'excluiu {quantidade(cursor.rowcount, "alerta", "alertas")} do período de '
+                f'{data_de.strftime("%d/%m/%Y")} a {data_ate.strftime("%d/%m/%Y")}.',
+            )
         return jsonify({"removidos": cursor.rowcount, "de": de, "ate": ate})
     finally:
         conexao_aberta.close()
@@ -1421,6 +1451,14 @@ def api_limpar_tudo():
     try:
         cursor = conexao_aberta.execute("DELETE FROM alertas")
         conexao_aberta.commit()
+        if cursor.rowcount:
+            registrar_atividade_admin(
+                "excluiu",
+                "alerta",
+                "excluiu o único alerta."
+                if cursor.rowcount == 1
+                else f"excluiu todos os {cursor.rowcount} alertas.",
+            )
         return jsonify({"removidos": cursor.rowcount})
     finally:
         conexao_aberta.close()
@@ -1636,6 +1674,7 @@ def api_renovar_token():
         )
     resultado = db.renovar_token_api()
     invalidar_cache_config()
+    registrar_atividade_admin("renovou", "codigo", "renovou o código de verificação.")
     return jsonify(
         {
             **resultado,
@@ -1680,8 +1719,18 @@ def api_listar_dispositivos():
 def api_desconectar_dispositivo(dispositivo_id: str):
     if not re.fullmatch(r"[A-Za-z0-9_-]{8,80}", dispositivo_id or ""):
         return jsonify({"erro": "Dispositivo inválido."}), 400
+    dispositivo = next(
+        (item for item in db.listar_dispositivos() if item["id"] == dispositivo_id),
+        None,
+    )
     if db.desconectar_dispositivo(dispositivo_id) == 0:
         return jsonify({"erro": "Dispositivo não encontrado ou já desconectado."}), 404
+    identificacao = (dispositivo or {}).get("colaborador") or "não identificado"
+    registrar_atividade_admin(
+        "desconectou",
+        "dispositivo",
+        f'desconectou o dispositivo de “{identificacao}”.',
+    )
     return jsonify(
         {
             "mensagem": "Dispositivo desconectado. Ele pode voltar ao salvar um código de verificação renovado nas Opções."
@@ -1717,6 +1766,23 @@ def api_listar_usuarios():
     )
 
 
+@app.get("/api/admin/atividades")
+@exigir_sessao_api
+def api_listar_atividades():
+    limite = request.args.get("limite", 30, type=int) or 30
+    return jsonify(
+        {
+            "atividades": [
+                {
+                    **item,
+                    "criado_em": iso_para_navegador(item["criado_em"]),
+                }
+                for item in db.listar_atividades(limite)
+            ]
+        }
+    )
+
+
 @app.post("/api/admin/usuarios")
 @exigir_superadmin_api
 def api_criar_usuario():
@@ -1737,6 +1803,9 @@ def api_criar_usuario():
         return jsonify({"erro": "Já existe um administrador com esse usuário."}), 409
 
     novo_id = db.criar_admin(usuario, senha)
+    registrar_atividade_admin(
+        "criou", "administrador", f'criou o administrador “{usuario}”.'
+    )
     return jsonify({"id": novo_id, "mensagem": "Administrador criado."}), 201
 
 
@@ -1748,7 +1817,7 @@ def api_remover_usuario(admin_id: int):
     conexao_aberta = conexao()
     try:
         alvo = conexao_aberta.execute(
-            "SELECT superadmin FROM usuarios_admin WHERE id = ?", (admin_id,)
+            "SELECT usuario, superadmin FROM usuarios_admin WHERE id = ?", (admin_id,)
         ).fetchone()
     finally:
         conexao_aberta.close()
@@ -1758,6 +1827,9 @@ def api_remover_usuario(admin_id: int):
         return jsonify({"erro": "O superadmin inicial não pode ser excluído."}), 403
     if db.remover_admin(admin_id) == 0:
         return jsonify({"erro": "Administrador não encontrado."}), 404
+    registrar_atividade_admin(
+        "excluiu", "administrador", f'excluiu o administrador “{alvo["usuario"]}”.'
+    )
     return jsonify({"mensagem": "Administrador excluído."})
 
 
@@ -1773,9 +1845,9 @@ def api_trocar_senha(admin_id: int):
             return jsonify({"erro": "Apenas o superadmin pode alterar a senha de outra conta."}), 403
         conexao_aberta = conexao()
         try:
-            alvo = conexao_aberta.execute(
-                "SELECT superadmin FROM usuarios_admin WHERE id = ?", (admin_id,)
-            ).fetchone()
+                    alvo = conexao_aberta.execute(
+            "SELECT usuario, superadmin FROM usuarios_admin WHERE id = ?", (admin_id,)
+        ).fetchone()
         finally:
             conexao_aberta.close()
         if alvo is None:
@@ -1804,6 +1876,14 @@ def api_trocar_senha(admin_id: int):
     senha = validar_senha_admin(corpo.get("senha"))
     if db.trocar_senha_admin(admin_id, senha) == 0:
         return jsonify({"erro": "Administrador não encontrado."}), 404
+    alvo_usuario = alvo["usuario"] if admin_id != session.get("admin_id") else session.get("admin_usuario", "admin")
+    registrar_atividade_admin(
+        "alterou",
+        "administrador",
+        "alterou a própria senha."
+        if admin_id == session.get("admin_id")
+        else f'alterou a senha de “{alvo_usuario}”.',
+    )
     return jsonify({"mensagem": "Senha atualizada."})
 
 
@@ -1867,6 +1947,7 @@ def api_criar_area():
         )
         conexao_aberta.commit()
         invalidar_cache_config()
+        registrar_atividade_admin("criou", "departamento", f'criou o departamento “{nome}”.')
         return jsonify({"id": novo_id, "mensagem": "Área criada."}), 201
     finally:
         conexao_aberta.close()
@@ -1878,7 +1959,10 @@ def api_atualizar_area(area_id: int):
     nome, descricao = validar_area(ler_corpo())
     conexao_aberta = conexao()
     try:
-        if not conexao_aberta.execute("SELECT id FROM areas WHERE id = ?", (area_id,)).fetchone():
+        atual = conexao_aberta.execute(
+            "SELECT nome FROM areas WHERE id = ?", (area_id,)
+        ).fetchone()
+        if not atual:
             return jsonify({"erro": "Área não encontrada."}), 404
         existente = conexao_aberta.execute(
             "SELECT id FROM areas WHERE LOWER(nome) = LOWER(?) AND id <> ?",
@@ -1892,6 +1976,10 @@ def api_atualizar_area(area_id: int):
         )
         conexao_aberta.commit()
         invalidar_cache_config()
+        descricao_atividade = f'editou o departamento “{atual["nome"]}”'
+        if nome != atual["nome"]:
+            descricao_atividade += f' e renomeou para “{nome}”'
+        registrar_atividade_admin("editou", "departamento", descricao_atividade + ".")
         return jsonify({"mensagem": "Área atualizada."})
     finally:
         conexao_aberta.close()
@@ -1902,6 +1990,9 @@ def api_atualizar_area(area_id: int):
 def api_remover_area(area_id: int):
     conexao_aberta = conexao()
     try:
+        atual = conexao_aberta.execute(
+            "SELECT nome FROM areas WHERE id = ?", (area_id,)
+        ).fetchone()
         total_regras = conexao_aberta.execute(
             "SELECT COUNT(*) AS total FROM regras WHERE area_id = ?", (area_id,)
         ).fetchone()["total"]
@@ -1910,6 +2001,13 @@ def api_remover_area(area_id: int):
         if cursor.rowcount == 0:
             return jsonify({"erro": "Área não encontrada."}), 404
         invalidar_cache_config()
+        registrar_atividade_admin(
+            "excluiu",
+            "departamento",
+            f'excluiu o departamento “{atual["nome"]}” e {total_regras} '
+            + ("regra vinculada" if total_regras == 1 else "regras vinculadas")
+            + ".",
+        )
         return jsonify({"mensagem": "Área excluída.", "regras_removidas": total_regras})
     finally:
         conexao_aberta.close()
@@ -2009,6 +2107,7 @@ def api_criar_regra():
         )
         conexao_aberta.commit()
         invalidar_cache_config()
+        registrar_atividade_admin("criou", "regra", f'criou a regra “{dados["nome"]}”.')
         return jsonify({"id": novo_id, "mensagem": "Regra criada."}), 201
     finally:
         conexao_aberta.close()
@@ -2020,9 +2119,10 @@ def api_atualizar_regra(regra_id: int):
     dados = validar_regra(ler_corpo())
     conexao_aberta = conexao()
     try:
-        if not conexao_aberta.execute(
-            "SELECT id FROM regras WHERE id = ?", (regra_id,)
-        ).fetchone():
+        atual = conexao_aberta.execute(
+            "SELECT nome FROM regras WHERE id = ?", (regra_id,)
+        ).fetchone()
+        if not atual:
             return jsonify({"erro": "Regra não encontrada."}), 404
         if not area_existe(conexao_aberta, dados["area_id"]):
             raise ErroValidacao("Selecione uma área válida.")
@@ -2044,6 +2144,10 @@ def api_atualizar_regra(regra_id: int):
         )
         conexao_aberta.commit()
         invalidar_cache_config()
+        descricao_atividade = f'editou a regra “{atual["nome"]}”'
+        if dados["nome"] != atual["nome"]:
+            descricao_atividade += f' e renomeou para “{dados["nome"]}”'
+        registrar_atividade_admin("editou", "regra", descricao_atividade + ".")
         return jsonify({"mensagem": "Regra atualizada."})
     finally:
         conexao_aberta.close()
@@ -2054,11 +2158,15 @@ def api_atualizar_regra(regra_id: int):
 def api_remover_regra(regra_id: int):
     conexao_aberta = conexao()
     try:
+        atual = conexao_aberta.execute(
+            "SELECT nome FROM regras WHERE id = ?", (regra_id,)
+        ).fetchone()
         cursor = conexao_aberta.execute("DELETE FROM regras WHERE id = ?", (regra_id,))
         conexao_aberta.commit()
         if cursor.rowcount == 0:
             return jsonify({"erro": "Regra não encontrada."}), 404
         invalidar_cache_config()
+        registrar_atividade_admin("excluiu", "regra", f'excluiu a regra “{atual["nome"]}”.')
         return jsonify({"mensagem": "Regra excluída."})
     finally:
         conexao_aberta.close()
@@ -2106,6 +2214,17 @@ def api_atualizar_mensagem(nivel: str):
         )
         conexao_aberta.commit()
         invalidar_cache_config()
+        rotulos = {
+            "baixo": "baixo com detecções",
+            "sem_deteccao": "sem detecções",
+            "medio": "médio",
+            "alto": "alto",
+        }
+        registrar_atividade_admin(
+            "editou",
+            "mensagem",
+            f'editou a mensagem educativa de risco {rotulos.get(nivel, nivel)}.',
+        )
         return jsonify({"mensagem": "Mensagem atualizada."})
     finally:
         conexao_aberta.close()
@@ -2180,6 +2299,22 @@ def api_salvar_configuracoes():
         conexao_aberta.close()
 
     invalidar_cache_config()
+    if "limiar_gargalo" in corpo:
+        registrar_atividade_admin(
+            "alterou",
+            "configuracao",
+            f"alterou o limite de criticidade para {limiar}%.",
+        )
+    if "monitoramento_ativo" in corpo or "sites_ativos" in corpo:
+        if politica["monitoramento_ativo"]:
+            descricao_atividade = (
+                "ativou o monitoramento com "
+                + quantidade(len(politica["sites_ativos"]), "IA ativa", "IAs ativas")
+                + "."
+            )
+        else:
+            descricao_atividade = "pausou o monitoramento."
+        registrar_atividade_admin("atualizou", "monitoramento", descricao_atividade)
     sites = db.listar_sites()
     return jsonify(
         {
@@ -2234,6 +2369,7 @@ def api_criar_site():
         ativos.append(site_id)
     salvar_sites_ativos(ativos)
     invalidar_cache_config()
+    registrar_atividade_admin("criou", "ia", f'criou a IA monitorada “{nome}”.')
 
     return (
         jsonify(
@@ -2273,6 +2409,7 @@ def api_atualizar_site(site_id: str):
     if db.atualizar_site(site_id, nome, [host]) == 0:
         return jsonify({"erro": "IA não encontrada."}), 404
     invalidar_cache_config()
+    registrar_atividade_admin("editou", "ia", f'editou a IA monitorada “{site["nome"]}”.')
     return jsonify(
         {
             "site": {**site, "nome": nome, "hosts": [host], "url": url},
@@ -2296,6 +2433,7 @@ def api_remover_site(site_id: str):
     ativos = [item for item in politica["sites_ativos"] if item != site_id]
     salvar_sites_ativos(ativos)
     invalidar_cache_config()
+    registrar_atividade_admin("excluiu", "ia", f'excluiu a IA monitorada “{site["nome"]}”.')
     return jsonify(
         {
             "sites_ativos": ativos,
@@ -2315,6 +2453,9 @@ def api_sincronizar_dispositivos():
     cada 30 segundos e baixa a matriz quando percebe a mudança, sem botão manual.
     """
     invalidar_cache_config()
+    registrar_atividade_admin(
+        "sincronizou", "dispositivo", "solicitou a sincronização das extensões."
+    )
     return jsonify(
         {
             "versao_config": db.versao_config(),

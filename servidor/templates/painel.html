@@ -317,6 +317,19 @@
           </table>
         </div>
       </section>
+
+      <section class="bloco-painel bloco-atividades">
+        <div class="linha-titulo">
+          <div>
+            <h2>Atividades recentes</h2>
+            <p class="micro">Últimas alterações feitas pelos administradores.</p>
+          </div>
+          <button type="button" class="botao" id="atualizar-atividades">Atualizar</button>
+        </div>
+        <ul id="lista-atividades" class="lista-atividades" aria-live="polite">
+          <li class="atividade-vazia">Carregando…</li>
+        </ul>
+      </section>
     </section>
 
     <section class="secao" data-painel="monitoramento">
@@ -338,7 +351,11 @@
       <div class="monitoramento-kpis">
         <div class="monitoramento-kpi">
           <span class="rotulo">IAs ativas</span>
-          <strong id="monitoramento-chats">—</strong>
+          <strong id="monitoramento-chats" class="monitoramento-valor">
+            <span id="monitoramento-chats-ativas" class="monitoramento-numero">—</span>
+            <span class="monitoramento-valor-de">de</span>
+            <span id="monitoramento-chats-total" class="monitoramento-numero">—</span>
+          </strong>
         </div>
         <div class="monitoramento-kpi">
           <span class="rotulo">Dispositivos</span>
@@ -348,16 +365,15 @@
 
       <section class="bloco-painel">
         <div class="linha-titulo">
-          <h2>Verificação da extensão</h2>
+          <div class="secao-titulo-principal">
+            <h2>Código de verificação</h2>
+            <button type="button" class="info-aba" data-info="codigo" aria-label="Código de verificação">i</button>
+          </div>
           <button type="button" class="botao" id="renovar-token">Renovar código</button>
         </div>
 
         <div class="instalacao-entrega">
           <div class="codigo-bloco">
-            <p class="rotulo">
-              Código de verificação
-              <button type="button" class="info-aba" data-info="codigo" aria-label="Sobre o código de verificação">i</button>
-            </p>
             <code id="instalacao-token" class="codigo-valor">—</code>
           </div>
           <div class="instalacao-entrega-acoes">

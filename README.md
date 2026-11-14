@@ -113,7 +113,7 @@ A extensão consulta periodicamente a versão da configuração e baixa a matriz
 | **Departamentos** | Matriz de risco e regras de cada departamento. Ao excluir um departamento, o histórico de alertas é preservado. |
 | **Mensagens educativas** | Textos exibidos no aviso para risco alto, médio, baixo com detecções e sem detecções. |
 | **Monitoramento** | Ativação geral, IAs monitoradas, dispositivos conectados, código de verificação e download da extensão. |
-| **Administradores** | Contas com acesso ao painel. O superadmin cria e exclui administradores; contas comuns trocam a própria senha. |
+| **Administradores** | Contas com acesso ao painel. O superadmin cria e exclui administradores; contas comuns trocam a própria senha. O histórico de atividades recentes mostra quem alterou regras, mensagens, alertas e configurações. |
 
 ### Letramento
 
@@ -133,7 +133,7 @@ O limite de criticidade é configurável na **Visão geral**.
 
 - Cada instalação da extensão aparece no painel com colaborador, departamento, IP e situação do código, e pode ser desconectada individualmente.
 - Ao renovar o código de verificação, cada dispositivo volta a conectar assim que o novo código é salvo nas Opções da extensão, sem reinstalar.
-- A política é central: a ativação e as IAs monitoradas são definidas no painel e valem para todos os computadores. As Opções da extensão guardam apenas o que é específico de cada máquina: URL do servidor, código de verificação, departamento e identificador do colaborador.
+- A política é central: a ativação e as IAs monitoradas são definidas no painel e valem para todos os computadores. As Opções da extensão guardam apenas o que é específico de cada máquina: código de verificação, departamento e identificador do colaborador.
 - O primeiro administrador criado pelo servidor é o **superadmin**. Ele não pode ser excluído e é o único que cria e exclui outros administradores. Contas comuns trocam a própria senha.
 
 ## Privacidade e segurança
@@ -182,7 +182,7 @@ Cada colaborador instala a extensão no próprio Chrome ou Edge. O administrador
 3. A página de extensões do Chrome é `chrome://extensions`, e a do Edge é `edge://extensions`.
 4. Nessa página, o **Modo do desenvolvedor** é ativado.
 5. Com a opção **Carregar sem compactação**, é selecionada a pasta `extensao`.
-6. Nas **Opções** da extensão, é informado apenas o código de verificação recebido. No download feito pelo painel, a URL do servidor já vem preenchida; no ZIP público de demonstração, ela também pode ser informada.
+6. Nas **Opções** da extensão, é informado apenas o código de verificação recebido. A URL do servidor é definida pela configuração entregue no download do painel.
 7. Em seguida, são escolhidos o departamento e o identificador do colaborador.
 8. Ao salvar, a autorização de acesso ao servidor é confirmada, se solicitada, e o botão **Testar conexão** verifica a ligação.
 9. Por fim, um teste com um dado fictício no ChatGPT, Gemini, Claude ou Copilot confirma que o aviso aparece.

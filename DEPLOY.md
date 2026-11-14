@@ -90,7 +90,7 @@ visita demora cerca de 1 minuto.
 2. Entre com `SENTINELA_ADMIN_USUARIO` e a senha informada.
 3. Em **Monitoramento**, ative a chave geral, escolha as IAs ou adicione uma nova IA
    com nome e URL.
-4. Confira **Monitoramento → Verificação da extensão**:
+4. Confira **Monitoramento → Código de verificação**:
    - a URL pública;
    - o código de verificação;
    - a versão **2.9**;
@@ -115,7 +115,7 @@ zip -qr public/sentinela-extensao.zip extensao -x '*.DS_Store'
 
 O ZIP deve conter a pasta `extensao/` com `manifest.json` dentro. Em cada computador:
 
-1. Baixe o ZIP pelo painel em **Monitoramento → Verificação da extensão → Baixar extensão (.zip)**. A URL do servidor já vem
+1. Baixe o ZIP pelo painel em **Monitoramento → Código de verificação → Baixar extensão (.zip)**. A URL do servidor já vem
    preenchida; o ZIP público do repositório continua disponível para demonstração.
 2. Descompacte e recarregue em `chrome://extensions` ou `edge://extensions`.
 3. Abra **Opções** e confirme a URL preenchida; informe o código de verificação, o departamento e
@@ -149,7 +149,7 @@ No painel:
 - [ ] criar/editar/excluir uma regra e recarregar em outra instância mostra a mudança;
 - [ ] um alerta de teste aparece com site, departamento, colaborador, IP, nível, tipos e origem;
 - [ ] texto + imagem no mesmo conteúdo gera detecções das duas origens;
-- [ ] **Monitoramento → Verificação da extensão** mostra o endereço e o código corretos;
+- [ ] **Monitoramento → Código de verificação** mostra o endereço e o código corretos;
 - [ ] **Administradores** lista as contas de acesso ao painel;
 - [ ] **Monitoramento** ativa/pausa globalmente e por IA, adiciona IA com URL e move os
   dispositivos conectados para a mesma seção;

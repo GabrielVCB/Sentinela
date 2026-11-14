@@ -5,7 +5,7 @@
  * páginas das IAs. Funciona igual no Chrome e no Microsoft Edge.
  *
  * Cada pedido leva X-API-Token com o código de verificação copiado do painel
- * (Monitoramento > Verificação da extensão). Sem o código, o servidor recusa o envio. O popup
+ * (Monitoramento > Código de verificação). Sem o código, o servidor recusa o envio. O popup
  * mostra o aviso em vez de falhar em silêncio. Alertas que falham por rede
  * entram em uma fila persistente e são reenviados por alarme; o cache de regras
  * mantém o aviso funcionando enquanto o servidor estiver fora do ar.
@@ -325,7 +325,7 @@ async function requisitar(caminho, opcoes, configuracaoExplicita) {
   const configuracao = configuracaoExplicita || (await obterConfiguracao());
   const base = normalizarUrl(configuracao.serverUrl);
   if (!base) {
-    throw new Error("Configure a URL do servidor nas Opções. Copie o endereço do painel em Monitoramento.");
+    throw new Error("A URL do servidor não está definida nesta instalação. Baixe a extensão pelo painel novamente.");
   }
 
   const controlador = new AbortController();
@@ -534,7 +534,7 @@ async function sincronizarConfig(forcar, verificarRemoto) {
   try {
     const configuracao = await obterConfiguracao();
     if (!configuracao.serverUrl) {
-      throw new Error("Configure a URL do servidor nas opções.");
+      throw new Error("A URL do servidor não está definida nesta instalação.");
     }
     if (!(configuracao.apiToken || "").trim()) {
       throw new Error(
@@ -802,7 +802,7 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
           const base = normalizarUrl(configuracao.serverUrl);
           if (!base) {
             throw new Error(
-              "Configure a URL do servidor nas Opções. Copie o endereço do painel em Monitoramento.",
+              "A URL do servidor não está definida nesta instalação. Baixe a extensão pelo painel novamente.",
             );
           }
           if (chrome.permissions && chrome.permissions.contains) {

@@ -598,6 +598,34 @@ textarea:focus {
   color: var(--tinta);
 }
 
+.monitoramento-valor {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.monitoramento-valor span {
+  font: inherit;
+}
+
+.monitoramento-valor .monitoramento-numero {
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.monitoramento-valor .monitoramento-valor-de {
+  font-family: var(--sans);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cinza-claro);
+}
+
 .monitoramento-kpi small {
   color: var(--cinza-claro);
   font-size: 10px;
@@ -613,26 +641,6 @@ textarea:focus {
   gap: 12px;
   flex-wrap: wrap;
   justify-content: flex-end;
-}
-
-.monitoramento-badge.status-ativo {
-  color: var(--tinta);
-  border-color: var(--linha-forte);
-  background: var(--papel-2);
-}
-
-.monitoramento-badge.status-pausado {
-  color: var(--medio);
-  border-color: color-mix(in srgb, var(--medio) 30%, transparent);
-  background: color-mix(in srgb, var(--medio) 8%, transparent);
-}
-
-.monitoramento-badge.status-ativo::before {
-  background: var(--tinta);
-}
-
-.monitoramento-badge.status-pausado::before {
-  background: var(--medio);
 }
 
 .bloco-ativacao {
@@ -1410,26 +1418,32 @@ textarea:focus {
 
 .grade-mensagens {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 28px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .mensagem-editor {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  border: 1px solid var(--linha);
+  background: color-mix(in srgb, var(--papel-2) 48%, #fff);
+  padding: 12px 14px 10px;
 }
 
 .mensagem-editor .topo-editor {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  min-height: 20px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--linha);
 }
 
 .mensagem-editor textarea {
-  min-height: 190px;
+  min-height: 104px;
   font-size: 11px;
-  line-height: 1.7;
+  line-height: 1.65;
 }
 
 .mensagem-editor .rodape-editor {
@@ -1437,6 +1451,81 @@ textarea:focus {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-height: 30px;
+}
+
+/* --------------------------- Atividades recentes ------------------------ */
+
+.bloco-atividades .linha-titulo {
+  align-items: center;
+}
+
+.bloco-atividades .micro {
+  margin-top: 4px;
+}
+
+.lista-atividades {
+  border-top: 1px solid var(--linha);
+}
+
+.atividade {
+  border-bottom: 1px solid var(--linha);
+  padding: 11px 0 11px 13px;
+  position: relative;
+}
+
+.atividade::before {
+  content: "";
+  position: absolute;
+  top: 13px;
+  bottom: 13px;
+  left: 0;
+  width: 1px;
+  background: var(--linha-forte);
+}
+
+.atividade-conteudo p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--cinza);
+}
+
+.atividade-conteudo p strong {
+  font-weight: 600;
+  color: var(--tinta);
+}
+
+.atividade-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--cinza-claro);
+}
+
+.atividade-tipo {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cinza);
+}
+
+.atividade-separador {
+  color: var(--linha-forte);
+}
+
+.atividade time {
+  font-variant-numeric: tabular-nums;
+}
+
+.atividade-vazia {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--linha);
+  color: var(--cinza-claro);
+  font-size: 11px;
 }
 
 .preview-aviso {
@@ -1602,7 +1691,6 @@ textarea:focus {
 
 .codigo-valor {
   display: block;
-  margin-top: 6px;
   font-family: var(--mono);
   font-size: 18px;
   line-height: 1.4;
@@ -1702,7 +1790,7 @@ textarea:focus {
 
   .grade-mensagens {
     grid-template-columns: 1fr;
-    gap: 36px;
+    gap: 14px;
   }
 }
 
