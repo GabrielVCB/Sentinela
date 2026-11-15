@@ -22,7 +22,7 @@ Painel (sessão):
     /api/admin/*             (JSON, protegido por sessão)
 
 O servidor nunca recebe o texto digitado pelo colaborador: apenas metadados
-do alerta (site, departamento, nível, tipos detectados, origem e ação).
+do alerta (site, departamento, nível, categorias identificadas, origem e ação).
 """
 import csv
 import hmac
@@ -59,10 +59,10 @@ from werkzeug.security import check_password_hash
 import db
 import pdf
 
-VERSAO = "2.9"
-# A versão do produto continua 2.9; este sufixo invalida o cache dos arquivos
-# estáticos quando a interface muda sem alterar a versão exibida.
-VERSAO_ASSETS = "2.9.27"
+VERSAO = "3.0"
+# Este sufixo invalida o cache dos arquivos estáticos quando a interface muda
+# sem alterar a versão exibida do produto.
+VERSAO_ASSETS = "3.0.0"
 LIMITE_SEM_SINAL_MINUTOS = 24 * 60
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 
@@ -172,7 +172,7 @@ db.inicializar_banco(ADMIN_USUARIO, ADMIN_SENHA)
 def variaveis_globais():
     """Deixa a versão disponível em todos os templates.
 
-    Ela entra no endereço dos arquivos estáticos (?v=2.9.26), então o navegador
+    Ela entra no endereço dos arquivos estáticos (?v=3.0.0), então o navegador
     não reaproveita um painel.js ou um CSS de uma publicação anterior.
     """
     return {"versao": VERSAO, "versao_assets": VERSAO_ASSETS}
@@ -1070,9 +1070,17 @@ REGRAS_DEMO_PUBLICAS = [
     {
         "nome": "Orçamento interno",
         "tipo": "palavra-chave",
-        "padrao": "orçamento, orcamento, budget",
+        "padrao": "orçamento, budget",
         "risco": "medio",
         "area": "Financeiro",
+        "ativo": True,
+    },
+    {
+        "nome": "Nome do colaborador",
+        "tipo": "palavra-chave",
+        "padrao": "nome do colaborador, nome do funcionário",
+        "risco": "baixo",
+        "area": "RH",
         "ativo": True,
     },
     {
@@ -1207,6 +1215,9 @@ def api_resumo():
     if limiar is None:
         limiar = obter_limiar()
     limiar = max(0, min(100, limiar))
+    periodo = request.args.get("dias", default=14, type=int) or 14
+    if periodo not in (7, 14, 30, 90):
+        periodo = 14
 
     conexao_aberta = conexao()
     try:
@@ -1294,7 +1305,7 @@ def api_resumo():
 
     dias = []
     hoje = datetime.now(FUSO).date()
-    for indice in range(13, -1, -1):
+    for indice in range(periodo - 1, -1, -1):
         dia = hoje - timedelta(days=indice)
         dias.append(
             {
@@ -1307,8 +1318,17 @@ def api_resumo():
             }
         )
     indice_por_dia = {dia["data"]: numero for numero, dia in enumerate(dias)}
+    inicio_atual = hoje - timedelta(days=periodo - 1)
+    inicio_anterior = inicio_atual - timedelta(days=periodo)
+    total_periodo = 0
+    total_anterior = 0
     for alerta in alertas:
         chave = dia_local(alerta["data_hora"])
+        if chave >= inicio_atual.isoformat():
+            total_periodo += 1
+        elif chave >= inicio_anterior.isoformat():
+            total_anterior += 1
+
         posicao = indice_por_dia.get(chave)
         if posicao is None:
             continue
@@ -1316,6 +1336,20 @@ def api_resumo():
         dias[posicao][alerta["nivel_risco"]] += 1
         if alerta["acao"] == "cancelou":
             dias[posicao]["cancelou"] += 1
+
+    if total_anterior:
+        variacao = round((total_periodo - total_anterior) / total_anterior * 100, 1)
+        direcao = "aumento" if variacao > 0 else "reducao" if variacao < 0 else "estavel"
+    else:
+        variacao = None
+        direcao = "sem_base" if total_periodo else "sem_dados"
+    tendencia = {
+        "periodo": periodo,
+        "atual": total_periodo,
+        "anterior": total_anterior,
+        "variacao": variacao,
+        "direcao": direcao,
+    }
 
     ultimos = []
     for alerta in alertas[:5]:
@@ -1351,6 +1385,8 @@ def api_resumo():
             "gargalos": gargalos,
             "tipos": tipos,
             "evolucao": dias,
+            "periodo": periodo,
+            "tendencia": tendencia,
             "ultimos": ultimos,
         }
     )
@@ -1543,7 +1579,7 @@ def api_exportar_csv():
             "Colaborador",
             "Nível",
             "Decisão",
-            "Tipos",
+            "Categorias",
         ]
     )
     rotulos = {"baixo": "Baixo", "medio": "Médio", "alto": "Alto"}
@@ -1648,7 +1684,7 @@ def api_exportar_pdf():
             ("Origem", 0.85),
             ("Nível", 0.62),
             ("Decisão", 0.85),
-            ("Tipos", 2.4),
+            ("Categorias", 2.4),
         ],
         registros,
         "Somente metadados: o texto digitado nunca é armazenado.",
@@ -1761,13 +1797,16 @@ def status_do_dispositivo(item, versao_atual: int) -> str:
 @exigir_sessao_api
 def api_listar_dispositivos():
     versao_atual = db.token_versao_api()
+    alertas_por_colaborador = db.contar_alertas_por_colaborador()
     dispositivos = []
     for item in db.listar_dispositivos():
+        chave_colaborador = str(item.get("colaborador") or "").strip().casefold()
         dispositivos.append(
             {
                 **item,
                 "codigo_atual": item["codigo_versao"] == versao_atual,
                 "status": status_do_dispositivo(item, versao_atual),
+                "alertas_emitidos": alertas_por_colaborador.get(chave_colaborador, 0),
                 "ultimo_visto": iso_para_navegador(item["ultimo_visto"]),
                 "primeiro_visto": iso_para_navegador(item["primeiro_visto"]),
             }

@@ -1067,6 +1067,31 @@ def listar_dispositivos(dias_removidos: int = 30) -> list:
         conexao_aberta.close()
 
 
+def contar_alertas_por_colaborador() -> dict:
+    """Soma os alertas por colaborador para a coluna do Monitoramento.
+
+    O nome é normalizado sem diferenciar maiúsculas/minúsculas e sem espaços
+    nas pontas. O conteúdo do alerta nunca entra nessa consulta.
+    """
+    conexao_aberta = conectar()
+    try:
+        linhas = conexao_aberta.execute(
+            """
+            SELECT colaborador, COUNT(*) AS total
+            FROM alertas
+            GROUP BY colaborador
+            """
+        ).fetchall()
+    finally:
+        conexao_aberta.close()
+
+    totais = {}
+    for linha in linhas:
+        chave = str(linha["colaborador"] or "").strip().casefold()
+        totais[chave] = totais.get(chave, 0) + int(linha["total"] or 0)
+    return totais
+
+
 def desconectar_dispositivo(dispositivo_id: str) -> int:
     conexao_aberta = conectar()
     try:

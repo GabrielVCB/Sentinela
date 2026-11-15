@@ -6,7 +6,7 @@
 
 *O que é confidencial não deveria virar prompt.*
 
-Versão 2.9 · Extensão para Chrome e Edge
+Versão 3.0 · Extensão para Chrome e Edge
 
 [Baixar a extensão](./public/sentinela-extensao.zip) · [Como funciona](#como-funciona) · [Instalação](#instalação-da-extensão)
 
@@ -67,7 +67,7 @@ flowchart LR
     A["Colaborador usa a IA<br/>(texto, imagem ou PDF)"] --> B["Extensão analisa<br/>o prompt"]
     B --> C{"Risco<br/>encontrado?"}
     C -- Não --> F["Envio normal"]
-    C -- Sim --> D["Aviso com nível,<br/>tipos e orientação"]
+    C -- Sim --> D["Aviso com nível,<br/>categorias e orientação"]
     D --> E["Colaborador decide:<br/>enviar ou cancelar"]
     E --> H["Alerta registrado<br/>no painel"]
 ```
@@ -98,7 +98,7 @@ O mesmo cadastro de departamentos classifica as regras e identifica onde o colab
 | **Segurança da Informação** | Código de verificação ou MFA, dump ou backup de banco, dados de clientes, acesso remoto ou VPN | Documento confidencial, relatório de vulnerabilidade, arquivo de ambiente |
 | **TI** | Senha ou credencial, token ou chave de API, chave privada, string de conexão, código-fonte interno | Sem regras neste nível |
 
-O Sentinela vem com mais de 40 regras iniciais, incluindo validações técnicas de CPF, CNPJ e cartões. Regras, departamentos, mensagens e a tolerância podem ser ajustados no painel, e novas regras podem ser criadas por palavra-chave ou expressão regular (regex).
+O Sentinela vem com mais de 40 regras iniciais. Regras, departamentos, mensagens e a tolerância podem ser ajustados no painel, e novas regras podem ser criadas por palavra-chave ou expressão regular (regex).
 
 ### Sincronização
 
@@ -108,13 +108,13 @@ A extensão consulta periodicamente a versão da configuração e baixa a matriz
 
 | Tela | O que oferece |
 | --- | --- |
-| **Visão geral** | Indicadores, evolução dos alertas, distribuição por risco, decisão após o aviso, IAs com mais alertas, risco alto por departamento, tipos mais detectados e efetividade dos avisos. |
+| **Visão geral** | Indicadores, evolução dos alertas em períodos de 7, 14, 30 e 90 dias, tendência em relação ao período anterior, distribuição por risco, comportamento após alerta, IAs com mais ocorrências, risco alto por departamento, categorias mais identificadas e efetividade dos avisos. |
 | **Alertas** | Auditoria com filtros por data, departamento e nível, paginação, retenção e exportação em CSV e PDF. |
 | **Regras de detecção** | Busca, criação, edição, ativação e exclusão de regras. |
 | **Departamentos** | Matriz de risco e regras de cada departamento. Ao excluir um departamento, o histórico de alertas é preservado. |
 | **Mensagens educativas** | Textos exibidos no aviso para risco alto, médio, baixo com detecções e sem detecções, em cards compactos. |
-| **Monitoramento** | Ativação geral, IAs monitoradas, dispositivos conectados, código de verificação e download da extensão. A contagem de IAs ativas só é atualizada depois de salvar a configuração. |
-| **Administradores** | Contas com acesso ao painel. O superadmin cria e exclui administradores; contas comuns trocam a própria senha. O histórico de atividades recentes mostra quem alterou regras, mensagens, alertas e configurações, com navegação por páginas. |
+| **Monitoramento** | Ativação geral, IAs monitoradas, dispositivos conectados com alertas emitidos por colaborador, código de verificação e download da extensão. A contagem de IAs ativas só é atualizada depois de salvar a configuração. |
+| **Administradores** | Contas com acesso ao painel. O superadmin cria e exclui administradores; contas comuns trocam a própria senha. O histórico de atividades mostra quem alterou regras, mensagens, alertas e configurações, com navegação por páginas. |
 
 ### Letramento
 
@@ -132,7 +132,7 @@ A tolerância é configurável na **Visão geral**.
 
 ### Dispositivos e acessos
 
-- Cada instalação da extensão aparece no painel com colaborador, departamento, status e último contato, e pode ser desconectada individualmente.
+- Cada instalação da extensão aparece no painel com colaborador, departamento, alertas emitidos, status e último contato, e pode ser desconectada individualmente.
 - Os status são: **Ativo** (contato recente e código atual), **Desatualizada** (contato recente, mas com código antigo), **Sem sinal** (sem contato há mais de 24 horas) e **Removida** (desconectada pelo painel).
 - Computador desligado, falta de rede e extensão desativada ou removida sem aviso aparecem como **Sem sinal**, porque o servidor não recebe um evento confiável nesses casos. As remoções feitas pelo painel ficam visíveis por 30 dias.
 - Ao renovar o código de verificação, cada dispositivo volta a conectar assim que o novo código é salvo nas Opções da extensão, sem reinstalar.
@@ -145,7 +145,7 @@ A tolerância é configurável na **Visão geral**.
 
 ### O que chega ao painel
 
-Apenas o registro do alerta: a IA utilizada, o departamento, o colaborador, a origem do conteúdo (texto, imagem ou PDF), o nível de risco, os tipos de dado detectados e a decisão de enviar ou cancelar.
+Apenas o registro do alerta: a IA utilizada, o departamento, o colaborador, a origem do conteúdo (texto, imagem ou PDF), o nível de risco, as categorias identificadas e a decisão de enviar ou cancelar.
 
 ### Controle de acesso
 

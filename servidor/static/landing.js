@@ -81,15 +81,86 @@
     renderizar(motor.analisarTexto(campo.value, regras));
   }
 
-  campo.addEventListener("input", analisar);
+  var reduzirMovimento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var botoesRotacao = Array.prototype.slice.call(
+    document.querySelectorAll("[data-rotacao='true']"),
+  );
+  // A prévia abre no risco médio; o primeiro giro automático mostra o alto.
+  var indiceRotacao = 1;
+  var timerDigitacao = null;
+  var timerRotacao = null;
+  var interagiu = false;
+
+  function pararRotacao() {
+    interagiu = true;
+    clearTimeout(timerRotacao);
+    clearInterval(timerDigitacao);
+  }
+
+  function digitar(texto, aoFinal) {
+    clearInterval(timerDigitacao);
+    if (reduzirMovimento) {
+      campo.value = texto;
+      analisar();
+      if (aoFinal) aoFinal();
+      return;
+    }
+    var posicao = 0;
+    campo.value = "";
+    timerDigitacao = setInterval(function () {
+      posicao += 1;
+      campo.value = texto.slice(0, posicao);
+      analisar();
+      if (posicao >= texto.length) {
+        clearInterval(timerDigitacao);
+        if (aoFinal) aoFinal();
+      }
+    }, 16);
+  }
+
+  function agendarRotacao() {
+    if (interagiu || reduzirMovimento || botoesRotacao.length < 2) return;
+    clearTimeout(timerRotacao);
+    timerRotacao = setTimeout(function () {
+      indiceRotacao = (indiceRotacao + 1) % botoesRotacao.length;
+      var botao = botoesRotacao[indiceRotacao];
+      digitar(botao.getAttribute("data-texto") || "", agendarRotacao);
+    }, 4200);
+  }
+
+  campo.addEventListener("input", function () {
+    pararRotacao();
+    analisar();
+  });
+  campo.addEventListener("focus", pararRotacao);
 
   document.querySelectorAll("[data-texto]").forEach(function (botao) {
     botao.addEventListener("click", function () {
-      campo.value = botao.getAttribute("data-texto") || "";
-      analisar();
+      pararRotacao();
       campo.focus();
+      digitar(botao.getAttribute("data-texto") || "", null);
     });
   });
 
   analisar();
+  agendarRotacao();
+
+  // Entrada discreta das seções, sem esconder conteúdo quando o JS falhar.
+  var secoes = document.querySelectorAll(".lp-secao, .lp-letramento, .lp-cta");
+  if (!reduzirMovimento && "IntersectionObserver" in window) {
+    var observador = new IntersectionObserver(
+      function (entradas) {
+        entradas.forEach(function (entrada) {
+          if (!entrada.isIntersecting) return;
+          entrada.target.classList.add("visivel");
+          observador.unobserve(entrada.target);
+        });
+      },
+      { threshold: 0.08, rootMargin: "0px 0px -40px 0px" },
+    );
+    secoes.forEach(function (secao) {
+      secao.classList.add("revelar");
+      observador.observe(secao);
+    });
+  }
 })();

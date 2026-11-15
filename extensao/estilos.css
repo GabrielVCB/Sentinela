@@ -483,6 +483,35 @@ body.opcoes {
   line-height: 1.1;
 }
 
+.sites-status li.sites-carregando {
+  display: block;
+  padding: 12px 0;
+}
+
+.esqueleto {
+  display: block;
+  width: min(260px, 70%);
+  height: 11px;
+  background: linear-gradient(90deg, #efeee9 0%, #e2e0d9 50%, #efeee9 100%);
+  background-size: 220% 100%;
+  animation: esqueleto-opcoes 1.2s ease-in-out infinite;
+}
+
+@keyframes esqueleto-opcoes {
+  from {
+    background-position: 120% 0;
+  }
+  to {
+    background-position: -120% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .esqueleto {
+    animation: none;
+  }
+}
+
 .barra-salvar {
   position: sticky;
   bottom: 0;

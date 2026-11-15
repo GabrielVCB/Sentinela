@@ -24,7 +24,11 @@ const estado = {
   sites: [],
   dispositivos: [],
   euSuperadmin: false,
+  periodoGrafico: 14,
+  resumoCarregado: false,
 };
+
+const CHAVE_TEMA = "sentinela-tema";
 
 const ROTULO_NIVEL = {
   baixo: "Baixo",
@@ -140,6 +144,36 @@ function percentual(valor) {
   );
 }
 
+function respeitaMovimentoReduzido() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function animarMetrica(elemento, destino, formatador) {
+  if (!elemento) return;
+  const alvo = Number(destino) || 0;
+  const anterior = Number(elemento.dataset.valor || 0);
+  elemento.dataset.valor = String(alvo);
+  if (respeitaMovimentoReduzido()) {
+    elemento.textContent = formatador(alvo);
+    return;
+  }
+  const inicio = performance.now();
+  const duracao = 480;
+  function passo(agora) {
+    const progresso = Math.min((agora - inicio) / duracao, 1);
+    const suavizado = 1 - Math.pow(1 - progresso, 3);
+    elemento.textContent = formatador(anterior + (alvo - anterior) * suavizado);
+    if (progresso < 1) requestAnimationFrame(passo);
+    else elemento.textContent = formatador(alvo);
+  }
+  requestAnimationFrame(passo);
+}
+
+function variavelCss(elemento, nome, reserva) {
+  const valor = getComputedStyle(elemento).getPropertyValue(nome).trim();
+  return valor || reserva;
+}
+
 function normalizar(texto) {
   return String(texto)
     .normalize("NFD")
@@ -200,6 +234,27 @@ function confirmar(titulo, texto, rotulo, aoConfirmar) {
 // Navegação
 // ---------------------------------------------------------------------------
 
+function atualizarRotuloTema() {
+  const escuro = document.documentElement.dataset.tema === "escuro";
+  const botao = $("alternar-tema");
+  if (!botao) return;
+  botao.setAttribute("aria-pressed", String(escuro));
+  const rotulo = $("tema-rotulo");
+  if (rotulo) rotulo.textContent = escuro ? "Modo claro" : "Modo escuro";
+}
+
+function alternarTema() {
+  const escuro = document.documentElement.dataset.tema === "escuro";
+  const tema = escuro ? "claro" : "escuro";
+  document.documentElement.dataset.tema = tema;
+  try {
+    localStorage.setItem(CHAVE_TEMA, tema);
+  } catch (erro) {
+    /* o tema continua valendo nesta sessão */
+  }
+  atualizarRotuloTema();
+}
+
 function irPara(secao) {
   estado.secao = secao;
   document.querySelectorAll("[data-painel]").forEach(function (bloco) {
@@ -245,128 +300,271 @@ function carregarSecao(secao) {
 
 async function carregarResumo() {
   const limiar = Number($("limiar").value) || 30;
-  const dados = await api("/api/admin/resumo?limiar=" + encodeURIComponent(limiar));
+  const metricas = $("metricas-resumo");
+  if (metricas && !estado.resumoCarregado) metricas.setAttribute("aria-busy", "true");
 
-  $("kpi-total").textContent = numero(dados.total);
-  $("kpi-total-detalhe").textContent = plural(
-    dados.departamentos_ativos,
-    "departamento com alertas",
-    "departamentos com alertas",
-  );
-  $("kpi-alto").textContent = numero(dados.total_alto);
-  $("kpi-alto-detalhe").textContent = percentual(dados.taxa_alto) + " do total de alertas";
-  $("kpi-envio").textContent = percentual(dados.taxa_envio);
-  $("kpi-envio-detalhe").textContent =
-    numero(dados.total_enviou) + " envios · " + numero(dados.total_cancelou) + " cancelamentos";
-  $("kpi-tipos").textContent = numero(dados.tipos_distintos);
+  try {
+    const dados = await api(
+      "/api/admin/resumo?limiar=" +
+        encodeURIComponent(limiar) +
+        "&dias=" +
+        encodeURIComponent(estado.periodoGrafico),
+    );
 
-  desenharGrafico(dados.evolucao);
-  const porNivel = dados.por_nivel || {
-    medio: 0,
-    alto: dados.total_alto,
-  };
-  const porAcao = dados.por_acao || {
-    enviou: dados.total_enviou,
-    cancelou: dados.total_cancelou,
-  };
-  desenharDonut(
-    "grafico-risco",
-    [
-      { rotulo: "Alto", valor: porNivel.alto, cor: "#1b1b1a" },
-      { rotulo: "Médio", valor: porNivel.medio, cor: "#d8d6cf" },
-    ],
-    "Distribuição dos alertas por nível de risco",
-  );
-  desenharDonut(
-    "grafico-acao",
-    [
-      { rotulo: "Enviou", valor: porAcao.enviou, cor: "#1b1b1a" },
-      { rotulo: "Cancelou", valor: porAcao.cancelou, cor: "#d8d6cf" },
-    ],
-    "Decisão dos colaboradores após o aviso",
-  );
-  desenharSites(dados.por_site || []);
-  desenharBarras(dados.por_departamento);
-  desenharTipos(dados.tipos);
-  desenharLetramento(dados);
-  desenharGargalos(dados.gargalos);
-  desenharUltimos(dados.ultimos);
+    animarMetrica($("kpi-total"), dados.total, function (valor) {
+      return numero(Math.round(valor));
+    });
+    $("kpi-total-detalhe").textContent = plural(
+      dados.departamentos_ativos,
+      "departamento com alertas",
+      "departamentos com alertas",
+    );
+    animarMetrica($("kpi-alto"), dados.total_alto, function (valor) {
+      return numero(Math.round(valor));
+    });
+    $("kpi-alto-detalhe").textContent = percentual(dados.taxa_alto) + " do total de alertas";
+    animarMetrica($("kpi-envio"), dados.taxa_envio, percentual);
+    $("kpi-envio-detalhe").textContent =
+      numero(dados.total_enviou) + " envios · " + numero(dados.total_cancelou) + " cancelamentos";
+    animarMetrica($("kpi-tipos"), dados.tipos_distintos, function (valor) {
+      return numero(Math.round(valor));
+    });
+
+    const periodo = dados.periodo || estado.periodoGrafico;
+    $("grafico-periodo").textContent = "Alertas por dia · últimos " + periodo + " dias";
+    renderizarTendencia(dados.tendencia);
+    desenharGrafico(dados.evolucao, periodo, dados.tendencia);
+
+    const porNivel = dados.por_nivel || {
+      baixo: 0,
+      medio: 0,
+      alto: dados.total_alto,
+    };
+    const porAcao = dados.por_acao || {
+      enviou: dados.total_enviou,
+      cancelou: dados.total_cancelou,
+    };
+    const baseCores = $("grafico-risco");
+    const baixo = variavelCss(baseCores, "--baixo", "#16a34a");
+    const medio = variavelCss(baseCores, "--medio", "#f59e0b");
+    const alto = variavelCss(baseCores, "--alto", "#dc2626");
+    const tinta = variavelCss(baseCores, "--tinta", "#1b1b1a");
+    const cinza = variavelCss(baseCores, "--linha-forte", "#d8d6cf");
+
+    desenharDonut(
+      "grafico-risco",
+      [
+        { rotulo: "Alto", valor: porNivel.alto, cor: alto },
+        { rotulo: "Médio", valor: porNivel.medio, cor: medio },
+        { rotulo: "Baixo", valor: porNivel.baixo, cor: baixo },
+      ],
+      "Distribuição dos alertas por nível de risco",
+    );
+    desenharDonut(
+      "grafico-acao",
+      [
+        { rotulo: "Enviou", valor: porAcao.enviou, cor: tinta },
+        { rotulo: "Cancelou", valor: porAcao.cancelou, cor: cinza },
+      ],
+      "Comportamento dos colaboradores após o alerta",
+    );
+    desenharSites(dados.por_site || []);
+    desenharBarras(dados.por_departamento);
+    desenharTipos(dados.tipos);
+    desenharLetramento(dados);
+    desenharGargalos(dados.gargalos);
+    desenharUltimos(dados.ultimos);
+  } finally {
+    if (metricas) metricas.setAttribute("aria-busy", "false");
+    estado.resumoCarregado = true;
+  }
 }
 
-function desenharGrafico(evolucao) {
+function renderizarTendencia(tendencia) {
+  const elemento = $("grafico-tendencia");
+  if (!elemento) return;
+  elemento.className = "tendencia";
+
+  if (!tendencia || tendencia.direcao === "sem_dados") {
+    elemento.textContent = "Sem base de comparação";
+    return;
+  }
+  if (!tendencia.anterior) {
+    elemento.textContent = numero(tendencia.atual) + " no período";
+    return;
+  }
+
+  const variacao = Number(tendencia.variacao) || 0;
+  if (variacao > 0) {
+    elemento.className = "tendencia aumento";
+    elemento.textContent = "↑ " + percentual(variacao) + " vs. período anterior";
+  } else if (variacao < 0) {
+    elemento.className = "tendencia reducao";
+    elemento.textContent = "↓ " + percentual(Math.abs(variacao)) + " vs. período anterior";
+  } else {
+    elemento.textContent = "→ estável vs. período anterior";
+  }
+}
+
+function desenharGrafico(evolucao, periodo, tendencia) {
   const container = $("grafico-evolucao");
   limpar(container);
+  renderizarTendencia(tendencia);
 
-  const largura = 640;
-  const altura = 150;
-  const topo = 10;
-  const maximo = Math.max.apply(
+  const dias = Array.isArray(evolucao) ? evolucao : [];
+  const totalPeriodo = dias.reduce(function (soma, dia) {
+    return soma + (Number(dia.total) || 0);
+  }, 0);
+
+  if (!dias.length || !totalPeriodo) {
+    container.appendChild(
+      criar(
+        "p",
+        "grafico-vazio",
+        "Ainda não existem dados suficientes para apresentar esta evolução. Os registros aparecerão aqui após as primeiras detecções.",
+      ),
+    );
+    return;
+  }
+
+  const largura = 780;
+  const altura = 254;
+  const margem = { topo: 22, direita: 10, baixo: 34, esquerda: 42 };
+  const areaLargura = largura - margem.esquerda - margem.direita;
+  const areaAltura = altura - margem.topo - margem.baixo;
+  const maximoBruto = Math.max.apply(
     null,
-    [1].concat(evolucao.map(function (dia) { return dia.total; })),
+    [1].concat(dias.map(function (dia) { return Number(dia.total) || 0; })),
   );
-  const passo = largura / Math.max(evolucao.length, 1);
-  const larguraBarra = Math.min(22, passo * 0.46);
+  const passoY = Math.max(1, Math.ceil(maximoBruto / 4));
+  const topoValor = passoY * 4;
+  const passo = areaLargura / Math.max(dias.length, 1);
+  const larguraBarra = Math.max(3, Math.min(30, passo * 0.58));
   const ns = "http://www.w3.org/2000/svg";
+  const linhaCor = variavelCss(container, "--linha", "#e0ded8");
+  const textoCor = variavelCss(container, "--cinza-claro", "#8a8a84");
+  const baixoCor = variavelCss(container, "--baixo", "#16a34a");
+  const medioCor = variavelCss(container, "--medio", "#f59e0b");
+  const altoCor = variavelCss(container, "--alto", "#dc2626");
+  const baseY = margem.topo + areaAltura;
 
   const svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", "0 0 " + largura + " " + (altura + 28));
+  svg.setAttribute("viewBox", "0 0 " + largura + " " + altura);
   svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", "Alertas por dia nos últimos 14 dias");
+  svg.setAttribute("aria-label", "Alertas por dia nos últimos " + (periodo || dias.length) + " dias");
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
 
-  [0, 0.5, 1].forEach(function (fracao) {
+  const tituloEixo = document.createElementNS(ns, "text");
+  tituloEixo.setAttribute("x", 0);
+  tituloEixo.setAttribute("y", 10);
+  tituloEixo.setAttribute("font-size", "9");
+  tituloEixo.setAttribute("fill", textoCor);
+  tituloEixo.setAttribute("font-family", "Consolas, monospace");
+  tituloEixo.textContent = "alertas";
+  svg.appendChild(tituloEixo);
+
+  for (let indice = 0; indice <= 4; indice += 1) {
+    const y = margem.topo + areaAltura * (1 - indice / 4);
     const linha = document.createElementNS(ns, "line");
-    const y = topo + altura * (1 - fracao);
-    linha.setAttribute("x1", 0);
-    linha.setAttribute("x2", largura);
+    linha.setAttribute("x1", margem.esquerda);
+    linha.setAttribute("x2", largura - margem.direita);
     linha.setAttribute("y1", y);
     linha.setAttribute("y2", y);
-    linha.setAttribute("stroke", "#e0ded8");
-    if (fracao !== 0) linha.setAttribute("stroke-dasharray", "2 4");
+    linha.setAttribute("stroke", linhaCor);
+    if (indice !== 0) linha.setAttribute("stroke-dasharray", "2 5");
     svg.appendChild(linha);
-  });
-
-  evolucao.forEach(function (dia, indice) {
-    const centro = passo * indice + passo / 2;
-    const alturaTotal = (dia.total / maximo) * altura;
-    const alturaAlto = (dia.alto / maximo) * altura;
-
-    const grupo = document.createElementNS(ns, "g");
-
-    const barra = document.createElementNS(ns, "rect");
-    barra.setAttribute("x", centro - larguraBarra / 2);
-    barra.setAttribute("y", topo + altura - alturaTotal);
-    barra.setAttribute("width", larguraBarra);
-    barra.setAttribute("height", Math.max(alturaTotal, dia.total > 0 ? 2 : 0));
-    barra.setAttribute("fill", "#d8d6cf");
-    grupo.appendChild(barra);
-
-    if (dia.alto > 0) {
-      const barraAlto = document.createElementNS(ns, "rect");
-      barraAlto.setAttribute("x", centro - larguraBarra / 2);
-      barraAlto.setAttribute("y", topo + altura - alturaAlto);
-      barraAlto.setAttribute("width", larguraBarra);
-      barraAlto.setAttribute("height", Math.max(alturaAlto, 2));
-      barraAlto.setAttribute("fill", "#1b1b1a");
-      grupo.appendChild(barraAlto);
-    }
 
     const rotulo = document.createElementNS(ns, "text");
-    rotulo.setAttribute("x", centro);
-    rotulo.setAttribute("y", topo + altura + 18);
-    rotulo.setAttribute("text-anchor", "middle");
+    rotulo.setAttribute("x", margem.esquerda - 10);
+    rotulo.setAttribute("y", y + 3);
+    rotulo.setAttribute("text-anchor", "end");
     rotulo.setAttribute("font-size", "9");
-    rotulo.setAttribute("fill", "#8a8a84");
+    rotulo.setAttribute("fill", textoCor);
     rotulo.setAttribute("font-family", "Consolas, monospace");
-    rotulo.textContent = diaCurto(dia.data);
-    grupo.appendChild(rotulo);
+    rotulo.textContent = String(passoY * indice);
+    svg.appendChild(rotulo);
+  }
+
+  const tooltip = criar("div", "grafico-tooltip");
+  tooltip.hidden = true;
+  container.appendChild(tooltip);
+
+  function posicionarTooltip(evento) {
+    const caixa = container.getBoundingClientRect();
+    const x = Math.max(70, Math.min(caixa.width - 70, evento.clientX - caixa.left));
+    const y = Math.max(58, evento.clientY - caixa.top);
+    tooltip.style.left = x + "px";
+    tooltip.style.top = y + "px";
+  }
+
+  const intervaloRotulos = Math.max(1, Math.ceil(dias.length / 7));
+  dias.forEach(function (dia, indice) {
+    const centro = margem.esquerda + passo * indice + passo / 2;
+    const grupo = document.createElementNS(ns, "g");
+    const segmentos = [
+      { valor: Number(dia.baixo) || 0, cor: baixoCor },
+      { valor: Number(dia.medio) || 0, cor: medioCor },
+      { valor: Number(dia.alto) || 0, cor: altoCor },
+    ];
+    let acumulado = 0;
+
+    segmentos.forEach(function (segmento) {
+      if (!segmento.valor) return;
+      const alturaSegmento = (segmento.valor / topoValor) * areaAltura;
+      const barra = document.createElementNS(ns, "rect");
+      barra.setAttribute("x", centro - larguraBarra / 2);
+      barra.setAttribute("y", baseY - ((acumulado + segmento.valor) / topoValor) * areaAltura);
+      barra.setAttribute("width", larguraBarra);
+      barra.setAttribute("height", Math.max(alturaSegmento, 1.5));
+      barra.setAttribute("fill", segmento.cor);
+      barra.setAttribute("rx", "1");
+      grupo.appendChild(barra);
+      acumulado += segmento.valor;
+    });
+
+    const areaClique = document.createElementNS(ns, "rect");
+    areaClique.setAttribute("x", centro - passo / 2);
+    areaClique.setAttribute("y", margem.topo);
+    areaClique.setAttribute("width", Math.max(passo, 4));
+    areaClique.setAttribute("height", areaAltura);
+    areaClique.setAttribute("fill", "transparent");
+    areaClique.style.cursor = "crosshair";
+    areaClique.addEventListener("mouseenter", function (evento) {
+      tooltip.textContent =
+        diaCurto(dia.data) +
+        "\n" +
+        plural(dia.total, "alerta", "alertas") +
+        "\n" +
+        "Alto " +
+        (dia.alto || 0) +
+        " · Médio " +
+        (dia.medio || 0) +
+        " · Baixo " +
+        (dia.baixo || 0);
+      tooltip.hidden = false;
+      posicionarTooltip(evento);
+    });
+    areaClique.addEventListener("mousemove", posicionarTooltip);
+    areaClique.addEventListener("mouseleave", function () {
+      tooltip.hidden = true;
+    });
+    grupo.appendChild(areaClique);
+
+    if (indice % intervaloRotulos === 0 || indice === dias.length - 1) {
+      const rotulo = document.createElementNS(ns, "text");
+      rotulo.setAttribute("x", centro);
+      rotulo.setAttribute("y", altura - 10);
+      rotulo.setAttribute("text-anchor", "middle");
+      rotulo.setAttribute("font-size", "9");
+      rotulo.setAttribute("fill", textoCor);
+      rotulo.setAttribute("font-family", "Consolas, monospace");
+      rotulo.textContent = diaCurto(dia.data);
+      grupo.appendChild(rotulo);
+    }
 
     const titulo = document.createElementNS(ns, "title");
     titulo.textContent =
-      diaCurto(dia.data) +
-      ": " +
-      plural(dia.total, "alerta", "alertas") +
-      ", " +
-      plural(dia.alto, "de risco alto", "de risco alto");
+      diaCurto(dia.data) + ": " + plural(dia.total, "alerta", "alertas");
     grupo.appendChild(titulo);
     svg.appendChild(grupo);
   });
@@ -374,14 +572,18 @@ function desenharGrafico(evolucao) {
   container.appendChild(svg);
 
   const legenda = criar("div", "legenda-grafico");
-  const itemAlto = criar("span");
-  itemAlto.appendChild(criar("i"));
-  itemAlto.appendChild(document.createTextNode("Risco alto"));
-  const itemDemais = criar("span");
-  itemDemais.appendChild(criar("i", "claro"));
-  itemDemais.appendChild(document.createTextNode("Demais alertas"));
-  legenda.appendChild(itemAlto);
-  legenda.appendChild(itemDemais);
+  [
+    { rotulo: "Baixo", cor: baixoCor },
+    { rotulo: "Médio", cor: medioCor },
+    { rotulo: "Alto", cor: altoCor },
+  ].forEach(function (item) {
+    const marca = criar("span");
+    const quadrado = criar("i");
+    quadrado.style.background = item.cor;
+    marca.appendChild(quadrado);
+    marca.appendChild(document.createTextNode(item.rotulo));
+    legenda.appendChild(marca);
+  });
   container.appendChild(legenda);
 }
 
@@ -393,7 +595,13 @@ function desenharDonut(id, itens, descricao) {
   }, 0);
 
   if (!total) {
-    container.appendChild(criar("p", "micro", "Nenhum alerta registrado ainda."));
+    container.appendChild(
+      criar(
+        "p",
+        "grafico-vazio",
+        "Ainda não existem dados suficientes para esta distribuição. Os registros aparecerão após as primeiras detecções.",
+      ),
+    );
     return;
   }
 
@@ -408,12 +616,33 @@ function desenharDonut(id, itens, descricao) {
   fundo.setAttribute("cy", "21");
   fundo.setAttribute("r", "15.9155");
   fundo.setAttribute("fill", "none");
-  fundo.setAttribute("stroke", "#e0ded8");
+  fundo.setAttribute("stroke", variavelCss(container, "--linha", "#e0ded8"));
   fundo.setAttribute("stroke-width", "5");
   svg.appendChild(fundo);
 
+  const totalTexto = document.createElementNS(ns, "text");
+  totalTexto.setAttribute("x", "21");
+  totalTexto.setAttribute("y", "20.5");
+  totalTexto.setAttribute("text-anchor", "middle");
+  totalTexto.setAttribute("font-size", "4.6");
+  totalTexto.setAttribute("fill", variavelCss(container, "--tinta", "#1b1b1a"));
+  totalTexto.setAttribute("font-family", "Georgia, serif");
+  totalTexto.textContent = numero(total);
+  svg.appendChild(totalTexto);
+
+  const legendaTotal = document.createElementNS(ns, "text");
+  legendaTotal.setAttribute("x", "21");
+  legendaTotal.setAttribute("y", "24.5");
+  legendaTotal.setAttribute("text-anchor", "middle");
+  legendaTotal.setAttribute("font-size", "2.4");
+  legendaTotal.setAttribute("letter-spacing", "0.12");
+  legendaTotal.setAttribute("fill", variavelCss(container, "--cinza-claro", "#8a8a84"));
+  legendaTotal.setAttribute("font-family", "Consolas, monospace");
+  legendaTotal.textContent = "ALERTAS";
+  svg.appendChild(legendaTotal);
+
   let deslocamento = 0;
-  itens.forEach(function (item) {
+  itens.forEach(function (item, indice) {
     const valor = Number(item.valor) || 0;
     if (!valor) return;
     const fatia = (valor / total) * 100;
@@ -424,12 +653,19 @@ function desenharDonut(id, itens, descricao) {
     circulo.setAttribute("fill", "none");
     circulo.setAttribute("stroke", item.cor);
     circulo.setAttribute("stroke-width", "5");
-    circulo.setAttribute("stroke-dasharray", fatia + " " + (100 - fatia));
+    circulo.setAttribute("stroke-dasharray", "0 100");
     circulo.setAttribute("stroke-dashoffset", String(25 - deslocamento));
+    circulo.style.transition = respeitaMovimentoReduzido()
+      ? "none"
+      : "stroke-dasharray 0.55s cubic-bezier(0.22, 1, 0.36, 1)";
+    circulo.style.transitionDelay = indice * 55 + "ms";
     const titulo = document.createElementNS(ns, "title");
     titulo.textContent = item.rotulo + ": " + valor + " (" + percentual(fatia) + ")";
     circulo.appendChild(titulo);
     svg.appendChild(circulo);
+    requestAnimationFrame(function () {
+      circulo.style.strokeDasharray = fatia + " " + (100 - fatia);
+    });
     deslocamento += fatia;
   });
   container.appendChild(svg);
@@ -452,7 +688,13 @@ function desenharSites(sites) {
   limpar(container);
 
   if (!sites || !sites.length) {
-    container.appendChild(criar("p", "micro", "Nenhuma IA com alerta ainda."));
+    container.appendChild(
+      criar(
+        "p",
+        "grafico-vazio",
+        "Ainda não há ocorrências por IA. Elas aparecerão aqui após as primeiras detecções.",
+      ),
+    );
     return;
   }
 
@@ -480,7 +722,13 @@ function desenharBarras(porDepartamento) {
   limpar(container);
 
   if (!porDepartamento.length) {
-    container.appendChild(criar("p", "micro", "Nenhum alerta registrado ainda."));
+    container.appendChild(
+      criar(
+        "p",
+        "grafico-vazio",
+        "Ainda não há dados por departamento. Eles aparecerão aqui após as primeiras detecções.",
+      ),
+    );
     return;
   }
 
@@ -496,6 +744,7 @@ function desenharBarras(porDepartamento) {
     const trilho = criar("span", "barra-trilho");
     const preenchimento = criar("span", "barra-preenchimento");
     preenchimento.style.width = Math.max((item.alto / maximo) * 100, item.alto > 0 ? 2 : 0) + "%";
+    preenchimento.style.background = variavelCss(container, "--alto", "#dc2626");
     trilho.appendChild(preenchimento);
     linha.appendChild(trilho);
 
@@ -510,7 +759,13 @@ function desenharTipos(tipos) {
 
   if (!tipos.length) {
     const vazio = criar("li");
-    vazio.appendChild(criar("span", "micro", "Nenhuma detecção registrada."));
+    vazio.appendChild(
+      criar(
+        "span",
+        "grafico-vazio",
+        "Ainda não há categorias identificadas. Elas aparecerão aqui após as primeiras detecções.",
+      ),
+    );
     lista.appendChild(vazio);
     return;
   }
@@ -1190,7 +1445,7 @@ async function carregarAlertas(pagina) {
     excluir.addEventListener("click", function () {
       confirmar(
         "Excluir alerta?",
-        "O registro e seus tipos detectados serão excluídos da auditoria. Esta ação não pode ser desfeita.",
+        "O registro e suas categorias identificadas serão excluídos da auditoria. Esta ação não pode ser desfeita.",
         "Excluir alerta",
         async function () {
           try {
@@ -1277,9 +1532,10 @@ async function carregarInstalacao() {
 }
 
 async function carregarDispositivos() {
+  const corpo = $("tabela-dispositivos");
+  corpo.setAttribute("aria-busy", "true");
   const dados = await api("/api/admin/dispositivos");
   estado.dispositivos = dados.dispositivos || [];
-  const corpo = $("tabela-dispositivos");
   limpar(corpo);
 
   const atuais = estado.dispositivos.filter(function (dispositivo) {
@@ -1298,10 +1554,11 @@ async function carregarDispositivos() {
     $("monitoramento-dispositivos").textContent = numero(dados.total);
   }
 
+  corpo.setAttribute("aria-busy", "false");
   if (!estado.dispositivos.length) {
     const linha = criar("tr");
     const celula = criar("td", "micro", "Nenhum dispositivo conectado ainda.");
-    celula.colSpan = 5;
+    celula.colSpan = 6;
     linha.appendChild(celula);
     corpo.appendChild(linha);
     return;
@@ -1316,6 +1573,13 @@ async function carregarDispositivos() {
     );
     linha.appendChild(colaborador);
     linha.appendChild(criar("td", null, dispositivo.setor || "Não informado"));
+    linha.appendChild(
+      criar(
+        "td",
+        "direita tabular",
+        numero(dispositivo.alertas_emitidos || 0),
+      ),
+    );
 
     const status = criar("td");
     status.appendChild(badgeStatusDispositivo(dispositivo.status));
@@ -1400,9 +1664,18 @@ async function carregarAdmins() {
   estado.euSuperadmin = Boolean(dados.superadmin);
   const admins = dados.usuarios || [];
   const corpo = $("tabela-admins");
+  corpo.setAttribute("aria-busy", "true");
   limpar(corpo);
 
   $("novo-admin").hidden = !estado.euSuperadmin;
+
+  if (!admins.length) {
+    const linha = criar("tr");
+    const celula = criar("td", "micro", "Nenhum administrador cadastrado.");
+    celula.colSpan = 4;
+    linha.appendChild(celula);
+    corpo.appendChild(linha);
+  }
 
   admins.forEach(function (admin) {
     const linha = criar("tr");
@@ -1466,10 +1739,12 @@ async function carregarAdmins() {
     linha.appendChild(acoes);
     corpo.appendChild(linha);
   });
+  corpo.setAttribute("aria-busy", "false");
 }
 
 async function carregarAtividades(pagina) {
   const alvo = Math.max(1, Number(pagina) || 1);
+  $("lista-atividades").setAttribute("aria-busy", "true");
   const dados = await api(
     "/api/admin/atividades?pagina=" + alvo + "&por_pagina=8",
   );
@@ -1491,6 +1766,7 @@ async function carregarAtividades(pagina) {
   const lista = $("lista-atividades");
   const atividades = dados.atividades || [];
   limpar(lista);
+  lista.setAttribute("aria-busy", "false");
 
   if (!atividades.length) {
     lista.appendChild(
@@ -1739,6 +2015,22 @@ function ligarEventos() {
     botao.addEventListener("click", function () { irPara(botao.dataset.ir); });
   });
 
+  if ($("alternar-tema")) {
+    $("alternar-tema").addEventListener("click", alternarTema);
+  }
+
+  document.querySelectorAll("[data-periodo]").forEach(function (botao) {
+    botao.addEventListener("click", function () {
+      const periodo = Number(botao.dataset.periodo);
+      if (![7, 14, 30, 90].includes(periodo)) return;
+      estado.periodoGrafico = periodo;
+      document.querySelectorAll("[data-periodo]").forEach(function (outro) {
+        outro.classList.toggle("ativo", outro === botao);
+      });
+      carregarResumo().catch(tratarErro);
+    });
+  });
+
   $("atualizar-resumo").addEventListener("click", function () {
     carregarResumo().catch(tratarErro);
   });
@@ -1919,7 +2211,7 @@ function ligarEventos() {
     const id = estado.alertaAtual.id;
     confirmar(
       "Excluir alerta?",
-      "O registro e seus tipos detectados serão excluídos da auditoria.",
+      "O registro e suas categorias identificadas serão excluídos da auditoria.",
       "Excluir alerta",
       async function () {
         try {
@@ -1937,23 +2229,23 @@ function ligarEventos() {
 
   const INFORMACOES_ABAS = {
     visao:
-      "Resume o que os alertas do período mostram: quantos foram gerados e como evoluíram, em quais níveis de risco, quais IAs e departamentos aparecem mais, quais tipos de dado foram detectados e se o colaborador enviou ou cancelou depois do aviso. É também nesta tela que se define a tolerância, usada para marcar um departamento como crítico.",
+      "Resume o que os alertas do período mostram: quantos foram gerados e como evoluíram, em quais níveis de risco, quais IAs e departamentos aparecem mais, quais categorias foram identificadas e se o colaborador enviou ou cancelou depois do alerta. É também nesta tela que se define a tolerância, usada para marcar um departamento como crítico.",
     tolerancia:
       "Percentual de alertas de risco alto a partir do qual um departamento é marcado como crítico. Vale para departamentos com ao menos 3 alertas; abaixo disso, ficam em observação.",
     alertas:
-      "Registra cada aviso exibido nas extensões, com a IA usada, o departamento, o colaborador, a origem (texto, imagem ou PDF), o nível de risco, os tipos detectados e a decisão de enviar ou cancelar. O conteúdo da conversa não é guardado. Os registros podem ser filtrados por data, departamento e nível, exportados em CSV ou PDF e mantidos pelo período de retenção definido aqui.",
+      "Registra cada aviso exibido nas extensões, com a IA usada, o departamento, o colaborador, a origem (texto, imagem ou PDF), o nível de risco, as categorias identificadas e a decisão de enviar ou cancelar. O conteúdo da conversa não é guardado. Os registros podem ser filtrados por data, departamento e nível, exportados em CSV ou PDF e mantidos pelo período de retenção definido aqui.",
     regras:
       "Reúne as regras que a extensão usa para identificar dados sensíveis. Cada regra pertence a um departamento, tem um nível de risco (baixo, médio ou alto) e um padrão de busca, que pode ser uma palavra-chave ou uma expressão regular. As regras podem ser criadas, editadas, ativadas, desativadas e excluídas, e as mudanças chegam às extensões automaticamente.",
     areas:
       "Lista os departamentos da empresa, que servem a duas funções: organizar as regras por área e identificar onde cada colaborador trabalha, já que ele escolhe o departamento na extensão. Com isso, risco e letramento podem ser comparados entre as áreas. Cada departamento mostra a própria matriz de risco e, ao ser excluído, mantém o histórico de alertas.",
     mensagens:
-      "Define os textos que o colaborador lê no aviso exibido antes do envio, com uma mensagem para cada situação: risco baixo, quando há detecções de baixo risco; sem detecções, quando nada sensível é encontrado e o aviso exibe o selo de verificação; risco médio; e risco alto. Como o nível e os tipos detectados já aparecem no próprio aviso, as mensagens trazem apenas a orientação, com limite de caracteres para manter o aviso curto. As alterações chegam às extensões automaticamente.",
+      "Define os textos que o colaborador lê no aviso exibido antes do envio, com uma mensagem para cada situação: risco baixo, quando há detecções de baixo risco; sem detecções, quando nada sensível é encontrado e o aviso exibe o selo de verificação; risco médio; e risco alto. Como o nível e as categorias identificadas já aparecem no próprio aviso, as mensagens trazem apenas a orientação, com limite de caracteres para manter o aviso curto. As alterações chegam às extensões automaticamente.",
     monitoramento:
-      "Define como as extensões se comportam em toda a empresa: se o monitoramento está ativo e quais IAs são acompanhadas. A lista mostra colaborador, departamento e status: Ativo (contato recente e código atual), Desatualizada (contato recente, mas com código antigo), Sem sinal (sem contato há mais de 24 horas; inclui computador desligado, sem rede ou extensão desativada/removida sem aviso) e Removida (desconectada pelo painel; fica visível por 30 dias). Aqui ficam ainda o código de verificação e o download da extensão.",
+      "Define como as extensões se comportam em toda a empresa: se o monitoramento está ativo e quais IAs são acompanhadas. A lista mostra colaborador, departamento, alertas emitidos e status: Ativo (contato recente e código atual), Desatualizada (contato recente, mas com código antigo), Sem sinal (sem contato há mais de 24 horas; inclui computador desligado, sem rede ou extensão desativada/removida sem aviso) e Removida (desconectada pelo painel; fica visível por 30 dias). Aqui ficam ainda o código de verificação e o download da extensão.",
     administradores:
       "Gerencia as contas que acessam o painel. O superadmin, primeiro administrador criado, não pode ser excluído e é o único que cria e exclui outras contas. As demais contas usam o painel e podem trocar a própria senha. O histórico de atividades mostra quem fez cada alteração, com navegação por páginas.",
     codigo:
-      "Conecta a extensão ao servidor e autoriza o envio de alertas ao painel. O código completo já inclui o endereço do servidor.",
+      "Conecta a extensão ao painel e autoriza o envio de alertas ao painel.",
   };
 
   document.querySelectorAll(".info-aba").forEach(function (botao) {
@@ -2007,6 +2299,7 @@ function iniciarAtualizacaoAutomatica() {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
+  atualizarRotuloTema();
   ligarEventos();
   irPara("visao");
   iniciarAtualizacaoAutomatica();

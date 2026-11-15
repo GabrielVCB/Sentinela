@@ -204,6 +204,7 @@ function desenharSites(sites, pendentes, ativos) {
     return site && autorizados.has(site.id);
   });
   el.sitesStatus.replaceChildren();
+  el.sitesStatus.setAttribute("aria-busy", "false");
 
   if (!sitesConhecidos.length) {
     const vazio = document.createElement("li");

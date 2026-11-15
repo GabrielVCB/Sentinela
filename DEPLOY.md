@@ -162,8 +162,8 @@ domínio for autorizado nas Opções.
 ```bash
 URL=https://SEU-SERVICO.onrender.com
 
-curl -fsS "$URL/api/ping"                  # {"ok":true,"versao":"2.9",...}
-curl -fsS "$URL/api/health"                # {"ok":true,"versao":"2.9"}
+curl -fsS "$URL/api/ping"                  # {"ok":true,"versao":"3.0",...}
+curl -fsS "$URL/api/health"                # {"ok":true,"versao":"3.0"}
 curl -fsS "$URL/detectores.js" | head -c 80
 curl -sI "$URL/painel" | grep -i strict    # HSTS quando atrás de HTTPS
 ```

@@ -11,7 +11,7 @@
       <div>
         <p class="marca">Sentinela</p>
         <h1>Configuração da extensão</h1>
-        <p class="micro">Extensão versão <strong id="versao-extensao">2.9</strong></p>
+        <p class="micro">Extensão versão <strong id="versao-extensao">3.0</strong></p>
       </div>
       <span id="status-ponto" class="ponto-status" aria-hidden="true"></span>
     </header>
@@ -28,7 +28,6 @@
             <span class="rotulo">Código de verificação <b class="obrigatorio">*</b></span>
             <input id="token" type="text" autocomplete="off" spellcheck="false" required
               placeholder="Cole o código completo exibido no painel" />
-            <span class="dica">O código completo já inclui o endereço do servidor; não é preciso configurar a URL.</span>
           </label>
         </div>
         <div class="acoes-teste">
@@ -47,7 +46,7 @@
           <label class="campo">
             <span class="rotulo">Departamento <b class="obrigatorio">*</b></span>
             <select id="departamento" required>
-              <option value="" disabled selected>Carregando departamentos…</option>
+              <option value="" disabled selected>—</option>
             </select>
           </label>
           <label class="campo">
@@ -64,8 +63,8 @@
           </div>
         </div>
 
-        <ul id="sites-status" class="sites-status">
-          <li class="micro">Carregando IAs autorizadas…</li>
+        <ul id="sites-status" class="sites-status" aria-busy="true">
+          <li class="sites-carregando" aria-label="Carregando IAs autorizadas"><span class="esqueleto"></span></li>
         </ul>
         <p id="permissao-sites" class="dica"></p>
       </section>

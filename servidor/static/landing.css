@@ -320,6 +320,7 @@ svg {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
+  min-height: 22px;
   margin-top: 9px;
 }
 
@@ -357,6 +358,7 @@ svg {
 }
 
 .lp-demo-mensagem {
+  min-height: 36px;
   margin-top: 9px;
   font-size: 11px;
   line-height: 1.6;
@@ -1243,9 +1245,327 @@ svg {
 
 /* ------------------------------------------------------------ preferências */
 
+/* ----------------------------- 3.0 · Landing ---------------------------- */
+
+.landing {
+  --lp-superficie: #fffefa;
+  --lp-superficie-2: #f3f2ed;
+}
+
+.lp-limite {
+  max-width: 1360px;
+  padding-left: clamp(24px, 4.5vw, 64px);
+  padding-right: clamp(24px, 4.5vw, 64px);
+}
+
+@media (min-width: 640px) {
+  .lp-limite {
+    padding-left: clamp(28px, 4.5vw, 64px);
+    padding-right: clamp(28px, 4.5vw, 64px);
+  }
+}
+
+.lp-hero {
+  min-height: calc(100svh - 66px);
+  align-content: center;
+  padding-top: clamp(48px, 7vh, 92px);
+  padding-bottom: clamp(48px, 7vh, 92px);
+}
+
+@media (min-width: 1024px) {
+  .lp-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.02fr);
+    gap: clamp(52px, 6vw, 92px);
+    padding-top: clamp(64px, 9vh, 112px);
+    padding-bottom: clamp(64px, 9vh, 112px);
+  }
+}
+
+.lp-hero h1 {
+  max-width: 15ch;
+  font-size: clamp(2.8rem, 5.4vw, 4.6rem);
+}
+
+.lp-entrada {
+  max-width: 36rem;
+}
+
+.lp-hero-nota {
+  max-width: 34rem;
+}
+
+.lp-acoes {
+  margin-top: 28px;
+}
+
+.lp-secao {
+  min-height: calc(100svh - 66px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: clamp(64px, 8vh, 104px);
+  padding-bottom: clamp(64px, 8vh, 104px);
+}
+
+.lp-problema {
+  grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
+  gap: clamp(44px, 6vw, 92px);
+  align-items: center;
+}
+
+.lp-problema h2,
+.lp-cabecalho-duplo h2,
+.lp-cta h2,
+.lp-letramento h2 {
+  font-size: clamp(2.2rem, 3.5vw, 3.2rem);
+}
+
+.lp-demo-caixa {
+  border-color: var(--linha-forte);
+  box-shadow: 0 30px 80px rgba(27, 27, 26, 0.1);
+}
+
+.lp-demo-campo textarea {
+  min-height: 154px;
+  font-size: 13.5px;
+}
+
+.lp-demo-aviso {
+  border-left-width: 4px;
+  padding: 14px 15px;
+}
+
+.lp-demo-nivel {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border: 1px solid color-mix(in srgb, var(--risco) 38%, transparent);
+  background: color-mix(in srgb, var(--risco) 9%, var(--lp-superficie));
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  transition: color 0.3s ease, background 0.3s ease, border-color 0.3s ease;
+}
+
+.lp-demo-tipos li {
+  border-color: color-mix(in srgb, var(--risco) 18%, var(--linha));
+  background: color-mix(in srgb, var(--lp-superficie) 80%, transparent);
+  animation: lp-chip-entra 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes lp-chip-entra {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lp-demo-exemplos button {
+  min-height: 24px;
+  padding: 3px 8px;
+  background: var(--lp-superficie);
+}
+
+.lp-demo-exemplos button:hover {
+  border-color: var(--tinta);
+  background: var(--lp-superficie-2);
+}
+
+.lp-solucao-grade {
+  border: 1px solid var(--linha-forte);
+  background: var(--linha);
+}
+
+.lp-solucao-grade > div {
+  padding: 28px 24px;
+  background: var(--lp-superficie);
+}
+
+.lp-solucao-grade h3 {
+  margin-top: 16px;
+  font-size: 21px;
+}
+
+.lp-icone {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--linha-forte);
+  background: var(--lp-superficie-2);
+  color: var(--cinza);
+}
+
+.lp-icone svg {
+  width: 16px;
+  height: 16px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lp-recurso .lp-icone {
+  width: 28px;
+  height: 28px;
+  margin-bottom: 13px;
+}
+
+.lp-recurso .lp-icone svg {
+  width: 14px;
+  height: 14px;
+}
+
+.lp-recursos {
+  border-color: var(--linha-forte);
+}
+
+.lp-recurso {
+  padding: 24px 22px;
+  background: var(--lp-superficie);
+}
+
+.lp-matriz {
+  min-width: 900px;
+}
+
+.lp-matriz th {
+  border-bottom-color: var(--linha-forte);
+}
+
+.lp-matriz tbody tr {
+  transition: background 0.16s ease;
+}
+
+.lp-matriz tbody tr:hover {
+  background: color-mix(in srgb, var(--tinta) 2.2%, transparent);
+}
+
+.lp-matriz-profundidade {
+  border-color: var(--linha-forte);
+}
+
+.lp-matriz-profundidade > div {
+  background: var(--lp-superficie);
+  padding: 22px 20px;
+}
+
+.lp-etapas {
+  gap: 36px;
+}
+
+.lp-etapas h3 {
+  font-size: 20px;
+}
+
+.lp-letramento {
+  min-height: calc(100svh - 66px);
+  display: flex;
+  align-items: center;
+}
+
+.lp-letramento-grade {
+  width: 100%;
+  padding-top: clamp(64px, 8vh, 104px);
+  padding-bottom: clamp(64px, 8vh, 104px);
+}
+
+.lp-cta {
+  min-height: calc(100svh - 66px);
+  align-items: stretch;
+  justify-content: center;
+  padding-top: clamp(64px, 8vh, 104px);
+  padding-bottom: clamp(64px, 8vh, 104px);
+  text-align: left;
+}
+
+.lp-cta-grade {
+  display: grid;
+  gap: clamp(36px, 5vw, 80px);
+  align-items: center;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .lp-cta-grade {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+  }
+}
+
+.lp-cta h2 {
+  max-width: 42rem;
+  margin-left: 0;
+}
+
+.lp-cta .lp-entrada {
+  max-width: 36rem;
+  margin-left: 0;
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+.lp-cta .lp-acoes {
+  justify-content: flex-start;
+  margin-top: 24px;
+}
+
+.lp-cta-lista {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  border: 1px solid var(--linha-forte);
+  background: var(--linha);
+}
+
+.lp-cta-lista > div {
+  padding: 24px 20px;
+  background: var(--lp-superficie);
+}
+
+.lp-cta-lista h3 {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lp-cta-lista p {
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.65;
+  color: var(--cinza);
+}
+
+.revelar {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.revelar.visivel {
+  opacity: 1;
+  transform: none;
+}
+
+@media (max-width: 760px) {
+  .lp-secao,
+  .lp-hero,
+  .lp-letramento,
+  .lp-cta {
+    min-height: auto;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing * {
     transition: none !important;
     animation: none !important;
+  }
+
+  .revelar {
+    opacity: 1;
+    transform: none;
   }
 }

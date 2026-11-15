@@ -32,15 +32,18 @@ export function BannerRisco({
       aria-live="polite"
       aria-label={`Aviso de risco ${ROTULO_RISCO[nivel]}`}
       className={cn(
-        "relative overflow-hidden border bg-card",
+        "relative overflow-hidden border bg-card transition-colors duration-300",
         cores.borda,
         className,
       )}
     >
-      <span className={cn("absolute inset-y-0 left-0 w-[3px]", cores.ponto)} aria-hidden />
+      <span
+        className={cn("absolute inset-y-0 left-0 w-[3px] transition-colors duration-300", cores.ponto)}
+        aria-hidden
+      />
       <div className="flex flex-col gap-3 py-4 pr-5 pl-5">
         <div className="flex items-center justify-between gap-3">
-          <span className={cn("flex items-center gap-2 text-[11px] font-medium tracking-[0.14em] uppercase", cores.texto)}>
+          <span className={cn("flex items-center gap-2 text-[11px] font-medium tracking-[0.14em] uppercase transition-colors duration-300", cores.texto)}>
             <ShieldAlert className="size-3.5" aria-hidden />
             Risco {ROTULO_RISCO[nivel]}
           </span>
@@ -53,25 +56,26 @@ export function BannerRisco({
           </span>
         </div>
 
-        {!semDeteccoes && (
-          <ul className="flex flex-wrap gap-1.5">
-            {deteccoes.map((deteccao) => (
-              <li
-                key={`${deteccao.tipo}-${deteccao.area}`}
-                className="inline-flex items-center gap-1.5 border border-border/80 bg-background/70 px-1.5 py-0.5 text-[11px] leading-4"
-              >
-                <span
-                  className={cn("size-1 rounded-full", CLASSES_RISCO[deteccao.risco].ponto)}
-                  aria-hidden
-                />
-                <span className="font-medium">{deteccao.tipo}</span>
-                <span className="text-muted-foreground">· {deteccao.area}</span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <ul
+          className={cn("flex flex-wrap gap-1.5", semDeteccoes && "min-h-[22px]")}
+          aria-hidden={semDeteccoes || undefined}
+        >
+          {deteccoes.map((deteccao) => (
+            <li
+              key={`${deteccao.tipo}-${deteccao.area}`}
+              className="inline-flex items-center gap-1.5 border border-border/80 bg-background/70 px-1.5 py-0.5 text-[11px] leading-4 transition-colors duration-300"
+            >
+              <span
+                className={cn("size-1 rounded-full", CLASSES_RISCO[deteccao.risco].ponto)}
+                aria-hidden
+              />
+              <span className="font-medium">{deteccao.tipo}</span>
+              <span className="text-muted-foreground">· {deteccao.area}</span>
+            </li>
+          ))}
+        </ul>
 
-        <p className="text-xs leading-5 text-muted-foreground">{mensagem}</p>
+        <p className="min-h-10 text-xs leading-5 text-muted-foreground">{mensagem}</p>
       </div>
     </section>
   );

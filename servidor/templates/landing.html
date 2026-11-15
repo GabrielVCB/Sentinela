@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block titulo %}Sentinela · o aviso chega antes do envio{% endblock %}
+{% block titulo %}Sentinela{% endblock %}
 
 {% block estilos %}
 <link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}?v={{ versao_assets }}" />
@@ -34,12 +34,18 @@
         <p class="lp-entrada">
           Painel de governança e letramento em IA para reduzir o vazamento de informações
           corporativas. A extensão analisa localmente o que é digitado no ChatGPT, Gemini, Claude e
-          Copilot e avisa antes do envio. O texto nunca sai do navegador.
+          Copilot e avisa antes do envio. O texto é analisado no navegador e não é armazenado; o
+          painel recebe apenas o registro do alerta.
         </p>
         <p class="lp-hero-nota">
           Você define as regras, os departamentos e a tolerância. O Sentinela cuida do
           resto.
         </p>
+
+        <div class="lp-acoes">
+          <a class="botao primario" href="{{ url_for('login') }}">Entrar no painel</a>
+          <a class="botao" href="#matriz">Explorar a matriz</a>
+        </div>
 
       </div>
 
@@ -67,9 +73,10 @@
           <div class="lp-demo-rodape">
             <span class="rotulo">Testar</span>
             <div class="lp-demo-exemplos">
-              <button type="button" data-texto="Pode revisar a redação deste e-mail de agradecimento para o cliente?">Baixo</button>
-              <button type="button" data-texto="Preciso revisar o orçamento interno do trimestre e o cronograma do projeto Atlas.">Médio</button>
-              <button type="button" data-texto="Estou com erro na API. Minha chave é sk-proj-8fJ2kLm9Qr4Tz7Xb1Nc6Vd3.">Alto</button>
+              <button type="button" data-rotacao="true" data-texto="Pode revisar o nome do colaborador citado neste rascunho antes de enviar?">Baixo</button>
+              <button type="button" data-rotacao="true" data-texto="Preciso revisar o orçamento interno do trimestre e o cronograma do projeto Atlas.">Médio</button>
+              <button type="button" data-rotacao="true" data-texto="Estou com erro na API. Minha chave é sk-proj-8fJ2kLm9Qr4Tz7Xb1Nc6Vd3.">Alto</button>
+              <button type="button" data-texto="Pode revisar a redação deste e-mail de agradecimento para o cliente?">Sem detecção</button>
             </div>
           </div>
         </div>
@@ -125,18 +132,22 @@
 
       <div class="lp-solucao-grade">
         <div>
+          <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3 4 6v5c0 5 3.4 8.3 8 10 4.6-1.7 8-5 8-10V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
           <h3>Avisa antes do envio</h3>
           <p>O alerta aparece no campo de texto, antes de o conteúdo sair da empresa.</p>
         </div>
         <div>
+          <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 5.5h16v11H9l-5 4v-15Z"/><path d="M8 9h8M8 12.5h5"/></svg></span>
           <h3>Ensina no momento certo</h3>
           <p>Uma mensagem curta explica o risco e o que fazer com o conteúdo.</p>
         </div>
         <div>
+          <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19V5M4 19h16"/><path d="m7 15 4-4 3 2 5-6"/></svg></span>
           <h3>Registra a decisão</h3>
           <p>O painel acompanha envios e cancelamentos por IA e departamento.</p>
         </div>
         <div>
+          <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="10" width="16" height="10" rx="1"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2"/></svg></span>
           <h3>Controla o risco, não a conversa</h3>
           <p>O conteúdo não é guardado. O que chega ao painel é apenas o registro do alerta.</p>
         </div>
@@ -170,7 +181,7 @@
         <div class="lp-privacidade-grade">
           <div class="lp-privacidade-bloco">
             <p class="rotulo">Chega ao painel</p>
-            <p>IA, departamento, colaborador, origem, nível, tipos e decisão.</p>
+            <p>IA, departamento, colaborador, origem, nível, categorias e decisão.</p>
           </div>
           <div class="lp-privacidade-bloco">
             <p class="rotulo">Nunca chega</p>
@@ -180,7 +191,7 @@
 
         <div class="lp-acesso-controlado">
           <p class="rotulo">Acesso controlado</p>
-          <p>O código de verificação não dá acesso ao painel. Só o superadmin cria administradores.</p>
+          <p>O código de verificação não dá acesso ao painel.</p>
         </div>
       </div>
     </section>
@@ -284,14 +295,17 @@
             <p class="rotulo">Análise</p>
             <div class="lp-recursos">
               <div class="lp-recurso">
+                <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="4.5" width="17" height="15" rx="1"/><circle cx="9" cy="10" r="1.5"/><path d="m5 17 5-4 3 2 3-3 3 3"/></svg></span>
                 <h3>Imagens</h3>
                 <p>O texto é extraído por OCR no próprio computador, classificado e descartado. A imagem nunca é enviada.</p>
               </div>
               <div class="lp-recurso">
+                <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 3.5h7l4 4V20H7V3.5Z"/><path d="M14 3.5v4h4M9.5 12h5M9.5 15h5"/></svg></span>
                 <h3>PDFs</h3>
                 <p>O texto é extraído localmente e passa pela mesma análise.</p>
               </div>
               <div class="lp-recurso">
+                <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="4.5" width="14" height="16" rx="1"/><path d="M9 4.5v-2h6v2M8.5 10h7M8.5 13.5h7M8.5 17h4"/></svg></span>
                 <h3>Colagens grandes</h3>
                 <p>A colagem é analisada antes de chegar ao site. Blocos longos, listas e código têm classificação própria.</p>
               </div>
@@ -302,15 +316,18 @@
             <p class="rotulo">Administração</p>
             <div class="lp-recursos">
               <div class="lp-recurso">
+                <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></span>
                 <h3>Gestão centralizada</h3>
                 <p>IAs autorizadas, ativação e departamentos são definidos no painel e valem para todas as extensões.</p>
               </div>
               <div class="lp-recurso">
+                <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19V5M4 19h16"/><path d="M7 15h3v4H7zM12 10h3v9h-3zM17 6h3v13h-3z"/></svg></span>
                 <h3>Relatórios</h3>
                 <p>Os alertas filtrados por data, departamento e nível podem ser exportados em CSV ou PDF.</p>
               </div>
               <div class="lp-recurso">
-                <h3>Atividades recentes</h3>
+                <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 12a8 8 0 1 0 2.3-5.6L4 8.7"/><path d="M4 4v4.7h4.7M12 7.5V12l3 2"/></svg></span>
+                <h3>Histórico de atividades</h3>
                 <p>Cada alteração administrativa fica registrada com autor, ação e horário para auditoria.</p>
               </div>
             </div>
@@ -358,13 +375,28 @@
     </section>
 
     <section class="lp-limite lp-cta">
-      <p class="rotulo">Painel administrativo</p>
-      <h2>Comece pelo painel. Depois instale a extensão.</h2>
-      <p class="lp-entrada">
-        O painel é de uso exclusivo dos administradores: regras, departamentos, mensagens educativas,
-        auditoria e relatórios de letramento em um só lugar. Os colaboradores não fazem login;
-        usam apenas a extensão.
-      </p>
+      <div class="lp-cta-grade">
+        <div>
+          <p class="rotulo">Painel administrativo</p>
+          <h2>Comece pelo painel. Depois instale a extensão.</h2>
+          <p class="lp-entrada">
+            O painel é de uso exclusivo dos administradores: regras, departamentos, mensagens educativas,
+            auditoria e relatórios de letramento em um só lugar. Os colaboradores não fazem login;
+            usam apenas a extensão.
+          </p>
+          <div class="lp-acoes">
+            <a class="botao primario" href="{{ url_for('login') }}">Entrar no painel</a>
+            <a class="botao" href="#privacidade">Entender a privacidade</a>
+          </div>
+        </div>
+
+        <div class="lp-cta-lista">
+          <div><span class="lp-num">01</span><h3>Regras e departamentos</h3><p>Matriz editável em português e inglês.</p></div>
+          <div><span class="lp-num">02</span><h3>Alertas e retenção</h3><p>Filtros, paginação e exportação em CSV ou PDF.</p></div>
+          <div><span class="lp-num">03</span><h3>Monitoramento</h3><p>IAs autorizadas, dispositivos e ocorrências.</p></div>
+          <div><span class="lp-num">04</span><h3>Letramento</h3><p>Envios e cancelamentos por departamento.</p></div>
+        </div>
+      </div>
     </section>
   </main>
 
