@@ -2480,10 +2480,12 @@ html[data-tema="escuro"] .toast {
   --superficie-2: #272725;
   --menu-ativo: #2b2b28;
   --tinta: #f0efe9;
+  --tinta-suave: #bcbab2;
   --cinza: #bcbab2;
   --cinza-claro: #908e86;
   --linha: #30302c;
   --linha-forte: #4b4a44;
+  --papel-alt: #232320;
   --baixo: #4ade80;
   --medio: #fbbf24;
   --alto: #f87171;
@@ -2537,6 +2539,12 @@ html[data-tema="escuro"] .faixa-status {
 html[data-tema="escuro"] .interruptor-trilho::after,
 html[data-tema="escuro"] .interruptor-site-trilho::after {
   background: #f0efe9;
+}
+
+html[data-tema="escuro"] .interruptor-monitoramento input:checked + .interruptor-trilho::after,
+html[data-tema="escuro"] .interruptor-site input:checked + .interruptor-site-trilho::after,
+html[data-tema="escuro"] .interruptor-regra input:checked + .interruptor-site-trilho::after {
+  background: var(--papel);
 }
 
 @media (max-width: 1080px) {

@@ -314,6 +314,7 @@ svg {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--risco);
+  transition: color 0.3s ease;
 }
 
 .lp-demo-tipos {

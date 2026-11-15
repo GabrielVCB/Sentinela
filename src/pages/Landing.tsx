@@ -26,7 +26,7 @@ import {
   MENSAGENS_PADRAO,
   type Risco,
 } from "@/lib/dados";
-import type { RegraEntrada } from "@/lib/detectores";
+import { analisarTexto, type RegraEntrada } from "@/lib/detectores";
 
 // Esta é a prévia de desenvolvimento do Freebuff. A landing oficial é
 // `servidor/templates/landing.html`; o painel real também é servido pelo Flask.
@@ -234,8 +234,11 @@ export default function Landing() {
   const [texto, setTexto] = useState(TEXTO_INICIAL);
   const regras = useMemo<RegraEntrada[]>(() => REGRAS_DEMO, []);
   const { analise, analisando } = useAnaliseComDebounce(texto, regras);
-  const mensagem = analise.deteccoes.length
-    ? MENSAGENS_PADRAO[analise.nivel]
+  const [analiseExibida, setAnaliseExibida] = useState(analise);
+  const [digitando, setDigitando] = useState(false);
+  const digitandoDemo = useRef(false);
+  const mensagem = analiseExibida.deteccoes.length
+    ? MENSAGENS_PADRAO[analiseExibida.nivel]
     : MENSAGENS_PADRAO.sem_deteccao;
   const destino = `${URL_PAINEL}/painel`;
   const reduzirMovimento = useReducedMotion();
@@ -243,10 +246,19 @@ export default function Landing() {
   const timerRotacao = useRef<number | null>(null);
   const timerDigitacao = useRef<number | null>(null);
 
+  useEffect(() => {
+    if (!digitandoDemo.current) setAnaliseExibida(analise);
+  }, [analise]);
+
   function pararDemo() {
     pausado.current = true;
     if (timerRotacao.current !== null) window.clearTimeout(timerRotacao.current);
-    if (timerDigitacao.current !== null) window.clearInterval(timerDigitacao.current);
+    if (timerDigitacao.current !== null) {
+      window.clearInterval(timerDigitacao.current);
+      timerDigitacao.current = null;
+      digitandoDemo.current = false;
+      setDigitando(false);
+    }
   }
 
   useEffect(() => {
@@ -265,6 +277,8 @@ export default function Landing() {
     const digitar = (alvo: string, aoFinal: () => void) => {
       if (timerDigitacao.current !== null) window.clearInterval(timerDigitacao.current);
       let posicao = 0;
+      digitandoDemo.current = true;
+      setDigitando(true);
       setTexto("");
       timerDigitacao.current = window.setInterval(() => {
         if (cancelado || pausado.current) {
@@ -275,6 +289,10 @@ export default function Landing() {
         setTexto(alvo.slice(0, posicao));
         if (posicao >= alvo.length) {
           if (timerDigitacao.current !== null) window.clearInterval(timerDigitacao.current);
+          timerDigitacao.current = null;
+          digitandoDemo.current = false;
+          setDigitando(false);
+          setAnaliseExibida(analisarTexto(alvo, regras));
           aoFinal();
         }
       }, 16);
@@ -294,18 +312,21 @@ export default function Landing() {
       cancelado = true;
       limpar();
     };
-  }, [reduzirMovimento]);
+  }, [reduzirMovimento, regras]);
 
   function escolherExemplo(novoTexto: string) {
     pararDemo();
 
     if (reduzirMovimento) {
       setTexto(novoTexto);
+      setAnaliseExibida(analisarTexto(novoTexto, regras));
       return;
     }
 
     if (timerDigitacao.current !== null) window.clearInterval(timerDigitacao.current);
     let posicao = 0;
+    digitandoDemo.current = true;
+    setDigitando(true);
     setTexto("");
     timerDigitacao.current = window.setInterval(() => {
       posicao += 1;
@@ -313,6 +334,9 @@ export default function Landing() {
       if (posicao >= novoTexto.length) {
         if (timerDigitacao.current !== null) window.clearInterval(timerDigitacao.current);
         timerDigitacao.current = null;
+        digitandoDemo.current = false;
+        setDigitando(false);
+        setAnaliseExibida(analisarTexto(novoTexto, regras));
       }
     }, 16);
   }
@@ -435,10 +459,10 @@ export default function Landing() {
 
                 <div className="border-t border-border bg-muted/30 p-3">
                   <BannerRisco
-                    nivel={analise.nivel}
-                    deteccoes={analise.deteccoes}
+                    nivel={analiseExibida.nivel}
+                    deteccoes={analiseExibida.deteccoes}
                     mensagem={mensagem}
-                    analisando={analisando}
+                    analisando={analisando && !digitando}
                     className="border-0 transition-colors duration-300"
                   />
                 </div>

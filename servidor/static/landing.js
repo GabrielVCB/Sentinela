@@ -107,12 +107,15 @@
     }
     var posicao = 0;
     campo.value = "";
+    // Durante a digitação, o aviso anterior fica estável. O novo risco é
+    // aplicado uma única vez no fim, evitando piscadas e trocas de cor.
     timerDigitacao = setInterval(function () {
       posicao += 1;
       campo.value = texto.slice(0, posicao);
-      analisar();
       if (posicao >= texto.length) {
         clearInterval(timerDigitacao);
+        timerDigitacao = null;
+        analisar();
         if (aoFinal) aoFinal();
       }
     }, 16);

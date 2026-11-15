@@ -169,9 +169,10 @@ function animarMetrica(elemento, destino, formatador) {
   requestAnimationFrame(passo);
 }
 
-function variavelCss(elemento, nome, reserva) {
-  const valor = getComputedStyle(elemento).getPropertyValue(nome).trim();
-  return valor || reserva;
+function variavelCss(_elemento, nome, reserva) {
+  // A cor fica ligada à variável CSS, não ao valor calculado no momento do
+  // desenho. Assim o SVG acompanha a troca de tema sem precisar ser recriado.
+  return "var(" + nome + (reserva ? ", " + reserva : "") + ")";
 }
 
 function normalizar(texto) {
@@ -458,7 +459,7 @@ function desenharGrafico(evolucao, periodo, tendencia) {
   tituloEixo.setAttribute("x", 0);
   tituloEixo.setAttribute("y", 10);
   tituloEixo.setAttribute("font-size", "9");
-  tituloEixo.setAttribute("fill", textoCor);
+  tituloEixo.style.fill = textoCor;
   tituloEixo.setAttribute("font-family", "Consolas, monospace");
   tituloEixo.textContent = "alertas";
   svg.appendChild(tituloEixo);
@@ -470,7 +471,7 @@ function desenharGrafico(evolucao, periodo, tendencia) {
     linha.setAttribute("x2", largura - margem.direita);
     linha.setAttribute("y1", y);
     linha.setAttribute("y2", y);
-    linha.setAttribute("stroke", linhaCor);
+    linha.style.stroke = linhaCor;
     if (indice !== 0) linha.setAttribute("stroke-dasharray", "2 5");
     svg.appendChild(linha);
 
@@ -479,7 +480,7 @@ function desenharGrafico(evolucao, periodo, tendencia) {
     rotulo.setAttribute("y", y + 3);
     rotulo.setAttribute("text-anchor", "end");
     rotulo.setAttribute("font-size", "9");
-    rotulo.setAttribute("fill", textoCor);
+    rotulo.style.fill = textoCor;
     rotulo.setAttribute("font-family", "Consolas, monospace");
     rotulo.textContent = String(passoY * indice);
     svg.appendChild(rotulo);
@@ -516,7 +517,7 @@ function desenharGrafico(evolucao, periodo, tendencia) {
       barra.setAttribute("y", baseY - ((acumulado + segmento.valor) / topoValor) * areaAltura);
       barra.setAttribute("width", larguraBarra);
       barra.setAttribute("height", Math.max(alturaSegmento, 1.5));
-      barra.setAttribute("fill", segmento.cor);
+      barra.style.fill = segmento.cor;
       barra.setAttribute("rx", "1");
       grupo.appendChild(barra);
       acumulado += segmento.valor;
@@ -556,7 +557,7 @@ function desenharGrafico(evolucao, periodo, tendencia) {
       rotulo.setAttribute("y", altura - 10);
       rotulo.setAttribute("text-anchor", "middle");
       rotulo.setAttribute("font-size", "9");
-      rotulo.setAttribute("fill", textoCor);
+      rotulo.style.fill = textoCor;
       rotulo.setAttribute("font-family", "Consolas, monospace");
       rotulo.textContent = diaCurto(dia.data);
       grupo.appendChild(rotulo);
@@ -616,7 +617,7 @@ function desenharDonut(id, itens, descricao) {
   fundo.setAttribute("cy", "21");
   fundo.setAttribute("r", "15.9155");
   fundo.setAttribute("fill", "none");
-  fundo.setAttribute("stroke", variavelCss(container, "--linha", "#e0ded8"));
+  fundo.style.stroke = variavelCss(container, "--linha", "#e0ded8");
   fundo.setAttribute("stroke-width", "5");
   svg.appendChild(fundo);
 
@@ -625,7 +626,7 @@ function desenharDonut(id, itens, descricao) {
   totalTexto.setAttribute("y", "20.5");
   totalTexto.setAttribute("text-anchor", "middle");
   totalTexto.setAttribute("font-size", "4.6");
-  totalTexto.setAttribute("fill", variavelCss(container, "--tinta", "#1b1b1a"));
+  totalTexto.style.fill = variavelCss(container, "--tinta", "#1b1b1a");
   totalTexto.setAttribute("font-family", "Georgia, serif");
   totalTexto.textContent = numero(total);
   svg.appendChild(totalTexto);
@@ -636,7 +637,7 @@ function desenharDonut(id, itens, descricao) {
   legendaTotal.setAttribute("text-anchor", "middle");
   legendaTotal.setAttribute("font-size", "2.4");
   legendaTotal.setAttribute("letter-spacing", "0.12");
-  legendaTotal.setAttribute("fill", variavelCss(container, "--cinza-claro", "#8a8a84"));
+  legendaTotal.style.fill = variavelCss(container, "--cinza-claro", "#8a8a84");
   legendaTotal.setAttribute("font-family", "Consolas, monospace");
   legendaTotal.textContent = "ALERTAS";
   svg.appendChild(legendaTotal);
@@ -651,7 +652,7 @@ function desenharDonut(id, itens, descricao) {
     circulo.setAttribute("cy", "21");
     circulo.setAttribute("r", "15.9155");
     circulo.setAttribute("fill", "none");
-    circulo.setAttribute("stroke", item.cor);
+    circulo.style.stroke = item.cor;
     circulo.setAttribute("stroke-width", "5");
     circulo.setAttribute("stroke-dasharray", "0 100");
     circulo.setAttribute("stroke-dashoffset", String(25 - deslocamento));
