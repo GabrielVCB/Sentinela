@@ -59,15 +59,19 @@ dd {
 }
 
 .ponto-status {
-  display: none;
+  display: inline-block;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   flex: 0 0 auto;
+  background: var(--cinza-claro);
+}
+
+.ponto-status.on {
+  background: var(--baixo);
 }
 
 .ponto-status.off {
-  display: inline-block;
   background: var(--alto);
 }
 

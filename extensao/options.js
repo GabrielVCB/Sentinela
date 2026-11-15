@@ -1,8 +1,8 @@
 /** Sentinela — página de opções. */
 "use strict";
 
-// A configuração do painel injeta a URL pública em config.js. Ela não aparece
-// nas Opções: o colaborador informa apenas o código de verificação.
+// A configuração do painel pode injetar a URL pública em config.js. O
+// colaborador informa apenas o código completo, que também pode carregar a URL.
 const PADROES = {
   serverUrl: String(globalThis.SENTINELA_SERVIDOR_PADRAO || "").trim(),
   apiToken: "",
@@ -11,6 +11,34 @@ const PADROES = {
 };
 
 let servidorAtual = PADROES.serverUrl;
+
+/**
+ * O painel entrega um único código no formato `https://servidor|codigo`.
+ * Códigos antigos, só com o token, continuam válidos quando config.js já
+ * trouxe a URL. O token enviado à API é sempre a parte depois do separador.
+ */
+function separarCodigo(valor) {
+  const texto = String(valor || "").trim();
+  const separador = texto.indexOf("|");
+  if (separador > 0) {
+    const url = texto.slice(0, separador).trim();
+    const token = texto.slice(separador + 1).trim();
+    if (/^https:\/\//i.test(url) && token) {
+      try {
+        return { serverUrl: new URL(url).origin, apiToken: token };
+      } catch (erro) {
+        /* segue como token simples */
+      }
+    }
+  }
+  return { serverUrl: "", apiToken: texto };
+}
+
+function codigoDaTela() {
+  const codigo = separarCodigo(el.token.value);
+  if (codigo.serverUrl) servidorAtual = codigo.serverUrl;
+  return codigo;
+}
 
 const el = {};
 let avisoPermissao = "";
@@ -120,8 +148,9 @@ let timerAreas = null;
  * código que está na tela, sem gravar nada. Assim o seletor já abre preenchido.
  */
 async function carregarAreas(mostrarErro) {
+  const dadosCodigo = codigoDaTela();
   const servidor = servidorAtual.trim();
-  const codigo = el.token.value.trim();
+  const codigo = dadosCodigo.apiToken;
   const atual = el.departamento.value;
 
   if (!/^https:\/\//i.test(servidor) || !codigo) {
@@ -266,6 +295,7 @@ async function carregar() {
 async function salvar(silencioso, completo) {
   const exigirIdentificacao = completo !== false;
   const departamento = el.departamento.value.trim();
+  const dadosCodigo = codigoDaTela();
 
   let endereco = null;
   try {
@@ -276,14 +306,14 @@ async function salvar(silencioso, completo) {
   if (!endereco || endereco.protocol !== "https:") {
     avisar(
       el.resultadoSalvar,
-      "O endereço do servidor não está definido nesta instalação. Baixe a extensão pelo painel novamente.",
+      "O código de verificação deve incluir o endereço do servidor. Copie o código completo em Monitoramento → Código de verificação.",
       "erro",
     );
     return false;
   }
   const servidor = endereco.origin;
 
-  const codigo = el.token.value.trim();
+  const codigo = dadosCodigo.apiToken;
   if (!codigo) {
     avisar(
       el.resultadoSalvar,

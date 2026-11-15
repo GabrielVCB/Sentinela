@@ -117,8 +117,8 @@
           <form id="form-limiar" class="form-inline">
             <label class="campo-inline">
               <span class="rotulo">
-                Limite de criticidade (%)
-                <span class="dica-icone" role="img" aria-label="Crítico: ao menos 3 alertas e proporção de risco alto igual ou maior que este limite." title="Crítico: ao menos 3 alertas e proporção de risco alto igual ou maior que este limite.">i</span>
+                Tolerância (%)
+                <button type="button" class="info-aba" data-info="tolerancia" aria-label="Sobre Tolerância" title="Percentual de alertas de risco alto a partir do qual um departamento é marcado como crítico. Vale para departamentos com ao menos 3 alertas; abaixo disso, ficam em observação.">i</button>
               </span>
               <input type="number" id="limiar" min="0" max="100" value="{{ limiar_padrao }}" />
             </label>
@@ -166,10 +166,10 @@
         <select id="filtro-area-regras" class="filtro-regras" aria-label="Filtrar regras por departamento">
           <option value="">Todos os departamentos</option>
         </select>
-        <select id="filtro-status-regras" class="filtro-regras" aria-label="Filtrar regras por status">
-          <option value="">Todas</option>
+        <select id="filtro-status-regras" class="filtro-regras" aria-label="Filtrar regras por situação">
+          <option value="">Todas as situações</option>
           <option value="ativas">Ativas</option>
-          <option value="inativas">Inativas</option>
+          <option value="inativas">Desativadas</option>
         </select>
         <span class="rotulo" id="contador-regras"></span>
       </div>
@@ -326,9 +326,15 @@
           </div>
           <button type="button" class="botao" id="atualizar-atividades">Atualizar</button>
         </div>
+        <p class="rotulo" id="atividades-resumo"></p>
         <ul id="lista-atividades" class="lista-atividades" aria-live="polite">
           <li class="atividade-vazia">Carregando…</li>
         </ul>
+        <div class="paginacao paginacao-atividades">
+          <button type="button" class="botao" id="atividades-pagina-anterior">Anterior</button>
+          <span class="rotulo" id="atividades-pagina-info">—</span>
+          <button type="button" class="botao" id="atividades-pagina-proxima">Próxima</button>
+        </div>
       </section>
     </section>
 
@@ -413,7 +419,7 @@
 
       <section class="bloco-painel">
         <div class="linha-titulo">
-          <h2>Dispositivos Conectados</h2>
+          <h2>Dispositivos</h2>
           <button type="button" class="botao" id="atualizar-dispositivos">Atualizar</button>
         </div>
 
@@ -426,7 +432,7 @@
                 <th>Colaborador</th>
                 <th>Departamento</th>
                 <th>IP</th>
-                <th>Código</th>
+                <th>Status</th>
                 <th>Último contato</th>
                 <th class="direita">Ações</th>
               </tr>

@@ -14,7 +14,7 @@ import json
 import os
 import secrets
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import psycopg
@@ -54,8 +54,8 @@ ORIGENS = ("texto", "colagem", "imagem", "pdf", "anexo")
 # apagar regras criadas no painel.
 VERSAO_MATRIZ = "4"
 
-# A fonte única da matriz e das mensagens é `dados/`; o React importa os mesmos
-# arquivos, então não existe uma segunda cópia para divergir.
+# A fonte da matriz no servidor é `dados/regras.json`; a prévia React usa
+# `dados/regras-publicas.json`, somente com nomes e níveis, sem os padrões.
 AREAS = regras.AREAS
 CAMINHO_MENSAGENS = Path(__file__).resolve().parent / "dados" / "mensagens.json"
 CAMINHO_SITES = Path(__file__).resolve().parent / "dados" / "sites.json"
@@ -176,6 +176,7 @@ CREATE TABLE IF NOT EXISTS dispositivos (
     versao text,
     codigo_versao integer NOT NULL DEFAULT 1,
     ativo integer NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1)),
+    removido_em text,
     primeiro_visto text NOT NULL,
     ultimo_visto text NOT NULL
 );
@@ -408,6 +409,12 @@ MIGRACOES = [
             ON atividades_admin(criado_em DESC);
         """,
     ),
+    (
+        "008_status_dispositivos",
+        """
+        ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS removido_em text;
+        """,
+    ),
 ]
 
 
@@ -488,6 +495,46 @@ def _semear_matriz(conexao_aberta: _Conexao, forcar_atualizacao: bool) -> None:
                 )
 
 
+def _atualizar_descricoes_departamentos(conexao_aberta: _Conexao) -> None:
+    """Atualiza apenas descrições que ainda são o texto padrão antigo.
+
+    Assim a correção editorial chega aos bancos existentes sem sobrescrever
+    uma descrição personalizada pelo administrador.
+    """
+    textos = (
+        (
+            "RH",
+            "Dados pessoais, documentos, remuneração e vínculos de colaboradores. Acesso restrito ao time de pessoas.",
+            "Dados pessoais, documentos, remuneração e vínculos dos colaboradores. Compartilhamento restrito ao RH.",
+        ),
+        (
+            "Financeiro",
+            "Valores, orçamento e resultados da companhia. Publicação somente em canais aprovados.",
+            "Valores, orçamento e resultados da empresa. Publicação somente em canais aprovados.",
+        ),
+        (
+            "TI",
+            "Infraestrutura, credenciais e código proprietário. Nunca deve ser colado em ferramentas externas.",
+            "Infraestrutura, credenciais e código proprietário. Não devem ser colados em ferramentas externas.",
+        ),
+        (
+            "Segurança da Informação",
+            "As causas mais comuns de incidentes: credenciais expostas, backups, dados de clientes e informação marcada como confidencial.",
+            "Credenciais, backups, dados de clientes e informação marcada como confidencial. Compartilhamento somente em canais aprovados pela segurança.",
+        ),
+        (
+            "Projetos e Estratégias",
+            "Roadmap, lançamentos e movimentos competitivos. Informação estratégica antes do anúncio oficial.",
+            "Roadmap, lançamentos e movimentos competitivos. Informação estratégica não deve circular antes do anúncio oficial.",
+        ),
+    )
+    for nome, antigo, novo in textos:
+        conexao_aberta.execute(
+            "UPDATE areas SET descricao = ? WHERE nome = ? AND descricao = ?",
+            (novo, nome, antigo),
+        )
+
+
 def _semear_sites(conexao_aberta: _Conexao) -> None:
     """Garante no banco os chats conhecidos do catálogo.
 
@@ -554,6 +601,7 @@ def inicializar_banco(usuario: str, senha: str) -> None:
         ).fetchone()
         atualizar = versao is None or versao["valor"] != VERSAO_MATRIZ
         _semear_matriz(conexao_aberta, atualizar)
+        _atualizar_descricoes_departamentos(conexao_aberta)
         seed.limpar()
 
         if atualizar:
@@ -925,7 +973,7 @@ def registrar_dispositivo(
                 """
                 UPDATE dispositivos
                 SET colaborador = ?, setor = ?, ip = ?, versao = ?,
-                    codigo_versao = ?, ativo = 1, ultimo_visto = ?
+                    codigo_versao = ?, ativo = 1, removido_em = NULL, ultimo_visto = ?
                 WHERE id = ?
                 """,
                 (colaborador, setor, ip, versao, codigo_versao, agora, dispositivo_id),
@@ -944,6 +992,7 @@ def registrar_dispositivo(
                 ip = excluded.ip,
                 versao = excluded.versao,
                 codigo_versao = excluded.codigo_versao,
+                removido_em = NULL,
                 ultimo_visto = excluded.ultimo_visto
             """,
             (dispositivo_id, colaborador, setor, ip, versao, codigo_versao, agora, agora),
@@ -983,16 +1032,25 @@ def dispositivo_revogado(dispositivo_id: str) -> bool:
         conexao_aberta.close()
 
 
-def listar_dispositivos() -> list:
+def listar_dispositivos(dias_removidos: int = 30) -> list:
+    """Lista dispositivos ativos e remoções recentes.
+
+    As remoções ficam visíveis por alguns dias para o painel mostrar o status
+    “Removida”. Depois disso, deixam de aparecer na listagem.
+    """
+    dias = max(1, min(int(dias_removidos), 365))
+    corte = (datetime.utcnow() - timedelta(days=dias)).isoformat(timespec="seconds")
     conexao_aberta = conectar()
     try:
         linhas = conexao_aberta.execute(
             """
-            SELECT id, colaborador, setor, ip, versao, codigo_versao, primeiro_visto, ultimo_visto
+            SELECT id, colaborador, setor, ip, versao, codigo_versao, ativo,
+                   removido_em, primeiro_visto, ultimo_visto
             FROM dispositivos
-            WHERE ativo = 1
-            ORDER BY ultimo_visto DESC
-            """
+            WHERE ativo = 1 OR (removido_em IS NOT NULL AND removido_em >= ?)
+            ORDER BY ativo DESC, ultimo_visto DESC
+            """,
+            (corte,),
         ).fetchall()
         return [dict(linha) for linha in linhas]
     finally:
@@ -1003,8 +1061,9 @@ def desconectar_dispositivo(dispositivo_id: str) -> int:
     conexao_aberta = conectar()
     try:
         cursor = conexao_aberta.execute(
-            "UPDATE dispositivos SET ativo = 0 WHERE id = ? AND ativo = 1",
-            (dispositivo_id,),
+            "UPDATE dispositivos SET ativo = 0, removido_em = ? "
+            "WHERE id = ? AND ativo = 1",
+            (datetime.utcnow().isoformat(timespec="seconds"), dispositivo_id),
         )
         conexao_aberta.commit()
         return cursor.rowcount
@@ -1187,8 +1246,21 @@ def registrar_atividade(admin_id, usuario: str, acao: str, entidade: str, descri
         conexao_aberta.close()
 
 
-def listar_atividades(limite: int = 30) -> list:
-    limite = max(1, min(int(limite), 100))
+def contar_atividades() -> int:
+    conexao_aberta = conectar()
+    try:
+        linha = conexao_aberta.execute(
+            "SELECT COUNT(*) AS total FROM atividades_admin"
+        ).fetchone()
+        return int(linha["total"]) if linha else 0
+    finally:
+        conexao_aberta.close()
+
+
+def listar_atividades(pagina: int = 1, por_pagina: int = 8) -> list:
+    pagina = max(1, int(pagina))
+    por_pagina = max(5, min(int(por_pagina), 50))
+    deslocamento = (pagina - 1) * por_pagina
     conexao_aberta = conectar()
     try:
         linhas = conexao_aberta.execute(
@@ -1196,9 +1268,9 @@ def listar_atividades(limite: int = 30) -> list:
             SELECT id, usuario, acao, entidade, descricao, criado_em
             FROM atividades_admin
             ORDER BY criado_em DESC, id DESC
-            LIMIT ?
+            LIMIT ? OFFSET ?
             """,
-            (limite,),
+            (por_pagina, deslocamento),
         ).fetchall()
         return [dict(linha) for linha in linhas]
     finally:

@@ -57,6 +57,7 @@ O Sentinela torna esse risco visível no momento certo:
 | **Auditoria sem conteúdo** | Registro dos alertas com filtros, retenção e exportação em CSV e PDF. |
 | **Letramento por departamento** | Compara envios e cancelamentos e destaca os departamentos críticos. |
 | **Gestão centralizada** | Ativação, IAs monitoradas e dispositivos conectados controlados em um só lugar. |
+| **Auditoria administrativa** | O histórico de atividades mostra quem alterou regras, mensagens, alertas e configurações, com ação e horário. |
 | **Resiliência** | Uma fila local reenvia os alertas quando o servidor ou a rede ficam indisponíveis. |
 
 ## Como funciona
@@ -97,7 +98,7 @@ O mesmo cadastro de departamentos classifica as regras e identifica onde o colab
 | **Segurança da Informação** | Código de verificação ou MFA, dump ou backup de banco, dados de clientes, acesso remoto ou VPN | Documento confidencial, relatório de vulnerabilidade, arquivo de ambiente |
 | **TI** | Senha ou credencial, token ou chave de API, chave privada, string de conexão, código-fonte interno | Sem regras neste nível |
 
-O Sentinela vem com mais de 40 regras iniciais, incluindo validações técnicas de CPF, CNPJ e cartões. Regras, departamentos, mensagens e o limite de criticidade podem ser ajustados no painel, e novas regras podem ser criadas por palavra-chave ou expressão regular (regex).
+O Sentinela vem com mais de 40 regras iniciais, incluindo validações técnicas de CPF, CNPJ e cartões. Regras, departamentos, mensagens e a tolerância podem ser ajustados no painel, e novas regras podem ser criadas por palavra-chave ou expressão regular (regex).
 
 ### Sincronização
 
@@ -111,9 +112,9 @@ A extensão consulta periodicamente a versão da configuração e baixa a matriz
 | **Alertas** | Auditoria com filtros por data, departamento e nível, retenção e exportação em CSV e PDF. |
 | **Regras de detecção** | Busca, criação, edição, ativação e exclusão de regras. |
 | **Departamentos** | Matriz de risco e regras de cada departamento. Ao excluir um departamento, o histórico de alertas é preservado. |
-| **Mensagens educativas** | Textos exibidos no aviso para risco alto, médio, baixo com detecções e sem detecções. |
-| **Monitoramento** | Ativação geral, IAs monitoradas, dispositivos conectados, código de verificação e download da extensão. |
-| **Administradores** | Contas com acesso ao painel. O superadmin cria e exclui administradores; contas comuns trocam a própria senha. O histórico de atividades recentes mostra quem alterou regras, mensagens, alertas e configurações. |
+| **Mensagens educativas** | Textos exibidos no aviso para risco alto, médio, baixo com detecções e sem detecções, em cards compactos. |
+| **Monitoramento** | Ativação geral, IAs monitoradas, dispositivos conectados, código de verificação e download da extensão. A contagem de IAs ativas só é atualizada depois de salvar a configuração. |
+| **Administradores** | Contas com acesso ao painel. O superadmin cria e exclui administradores; contas comuns trocam a própria senha. O histórico de atividades recentes mostra quem alterou regras, mensagens, alertas e configurações, com navegação por páginas. |
 
 ### Letramento
 
@@ -121,17 +122,19 @@ O indicador central é o **"enviou mesmo assim"**. O painel compara envios e can
 
 | Situação | Critério |
 | --- | --- |
-| **Crítico** | Ao menos 3 alertas, com percentual de risco alto igual ou acima do limite de criticidade. |
+| **Crítico** | Ao menos 3 alertas, com percentual de risco alto igual ou acima da tolerância. |
 | **Em observação** | Menos de 3 alertas. |
 | **Normal** | Ao menos 3 alertas, com percentual de risco alto abaixo do limite. |
 
-O limite de criticidade é configurável na **Visão geral**.
+A tolerância é configurável na **Visão geral**.
 
 > **Como ler:** muitos cancelamentos indicam que o aviso está funcionando. Muitos envios em risco alto indicam que o aviso precisa de contexto, treinamento ou uma ferramenta corporativa autorizada.
 
 ### Dispositivos e acessos
 
-- Cada instalação da extensão aparece no painel com colaborador, departamento, IP e situação do código, e pode ser desconectada individualmente.
+- Cada instalação da extensão aparece no painel com colaborador, departamento, IP, status e último contato, e pode ser desconectada individualmente.
+- Os status são: **Ativo** (contato recente e código atual), **Desatualizada** (contato recente, mas com código antigo), **Sem sinal** (sem contato há mais de 24 horas) e **Removida** (desconectada pelo painel).
+- Computador desligado, falta de rede e extensão desativada ou removida sem aviso aparecem como **Sem sinal**, porque o servidor não recebe um evento confiável nesses casos. As remoções feitas pelo painel ficam visíveis por 30 dias.
 - Ao renovar o código de verificação, cada dispositivo volta a conectar assim que o novo código é salvo nas Opções da extensão, sem reinstalar.
 - A política é central: a ativação e as IAs monitoradas são definidas no painel e valem para todos os computadores. As Opções da extensão guardam apenas o que é específico de cada máquina: código de verificação, departamento e identificador do colaborador.
 - O primeiro administrador criado pelo servidor é o **superadmin**. Ele não pode ser excluído e é o único que cria e exclui outros administradores. Contas comuns trocam a própria senha.
@@ -149,6 +152,9 @@ Apenas o registro do alerta: a IA utilizada, o departamento, o colaborador, o IP
 - O painel é de uso exclusivo de administradores autorizados, com login e sessão de duração limitada.
 - As contas de administrador são criadas somente pelo superadmin.
 - O código de verificação autoriza a extensão a registrar alertas, mas não dá acesso ao painel.
+- O CORS aceita a origem da extensão e apenas as origens web configuradas explicitamente; não há curinga aberto por padrão.
+- A landing pública recebe apenas um subconjunto de regras de demonstração; a matriz completa com todos os padrões continua restrita à API autenticada da extensão.
+- O health check `/api/health` confirma o Flask e o Postgres; `/api/ping` continua sendo o endpoint leve para monitoramento.
 
 ## Arquitetura e tecnologias
 
@@ -167,6 +173,10 @@ A extensão envia os alertas ao painel e recebe as regras e a configuração.
 | **Hospedagem** | Render |
 | **Automação** | GitHub Actions |
 
+A landing oficial é servida pelo Flask em `servidor/templates/landing.html`. A página React em
+`src/pages/Landing.tsx` é apenas a prévia de desenvolvimento do ambiente Freebuff e não é
+publicada pelo servidor Python.
+
 ### Como a detecção funciona
 
 A extensão acompanha o campo de texto das IAs e aplica as regras localmente. O aviso é exibido isolado do estilo do site, e imagens e PDFs passam pelo mesmo conjunto de regras depois de terem o texto extraído.
@@ -175,14 +185,14 @@ Cada regra do painel pode ser uma **palavra-chave** ou uma **expressão regular 
 
 ## Instalação da extensão
 
-Cada colaborador instala a extensão no próprio Chrome ou Edge. O administrador fornece o código de verificação; o download feito pelo painel já inclui o endereço do servidor.
+Cada colaborador instala a extensão no próprio Chrome ou Edge. O administrador fornece o código completo, que já inclui o endereço do servidor; o download feito pelo painel também traz esse endereço, é montado uma vez por URL e tem limite de downloads por IP.
 
 1. O administrador fornece o código de verificação. Para testes sem o painel, há também o [ZIP público](./public/sentinela-extensao.zip).
 2. O arquivo é extraído em uma pasta de fácil acesso.
 3. A página de extensões do Chrome é `chrome://extensions`, e a do Edge é `edge://extensions`.
 4. Nessa página, o **Modo do desenvolvedor** é ativado.
 5. Com a opção **Carregar sem compactação**, é selecionada a pasta `extensao`.
-6. Nas **Opções** da extensão, é informado apenas o código de verificação recebido. A URL do servidor é definida pela configuração entregue no download do painel.
+6. Nas **Opções** da extensão, é informado apenas o código de verificação recebido. O código completo já inclui a URL do servidor, então não é preciso configurar endereço separado.
 7. Em seguida, são escolhidos o departamento e o identificador do colaborador.
 8. Ao salvar, a autorização de acesso ao servidor é confirmada, se solicitada, e o botão **Testar conexão** verifica a ligação.
 9. Por fim, um teste com um dado fictício no ChatGPT, Gemini, Claude ou Copilot confirma que o aviso aparece.

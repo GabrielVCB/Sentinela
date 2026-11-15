@@ -16,8 +16,8 @@
 #   2. Suba o projeto no GitHub, com este arquivo na raiz do repositório.
 #   3. Na Render: New → Blueprint → escolha o repositório.
 #   4. Informe SENTINELA_ADMIN_SENHA e SENTINELA_DB_URL quando ela pedir.
-#   5. Depois do deploy, abra /painel → 06 · Instalação e copie o endereço e o
-#      código para as Opções da extensão em cada computador.
+#   5. Depois do deploy, abra /painel → Monitoramento → Código de verificação
+#      e copie o endereço e o código para as Opções da extensão em cada computador.
 
 services:
   - type: web
@@ -28,7 +28,8 @@ services:
     # O diretório de trabalho é a raiz para o Flask servir o detector
     # compartilhado em extensao/detectores.js. O processo fica em servidor/.
     startCommand: cd servidor && gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 60
-    healthCheckPath: /api/ping
+    # O health check da Render também confirma que o Postgres responde.
+    healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.5"
@@ -53,3 +54,7 @@ services:
         value: "1"
       - key: SENTINELA_CONFIG_CACHE
         value: "30"
+      # Deixe vazio para permitir apenas a extensão. Se houver um site externo
+      # consumindo a API, informe as origens exatas separadas por vírgula.
+      - key: SENTINELA_CORS_ORIGINS
+        value: ""

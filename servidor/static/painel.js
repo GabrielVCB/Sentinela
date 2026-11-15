@@ -16,6 +16,8 @@ const estado = {
   filtros: { de: "", ate: "", departamento: "todos", nivel: "todos" },
   pagina: 1,
   totalPaginas: 1,
+  paginaAtividades: 1,
+  totalPaginasAtividades: 1,
   alertaAtual: null,
   secao: "visao",
   monitoramento: null,
@@ -151,6 +153,22 @@ function badge(nivel) {
   return elemento;
 }
 
+const ROTULO_STATUS_DISPOSITIVO = {
+  ativo: "Ativo",
+  sem_sinal: "Sem sinal",
+  removida: "Removida",
+  desatualizada: "Desatualizada",
+};
+
+function badgeStatusDispositivo(status) {
+  const chave = ROTULO_STATUS_DISPOSITIVO[status] ? status : "sem_sinal";
+  return criar(
+    "span",
+    "badge status-" + chave.replace(/_/g, "-"),
+    ROTULO_STATUS_DISPOSITIVO[chave],
+  );
+}
+
 let timerToast = null;
 function avisar(texto, tipo) {
   const toast = $("toast");
@@ -211,7 +229,7 @@ function carregarSecao(secao) {
       })
       .catch(tratarErro);
   } else if (secao === "administradores") {
-    Promise.all([carregarAdmins(), carregarAtividades()]).catch(tratarErro);
+    Promise.all([carregarAdmins(), carregarAtividades(1)]).catch(tratarErro);
   } else if (secao === "monitoramento") {
     Promise.all([
       carregarMonitoramento(),
@@ -1253,8 +1271,11 @@ async function carregarInstalacao() {
   const dados = await api("/api/admin/instalacao");
   estado.euSuperadmin = Boolean(dados.superadmin);
   $("instalacao-url").textContent = dados.url_base;
-  $("instalacao-token").textContent = dados.token;
-  $("instalacao-token").dataset.valor = dados.token;
+  // O código exibido inclui a URL do servidor e o token. Assim a extensão
+  // consegue conectar pelo ZIP público sem pedir endereço separado.
+  const codigo = dados.codigo || dados.token;
+  $("instalacao-token").textContent = codigo;
+  $("instalacao-token").dataset.valor = codigo;
   $("instalacao-origem").textContent = dados.endereco_visto || "—";
 }
 
@@ -1265,12 +1286,16 @@ async function carregarDispositivos() {
   limpar(corpo);
 
   const atuais = estado.dispositivos.filter(function (dispositivo) {
-    return dispositivo.codigo_atual;
+    return dispositivo.codigo_atual && dispositivo.status !== "removida";
   }).length;
+  const removidos = Number(dados.removidos) || 0;
   $("resumo-dispositivos").textContent =
     plural(dados.total, "dispositivo conectado", "dispositivos conectados") +
     " · " +
     plural(atuais, "com o código atual", "com o código atual") +
+    (removidos
+      ? " · " + plural(removidos, "removido recentemente", "removidos recentemente")
+      : "") +
     ".";
   if ($("monitoramento-dispositivos")) {
     $("monitoramento-dispositivos").textContent = numero(dados.total);
@@ -1296,40 +1321,39 @@ async function carregarDispositivos() {
     linha.appendChild(criar("td", null, dispositivo.setor || "Não informado"));
     linha.appendChild(criar("td", "ip", dispositivo.ip || "—"));
 
-    const codigo = criar("td");
-    const selo = criar(
-      "span",
-      "codigo-dispositivo" + (dispositivo.codigo_atual ? "" : " anterior"),
-      dispositivo.codigo_atual ? "Atual" : "Desatualizado",
-    );
-    codigo.appendChild(selo);
-    linha.appendChild(codigo);
+    const status = criar("td");
+    status.appendChild(badgeStatusDispositivo(dispositivo.status));
+    linha.appendChild(status);
     linha.appendChild(criar("td", "micro", quando(dispositivo.ultimo_visto)));
 
     const acoes = criar("td", "direita");
-    const desconectar = criar("button", "botao pequeno perigo", "Desconectar");
-    desconectar.type = "button";
-    desconectar.addEventListener("click", function () {
-      confirmar(
-        "Desconectar dispositivo?",
-        (dispositivo.colaborador || "Este acesso") +
-          " deixa de receber regras e de registrar alertas. Se o código for renovado, ele pode " +
-          "voltar ao salvar o novo código nas Opções.",
-        "Desconectar",
-        async function () {
-          try {
-            await api("/api/admin/dispositivos/" + encodeURIComponent(dispositivo.id), {
-              method: "DELETE",
-            });
-            avisar("Dispositivo desconectado.");
-            await Promise.all([carregarDispositivos(), carregarInstalacao()]);
-          } catch (erro) {
-            tratarErro(erro);
-          }
-        },
-      );
-    });
-    acoes.appendChild(desconectar);
+    if (dispositivo.status === "removida") {
+      acoes.appendChild(criar("span", "micro", "—"));
+    } else {
+      const desconectar = criar("button", "botao pequeno perigo", "Desconectar");
+      desconectar.type = "button";
+      desconectar.addEventListener("click", function () {
+        confirmar(
+          "Desconectar dispositivo?",
+          (dispositivo.colaborador || "Este acesso") +
+            " deixa de receber regras e de registrar alertas. Se o código for renovado, ele pode " +
+            "voltar ao salvar o novo código nas Opções.",
+          "Desconectar",
+          async function () {
+            try {
+              await api("/api/admin/dispositivos/" + encodeURIComponent(dispositivo.id), {
+                method: "DELETE",
+              });
+              avisar("Dispositivo desconectado.");
+              await Promise.all([carregarDispositivos(), carregarInstalacao()]);
+            } catch (erro) {
+              tratarErro(erro);
+            }
+          },
+        );
+      });
+      acoes.appendChild(desconectar);
+    }
     linha.appendChild(acoes);
     corpo.appendChild(linha);
   });
@@ -1340,7 +1364,7 @@ async function copiarToken() {
   if (!valor) return;
   try {
     await navigator.clipboard.writeText(valor);
-    avisar("Código de verificação copiado. Cole em Opções da extensão.");
+    avisar("Código completo copiado. Cole em Opções da extensão.");
   } catch (erro) {
     avisar("Não foi possível copiar. Selecione o código manualmente.", "erro");
   }
@@ -1427,7 +1451,10 @@ async function carregarAdmins() {
             try {
               await api("/api/admin/usuarios/" + admin.id, { method: "DELETE" });
               avisar("Administrador excluído.");
-              await Promise.all([carregarAdmins(), carregarAtividades()]);
+              await Promise.all([
+                carregarAdmins(),
+                carregarAtividades(estado.paginaAtividades),
+              ]);
             } catch (erro) {
               tratarErro(erro);
             }
@@ -1445,8 +1472,26 @@ async function carregarAdmins() {
   });
 }
 
-async function carregarAtividades() {
-  const dados = await api("/api/admin/atividades?limite=30");
+async function carregarAtividades(pagina) {
+  const alvo = Math.max(1, Number(pagina) || 1);
+  const dados = await api(
+    "/api/admin/atividades?pagina=" + alvo + "&por_pagina=8",
+  );
+  estado.paginaAtividades = dados.pagina || 1;
+  estado.totalPaginasAtividades = dados.total_paginas || 1;
+
+  $("atividades-resumo").textContent =
+    plural(dados.total, "atividade", "atividades") +
+    " · página " +
+    estado.paginaAtividades +
+    " de " +
+    estado.totalPaginasAtividades;
+  $("atividades-pagina-info").textContent =
+    estado.paginaAtividades + " de " + estado.totalPaginasAtividades;
+  $("atividades-pagina-anterior").disabled = estado.paginaAtividades <= 1;
+  $("atividades-pagina-proxima").disabled =
+    estado.paginaAtividades >= estado.totalPaginasAtividades;
+
   const lista = $("lista-atividades");
   const atividades = dados.atividades || [];
   limpar(lista);
@@ -1518,7 +1563,7 @@ async function salvarAdmin(evento) {
       avisar("Administrador criado.");
     }
     $("dialogo-admin").close();
-    await Promise.all([carregarAdmins(), carregarAtividades()]);
+    await Promise.all([carregarAdmins(), carregarAtividades(1)]);
   } catch (erro) {
     tratarErro(erro);
   }
@@ -1710,7 +1755,7 @@ function ligarEventos() {
         method: "PUT",
         body: JSON.stringify({ limiar_gargalo: limiar }),
       });
-      avisar("Limite de criticidade atualizado.");
+      avisar("Tolerância atualizada.");
       await carregarResumo();
     } catch (erro) {
       tratarErro(erro);
@@ -1787,7 +1832,19 @@ function ligarEventos() {
   });
 
   $("atualizar-atividades").addEventListener("click", function () {
-    carregarAtividades().catch(tratarErro);
+    carregarAtividades(estado.paginaAtividades).catch(tratarErro);
+  });
+
+  $("atividades-pagina-anterior").addEventListener("click", function () {
+    if (estado.paginaAtividades > 1) {
+      carregarAtividades(estado.paginaAtividades - 1).catch(tratarErro);
+    }
+  });
+
+  $("atividades-pagina-proxima").addEventListener("click", function () {
+    if (estado.paginaAtividades < estado.totalPaginasAtividades) {
+      carregarAtividades(estado.paginaAtividades + 1).catch(tratarErro);
+    }
   });
 
   $("novo-admin").addEventListener("click", function () { abrirAdmin(null); });
@@ -1884,21 +1941,23 @@ function ligarEventos() {
 
   const INFORMACOES_ABAS = {
     visao:
-      "Acompanhe alertas, níveis de risco e decisões dos colaboradores por IA e departamento. Os gráficos usam os alertas do período. O limite de criticidade é definido aqui.",
+      "Resume o que os alertas do período mostram: quantos foram gerados e como evoluíram, em quais níveis de risco, quais IAs e departamentos aparecem mais, quais tipos de dado foram detectados e se o colaborador enviou ou cancelou depois do aviso. É também nesta tela que se define a tolerância, usada para marcar um departamento como crítico.",
+    tolerancia:
+      "Percentual de alertas de risco alto a partir do qual um departamento é marcado como crítico. Vale para departamentos com ao menos 3 alertas; abaixo disso, ficam em observação.",
     alertas:
-      "Auditoria dos alertas, sem o conteúdo das conversas. Filtre por data, departamento e nível, exporte em CSV ou PDF e defina por quanto tempo os registros são guardados.",
+      "Registra cada aviso exibido nas extensões, com a IA usada, o departamento, o colaborador, o IP, a origem (texto, imagem ou PDF), o nível de risco, os tipos detectados e a decisão de enviar ou cancelar. O conteúdo da conversa não é guardado. Os registros podem ser filtrados por data, departamento e nível, exportados em CSV ou PDF e mantidos pelo período de retenção definido aqui.",
     regras:
-      "Edite as regras da matriz. Cada regra tem departamento, nível de risco e um padrão, que pode ser uma palavra-chave ou uma expressão regular.",
+      "Reúne as regras que a extensão usa para identificar dados sensíveis. Cada regra pertence a um departamento, tem um nível de risco (baixo, médio ou alto) e um padrão de busca, que pode ser uma palavra-chave ou uma expressão regular. As regras podem ser criadas, editadas, ativadas, desativadas e excluídas, e as mudanças chegam às extensões automaticamente.",
     areas:
-      "Cada departamento agrupa regras e identifica onde o colaborador trabalha, o que permite cruzar risco e letramento por área. Ao excluir um departamento, o histórico de alertas é mantido.",
+      "Lista os departamentos da empresa, que servem a duas funções: organizar as regras por área e identificar onde cada colaborador trabalha, já que ele escolhe o departamento na extensão. Com isso, risco e letramento podem ser comparados entre as áreas. Cada departamento mostra a própria matriz de risco e, ao ser excluído, mantém o histórico de alertas.",
     mensagens:
-      "Textos exibidos ao colaborador no aviso, antes do envio, para cada nível: baixo com detecções, sem detecções, médio e alto.",
+      "Define os textos que o colaborador lê no aviso exibido antes do envio, com uma mensagem para cada situação: risco baixo, quando há detecções de baixo risco; sem detecções, quando nada sensível é encontrado e o aviso exibe o selo de verificação; risco médio; e risco alto. Como o nível e os tipos detectados já aparecem no próprio aviso, as mensagens trazem apenas a orientação, com limite de caracteres para manter o aviso curto. As alterações chegam às extensões automaticamente.",
     monitoramento:
-      "Ative ou pause o monitoramento, escolha quais IAs acompanhar e veja os dispositivos conectados, com desconexão individual. Aqui também ficam o código de verificação e o download da extensão. As alterações são aplicadas ao salvar a ativação.",
+      "Define como as extensões se comportam em toda a empresa: se o monitoramento está ativo e quais IAs são acompanhadas. A lista mostra colaborador, departamento, IP e status: Ativo (contato recente e código atual), Desatualizada (contato recente, mas com código antigo), Sem sinal (sem contato há mais de 24 horas; inclui computador desligado, sem rede ou extensão desativada/removida sem aviso) e Removida (desconectada pelo painel; fica visível por 30 dias). Aqui ficam ainda o código de verificação e o download da extensão.",
     administradores:
-      "Gerencie as contas com acesso ao painel. O superadmin cria e exclui administradores; contas comuns trocam a própria senha. O histórico de atividades mostra quem fez cada alteração.",
+      "Gerencia as contas que acessam o painel. O superadmin, primeiro administrador criado, não pode ser excluído e é o único que cria e exclui outras contas. As demais contas usam o painel e podem trocar a própria senha. O histórico de atividades mostra quem fez cada alteração, com navegação por páginas.",
     codigo:
-      "Conecta a extensão ao servidor e autoriza o envio de alertas ao painel.",
+      "Conecta a extensão ao servidor e autoriza o envio de alertas ao painel. O código completo já inclui o endereço do servidor.",
   };
 
   document.querySelectorAll(".info-aba").forEach(function (botao) {

@@ -1,6 +1,17 @@
-.env.local
+# Segredos e artefatos locais
 .env
+.env.*
+!.env.example
 node_modules
 dist
 servidor/__pycache__/
 servidor/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.DS_Store
+*.log
+*.pem
+*.key
+*.sqlite
+*.sqlite3

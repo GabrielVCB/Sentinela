@@ -56,18 +56,42 @@ precisa existir no container. O `Dockerfile` também copia esse arquivo.
 | `SENTINELA_PROXY_HOPS` | sim | `1` na Render; `2` com Cloudflare na frente. |
 | `SENTINELA_CONFIG_CACHE` | não | Segundos de cache do `/api/config`; padrão 30. |
 | `SENTINELA_API_TOKEN` | não | Se definido, tem prioridade sobre o token do banco. |
-| `SENTINELA_CORS_ORIGINS` | não | Padrão `*`, necessário para extensões. |
+| `SENTINELA_CORS_ORIGINS` | não | Origens web exatas, separadas por vírgula. A extensão (`chrome-extension://`) é sempre permitida. Não use `*`. |
+
+### Docker e Cloud Run
+
+O `Dockerfile` já define `SENTINELA_AMBIENTE=producao`, `SENTINELA_COOKIE_SEGURO=1` e
+`SENTINELA_FORCAR_HTTPS=1`. Os segredos e a conexão entram em runtime:
+
+```bash
+docker build -t sentinela .
+docker run --rm -p 8080:8080 \
+  -e SENTINELA_DB_URL='postgresql://...' \
+  -e SENTINELA_SECRET_KEY='...' \
+  -e SENTINELA_ADMIN_SENHA='...' \
+  sentinela
+```
+
+No Cloud Run, mantenha as mesmas variáveis. Para um serviço HTTPS, use também
+`SENTINELA_AMBIENTE=producao`, `SENTINELA_COOKIE_SEGURO=1` e `SENTINELA_FORCAR_HTTPS=1`; o
+health check do serviço deve apontar para `/api/health`. Cadastre `SENTINELA_SECRET_KEY`,
+`SENTINELA_ADMIN_SENHA` e `SENTINELA_DB_URL` como secrets do Cloud Run, não como valores no
+repositório.
 
 ## 4. Health check e UptimeRobot
 
-O endpoint leve é:
+A Render usa `/api/health` no health check do serviço. Esse endpoint também consulta o Postgres,
+então uma instância com banco fora do ar não é considerada saudável.
+
+Para checar sem tocar no banco, o endpoint leve é:
 
 ```bash
 curl -fsS https://SEU-SERVICO.onrender.com/api/ping
+curl -fsS https://SEU-SERVICO.onrender.com/api/health
 ```
 
-O endpoint que também testa o Postgres é `/api/health`. Use `/api/ping` no UptimeRobot para não
-acordar o banco a cada cinco minutos desnecessariamente.
+Use `/api/ping` no UptimeRobot para não acordar o banco a cada cinco minutos
+desnecessariamente; o monitor de disponibilidade da Render já usa `/api/health`.
 
 No UptimeRobot:
 
@@ -92,7 +116,7 @@ visita demora cerca de 1 minuto.
    com nome e URL.
 4. Confira **Monitoramento → Código de verificação**:
    - a URL pública;
-   - o código de verificação;
+   - o código completo (URL + token);
    - a versão **2.9**;
    - o administrador inicial marcado como **Superadmin**.
 5. Confira **Regras de detecção**: devem existir 44 regras iniciais.
@@ -103,10 +127,13 @@ visita demora cerca de 1 minuto.
 
 ## 6. Instalar a extensão
 
-O botão **Baixar extensão (.zip)** monta o arquivo na hora com `config.js` contendo a URL pública deste
-servidor. Ele fica no mesmo bloco do código de verificação
-aos funcionários. O `public/sentinela-extensao.zip` do repositório é só o fallback de
-demonstração e pode ser regenerado com:
+O botão **Baixar extensão (.zip)** monta o arquivo com `config.js` contendo a URL pública deste
+servidor, mantém o resultado em cache por URL e limita downloads repetidos por IP. Ele fica no
+mesmo bloco do código de verificação
+aos funcionários. O código exibido no painel já inclui a URL do servidor; o colaborador cola o
+código completo nas Opções e não precisa informar endereço separado. O
+`public/sentinela-extensao.zip` do repositório é só o fallback de demonstração e pode ser
+regenerado com:
 
 ```bash
 rm -f public/sentinela-extensao.zip
@@ -115,11 +142,10 @@ zip -qr public/sentinela-extensao.zip extensao -x '*.DS_Store'
 
 O ZIP deve conter a pasta `extensao/` com `manifest.json` dentro. Em cada computador:
 
-1. Baixe o ZIP pelo painel em **Monitoramento → Código de verificação → Baixar extensão (.zip)**. A URL do servidor já vem
-   preenchida; o ZIP público do repositório continua disponível para demonstração.
+1. Baixe o ZIP pelo painel em **Monitoramento → Código de verificação → Baixar extensão (.zip)**. O código do painel já inclui
+   a URL do servidor; o ZIP público do repositório continua disponível para demonstração.
 2. Descompacte e recarregue em `chrome://extensions` ou `edge://extensions`.
-3. Abra **Opções** e confirme a URL preenchida; informe o código de verificação, o departamento e
-   o colaborador.
+3. Abra **Opções**, cole o código completo recebido e informe o departamento e o colaborador.
 4. Salve e use **Testar conexão**. Domínios novos são autorizados no mesmo salvamento.
 5. Abra o ChatGPT/Gemini/Claude/Copilot e teste texto + imagem/PDF.
 
@@ -148,6 +174,7 @@ No painel:
 - [ ] 44 regras visíveis;
 - [ ] criar/editar/excluir uma regra e recarregar em outra instância mostra a mudança;
 - [ ] um alerta de teste aparece com site, departamento, colaborador, IP, nível, tipos e origem;
+- [ ] o dispositivo aparece como **Ativo** no Monitoramento e muda para **Sem sinal** após 24 horas sem contato;
 - [ ] texto + imagem no mesmo conteúdo gera detecções das duas origens;
 - [ ] **Monitoramento → Código de verificação** mostra o endereço e o código corretos;
 - [ ] **Administradores** lista as contas de acesso ao painel;

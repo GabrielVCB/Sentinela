@@ -2,7 +2,7 @@
   "areas": [
     {
       "nome": "RH",
-      "descricao": "Dados pessoais, documentos, remuneração e vínculos de colaboradores. Acesso restrito ao time de pessoas.",
+      "descricao": "Dados pessoais, documentos, remuneração e vínculos dos colaboradores. Compartilhamento restrito ao RH.",
       "regras": [
         {
           "nome": "CPF",
@@ -68,7 +68,7 @@
     },
     {
       "nome": "Financeiro",
-      "descricao": "Valores, orçamento e resultados da companhia. Publicação somente em canais aprovados.",
+      "descricao": "Valores, orçamento e resultados da empresa. Publicação somente em canais aprovados.",
       "regras": [
         {
           "nome": "Nome de conta ou departamento",
@@ -116,7 +116,7 @@
     },
     {
       "nome": "TI",
-      "descricao": "Infraestrutura, credenciais e código proprietário. Nunca deve ser colado em ferramentas externas.",
+      "descricao": "Infraestrutura, credenciais e código proprietário. Não devem ser colados em ferramentas externas.",
       "regras": [
         {
           "nome": "Nome de software",
@@ -182,7 +182,7 @@
     },
     {
       "nome": "Segurança da Informação",
-      "descricao": "As causas mais comuns de incidentes: credenciais expostas, backups, dados de clientes e informação marcada como confidencial.",
+      "descricao": "Credenciais, backups, dados de clientes e informação marcada como confidencial. Compartilhamento somente em canais aprovados pela segurança.",
       "regras": [
         {
           "nome": "Documento confidencial",
@@ -266,7 +266,7 @@
     },
     {
       "nome": "Projetos e Estratégias",
-      "descricao": "Roadmap, lançamentos e movimentos competitivos. Informação estratégica antes do anúncio oficial.",
+      "descricao": "Roadmap, lançamentos e movimentos competitivos. Informação estratégica não deve circular antes do anúncio oficial.",
       "regras": [
         {
           "nome": "Nome de projeto interno",

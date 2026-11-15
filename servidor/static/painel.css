@@ -14,7 +14,7 @@
   --alto: #dc2626;
   --alto-bg: #fef2f2;
   --serif: Georgia, "Times New Roman", serif;
-  --sans: Inter, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
 }
 
@@ -145,6 +145,10 @@ button {
   font-weight: 400;
   font-size: 34px;
   letter-spacing: -0.02em;
+}
+
+.login-caixa h1.login-titulo {
+  text-align: center;
 }
 
 .login-voltar {
@@ -1203,6 +1207,41 @@ textarea:focus {
   background: #fff;
 }
 
+.badge.status-ativo,
+.badge.status-sem-sinal,
+.badge.status-desatualizada,
+.badge.status-removida {
+  background: transparent;
+}
+
+.badge.status-ativo {
+  color: var(--baixo);
+  border-color: color-mix(in srgb, var(--baixo) 35%, transparent);
+}
+
+.badge.status-sem-sinal {
+  color: var(--cinza);
+  border-color: var(--linha-forte);
+}
+
+.badge.status-desatualizada {
+  color: var(--medio);
+  border-color: color-mix(in srgb, var(--medio) 35%, transparent);
+}
+
+.badge.status-removida {
+  color: var(--alto);
+  border-color: color-mix(in srgb, var(--alto) 35%, transparent);
+}
+
+.badge.status-ativo::before,
+.badge.status-sem-sinal::before,
+.badge.status-desatualizada::before,
+.badge.status-removida::before {
+  display: block;
+  background: currentColor;
+}
+
 .status-gargalo {
   font-size: 10px;
   font-weight: 500;
@@ -1416,6 +1455,14 @@ textarea:focus {
 
 /* ----------------------------- Mensagens -------------------------------- */
 
+.secao[data-painel="mensagens"] .grade-mensagens {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  align-self: stretch;
+}
+
 .grade-mensagens {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1567,6 +1614,11 @@ textarea:focus {
   gap: 16px;
   border-top: 1px solid var(--linha);
   padding-top: 14px;
+}
+
+.paginacao-atividades {
+  border-top: 0;
+  padding-top: 12px;
 }
 
 /* ------------------------------- Diálogos ------------------------------- */
@@ -1964,18 +2016,6 @@ textarea:focus {
 /* 2.2 · Instalação */
 .tabela-dispositivos {
   min-width: 760px;
-}
-
-.codigo-dispositivo {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  color: var(--tinta);
-}
-
-.codigo-dispositivo.anterior {
-  color: var(--medio);
 }
 
 .token-valor {

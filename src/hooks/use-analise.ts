@@ -14,15 +14,17 @@ export function useAnaliseComDebounce(
   atraso = 400,
 ): { analise: Analise; analisando: boolean; reanalisar: () => Analise } {
   const [analise, setAnalise] = useState<Analise>(() => analisarTexto(texto, regras));
-  const [analisando, setAnalisando] = useState(false);
+  const [entradaAnalisada, setEntradaAnalisada] = useState({ texto, regras });
   const timer = useRef<number | null>(null);
 
+  const analisando =
+    entradaAnalisada.texto !== texto || entradaAnalisada.regras !== regras;
+
   useEffect(() => {
-    setAnalisando(true);
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
       setAnalise(analisarTexto(texto, regras));
-      setAnalisando(false);
+      setEntradaAnalisada({ texto, regras });
     }, atraso);
 
     return () => {
@@ -34,7 +36,7 @@ export function useAnaliseComDebounce(
     if (timer.current !== null) window.clearTimeout(timer.current);
     const resultado = analisarTexto(texto, regras);
     setAnalise(resultado);
-    setAnalisando(false);
+    setEntradaAnalisada({ texto, regras });
     return resultado;
   }, [texto, regras]);
 

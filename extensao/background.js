@@ -34,8 +34,8 @@ const ALARME_SYNC = "sentinela-sync";
 const ALARME_FILA = "sentinela-fila";
 
 // Sem endereço local: a extensão só fala com o servidor publicado na nuvem.
-// O arquivo baixado pelo painel traz a URL real; no ZIP público ela fica vazia
-// e pode ser informada em Opções.
+// O ZIP do painel traz a URL em config.js; no ZIP público, o código completo
+// copiado do painel carrega a URL junto com o token.
 const SERVIDOR_PADRAO = String(globalThis.SENTINELA_SERVIDOR_PADRAO || "").trim();
 
 const CONFIGURACAO_PADRAO = {
@@ -325,7 +325,7 @@ async function requisitar(caminho, opcoes, configuracaoExplicita) {
   const configuracao = configuracaoExplicita || (await obterConfiguracao());
   const base = normalizarUrl(configuracao.serverUrl);
   if (!base) {
-    throw new Error("A URL do servidor não está definida nesta instalação. Baixe a extensão pelo painel novamente.");
+    throw new Error("O código completo não incluiu o endereço do servidor. Copie novamente em Monitoramento → Código de verificação.");
   }
 
   const controlador = new AbortController();
@@ -534,7 +534,7 @@ async function sincronizarConfig(forcar, verificarRemoto) {
   try {
     const configuracao = await obterConfiguracao();
     if (!configuracao.serverUrl) {
-      throw new Error("A URL do servidor não está definida nesta instalação.");
+      throw new Error("O código completo não incluiu o endereço do servidor. Copie novamente em Monitoramento → Código de verificação.");
     }
     if (!(configuracao.apiToken || "").trim()) {
       throw new Error(
@@ -802,7 +802,7 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
           const base = normalizarUrl(configuracao.serverUrl);
           if (!base) {
             throw new Error(
-              "A URL do servidor não está definida nesta instalação. Baixe a extensão pelo painel novamente.",
+              "O código completo não incluiu o endereço do servidor. Copie novamente em Monitoramento → Código de verificação.",
             );
           }
           if (chrome.permissions && chrome.permissions.contains) {

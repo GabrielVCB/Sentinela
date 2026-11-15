@@ -35,7 +35,7 @@ import unicodedata
 import zipfile
 from collections import defaultdict, deque
 from datetime import datetime, timedelta, timezone
-from functools import wraps
+from functools import lru_cache, wraps
 from io import BytesIO
 from pathlib import Path
 from threading import Lock
@@ -62,7 +62,8 @@ import pdf
 VERSAO = "2.9"
 # A versão do produto continua 2.9; este sufixo invalida o cache dos arquivos
 # estáticos quando a interface muda sem alterar a versão exibida.
-VERSAO_ASSETS = "2.9.19"
+VERSAO_ASSETS = "2.9.26"
+LIMITE_SEM_SINAL_MINUTOS = 24 * 60
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 
 # ---------------------------------------------------------------------------
@@ -101,13 +102,21 @@ app.wsgi_app = ProxyFix(
     app.wsgi_app, x_for=PROXY_HOPS, x_proto=PROXY_HOPS, x_host=PROXY_HOPS
 )
 
-ORIGENS_CORS = os.environ.get("SENTINELA_CORS_ORIGINS", "*").strip() or "*"
-if ORIGENS_CORS != "*":
-    ORIGENS_CORS = [origem.strip() for origem in ORIGENS_CORS.split(",") if origem.strip()]
-    # O alerta da extensão chega de chrome-extension:// (Chrome e Edge).
-    # Restringir a lista não pode bloquear a extensão; o X-API-Token continua
-    # sendo a autorização real.
-    ORIGENS_CORS.append(r"chrome-extension://.*")
+# A landing e o painel são same-origin. O único consumidor cross-origin é a
+# extensão, cuja origem é chrome-extension:// (Chrome e Edge). Não usamos "*".
+ORIGENS_CORS_TEXTO = (os.environ.get("SENTINELA_CORS_ORIGINS") or "").strip()
+ORIGENS_CORS = [
+    origem.strip()
+    for origem in ORIGENS_CORS_TEXTO.split(",")
+    if origem.strip()
+]
+if "*" in ORIGENS_CORS:
+    app.logger.warning(
+        "SENTINELA_CORS_ORIGINS=* é ignorado; informe apenas as origens necessárias."
+    )
+    ORIGENS_CORS = [origem for origem in ORIGENS_CORS if origem != "*"]
+# O X-API-Token continua sendo a autorização real da extensão.
+ORIGENS_CORS.append(r"chrome-extension://.*")
 CORS(
     app,
     resources={r"/api/*": {"origins": ORIGENS_CORS}},
@@ -162,7 +171,7 @@ db.inicializar_banco(ADMIN_USUARIO, ADMIN_SENHA)
 def variaveis_globais():
     """Deixa a versão disponível em todos os templates.
 
-    Ela entra no endereço dos arquivos estáticos (?v=2.9.2), então o navegador
+    Ela entra no endereço dos arquivos estáticos (?v=2.9.26), então o navegador
     não reaproveita um painel.js ou um CSS de uma publicação anterior.
     """
     return {"versao": VERSAO, "versao_assets": VERSAO_ASSETS}
@@ -686,19 +695,14 @@ def url_publica_do_servidor() -> str:
     return base
 
 
-@app.get("/downloads/sentinela-extensao.zip")
-def baixar_extensao_configurada():
-    """Entrega o ZIP da extensão já com a URL pública deste servidor.
+@lru_cache(maxsize=4)
+def _zip_da_extensao(url_publica: str) -> bytes:
+    """Monta o ZIP uma vez por URL pública e reaproveita o resultado.
 
-    O ZIP estático do repositório continua disponível para demonstração, mas o
-    download pelo painel evita que o colaborador precise descobrir/colar a URL
-    do Render. O código de verificação continua sendo copiado à parte.
+    A URL muda apenas quando o serviço muda de domínio. Sem esse cache, cada
+    download recompacta os mesmos arquivos e consome CPU desnecessariamente.
     """
     base = RAIZ_PROJETO / "extensao"
-    if not base.is_dir():
-        return jsonify({"erro": "Arquivo da extensão não encontrado no servidor."}), 404
-
-    url = url_publica_do_servidor()
     conteudo = BytesIO()
     with zipfile.ZipFile(conteudo, "w", zipfile.ZIP_DEFLATED) as arquivo:
         for caminho in sorted(base.rglob("*")):
@@ -711,14 +715,33 @@ def baixar_extensao_configurada():
         arquivo.writestr(
             "extensao/config.js",
             "/** URL injetada pelo painel da Sentinela. */\n"
-            "globalThis.SENTINELA_SERVIDOR_PADRAO = " + json.dumps(url) + ";\n",
+            "globalThis.SENTINELA_SERVIDOR_PADRAO = " + json.dumps(url_publica) + ";\n",
         )
+    return conteudo.getvalue()
 
-    resposta = Response(conteudo.getvalue(), mimetype="application/zip")
+
+@app.get("/downloads/sentinela-extensao.zip")
+def baixar_extensao_configurada():
+    """Entrega o ZIP da extensão já com a URL pública deste servidor.
+
+    O ZIP estático do repositório continua disponível para demonstração, mas o
+    download pelo painel evita que o colaborador precise descobrir/colar a URL
+    do Render. O código de verificação continua sendo copiado à parte.
+    """
+    if not (RAIZ_PROJETO / "extensao").is_dir():
+        return jsonify({"erro": "Arquivo da extensão não encontrado no servidor."}), 404
+    if not _permitir_requisicao(f"download:{ip_do_cliente()}", 30, 60):
+        return jsonify({"erro": "Muitos downloads. Aguarde um instante."}), 429
+
+    conteudo = _zip_da_extensao(url_publica_do_servidor())
+    resposta = Response(conteudo, mimetype="application/zip")
     resposta.headers["Content-Disposition"] = (
         'attachment; filename="sentinela-extensao.zip"'
     )
-    resposta.headers["Cache-Control"] = "no-store"
+    # O navegador pode guardar por alguns minutos; a URL do servidor fica no
+    # config.js, então não é um conteúdo secreto. O rate limit acima protege
+    # contra downloads repetidos no mesmo minuto.
+    resposta.headers["Cache-Control"] = "private, max-age=300"
     return resposta
 
 
@@ -1043,23 +1066,50 @@ def areas_para_landing() -> list:
     ]
 
 
+# A landing é pública. Ela recebe apenas um subconjunto genérico para a demo;
+# a matriz completa, com todos os padrões, só é entregue pela API autenticada
+# pelo código de verificação da extensão.
+REGRAS_DEMO_PUBLICAS = [
+    {
+        "nome": "Orçamento interno",
+        "tipo": "palavra-chave",
+        "padrao": "orçamento, orcamento, budget",
+        "risco": "medio",
+        "area": "Financeiro",
+        "ativo": True,
+    },
+    {
+        "nome": "Cronograma de projeto",
+        "tipo": "palavra-chave",
+        "padrao": "cronograma, roadmap, cronograma do projeto",
+        "risco": "medio",
+        "area": "Projetos e Estratégias",
+        "ativo": True,
+    },
+    {
+        "nome": "Documento confidencial",
+        "tipo": "palavra-chave",
+        "padrao": "confidencial, uso interno, confidential",
+        "risco": "medio",
+        "area": "Segurança da Informação",
+        "ativo": True,
+    },
+    {
+        "nome": "Dados de clientes",
+        "tipo": "palavra-chave",
+        "padrao": "lista de clientes, base de clientes, customer list",
+        "risco": "alto",
+        "area": "Segurança da Informação",
+        "ativo": True,
+    },
+]
+
+
 def contexto_landing() -> dict:
-    regras_demo = [
-        {
-            "nome": regra["nome"],
-            "tipo": regra["tipo"],
-            "padrao": regra["padrao"],
-            "risco": regra["risco"],
-            "area": area["nome"],
-            "ativo": True,
-        }
-        for area in db.AREAS
-        for regra in area["regras"]
-    ]
     return {
         "areas": areas_para_landing(),
         "mensagens": db.MENSAGENS_PADRAO,
-        "regras_demo": regras_demo,
+        "regras_demo": REGRAS_DEMO_PUBLICAS,
         "ano": datetime.now(FUSO).year,
     }
 
@@ -1650,11 +1700,15 @@ def api_listar_departamentos():
 @exigir_sessao_api
 def api_instalacao():
     url_base = url_publica_do_servidor()
+    token = token_esperado()
     return jsonify(
         {
             "url_base": url_base,
             "download_url": url_for("baixar_extensao_configurada", _external=True),
-            "token": token_esperado(),
+            # O código de conexão leva a URL junto para a extensão funcionar
+            # também quando foi instalada pelo ZIP público (sem config.js).
+            "codigo": f"{url_base}|{token}",
+            "token": token,
             "codigo_versao": db.token_versao_api(),
             "dispositivos_vinculados": db.contar_dispositivos(db.token_versao_api()),
             "dispositivos_total": db.contar_dispositivos(),
@@ -1691,6 +1745,26 @@ def api_renovar_token():
     )
 
 
+def status_do_dispositivo(item, versao_atual: int) -> str:
+    """Classifica o dispositivo com dados que o servidor consegue observar.
+
+    Não é possível distinguir, sem um sinal da máquina, entre computador
+    desligado, rede indisponível e extensão desativada/removida sem aviso.
+    Todos esses casos aparecem como “sem sinal” após o limite configurado.
+    """
+    if not item.get("ativo"):
+        return "removida"
+    try:
+        ultimo = como_utc(item.get("ultimo_visto"))
+    except (TypeError, ValueError):
+        return "sem_sinal"
+    if (datetime.utcnow() - ultimo).total_seconds() > LIMITE_SEM_SINAL_MINUTOS * 60:
+        return "sem_sinal"
+    if item.get("codigo_versao") != versao_atual:
+        return "desatualizada"
+    return "ativo"
+
+
 @app.get("/api/admin/dispositivos")
 @exigir_sessao_api
 def api_listar_dispositivos():
@@ -1701,15 +1775,18 @@ def api_listar_dispositivos():
             {
                 **item,
                 "codigo_atual": item["codigo_versao"] == versao_atual,
+                "status": status_do_dispositivo(item, versao_atual),
                 "ultimo_visto": iso_para_navegador(item["ultimo_visto"]),
                 "primeiro_visto": iso_para_navegador(item["primeiro_visto"]),
             }
         )
+    total = sum(1 for item in dispositivos if item["ativo"])
     return jsonify(
         {
             "dispositivos": dispositivos,
             "codigo_versao": versao_atual,
-            "total": len(dispositivos),
+            "total": total,
+            "removidos": len(dispositivos) - total,
         }
     )
 
@@ -1769,7 +1846,14 @@ def api_listar_usuarios():
 @app.get("/api/admin/atividades")
 @exigir_sessao_api
 def api_listar_atividades():
-    limite = request.args.get("limite", 30, type=int) or 30
+    pagina = max(1, request.args.get("pagina", default=1, type=int) or 1)
+    por_pagina = request.args.get("por_pagina", default=8, type=int) or 8
+    por_pagina = max(5, min(50, por_pagina))
+
+    total = db.contar_atividades()
+    total_paginas = max(1, -(-total // por_pagina))
+    pagina = min(pagina, total_paginas)
+
     return jsonify(
         {
             "atividades": [
@@ -1777,8 +1861,12 @@ def api_listar_atividades():
                     **item,
                     "criado_em": iso_para_navegador(item["criado_em"]),
                 }
-                for item in db.listar_atividades(limite)
-            ]
+                for item in db.listar_atividades(pagina, por_pagina)
+            ],
+            "total": total,
+            "pagina": pagina,
+            "total_paginas": total_paginas,
+            "por_pagina": por_pagina,
         }
     )
 
@@ -2120,12 +2208,22 @@ def api_atualizar_regra(regra_id: int):
     conexao_aberta = conexao()
     try:
         atual = conexao_aberta.execute(
-            "SELECT nome FROM regras WHERE id = ?", (regra_id,)
+            "SELECT area_id, nome, tipo, padrao, risco, ativo FROM regras WHERE id = ?",
+            (regra_id,),
         ).fetchone()
         if not atual:
             return jsonify({"erro": "Regra não encontrada."}), 404
         if not area_existe(conexao_aberta, dados["area_id"]):
             raise ErroValidacao("Selecione uma área válida.")
+
+        campos_alterados = any(
+            dados[campo] != atual[campo]
+            for campo in ("area_id", "nome", "tipo", "padrao", "risco")
+        )
+        mudou_ativo = dados["ativo"] != atual["ativo"]
+        if not campos_alterados and not mudou_ativo:
+            return jsonify({"mensagem": "Regra atualizada."})
+
         conexao_aberta.execute(
             """
             UPDATE regras
@@ -2144,10 +2242,25 @@ def api_atualizar_regra(regra_id: int):
         )
         conexao_aberta.commit()
         invalidar_cache_config()
-        descricao_atividade = f'editou a regra “{atual["nome"]}”'
-        if dados["nome"] != atual["nome"]:
-            descricao_atividade += f' e renomeou para “{dados["nome"]}”'
-        registrar_atividade_admin("editou", "regra", descricao_atividade + ".")
+
+        if mudou_ativo and not campos_alterados:
+            if dados["ativo"]:
+                registrar_atividade_admin(
+                    "ativou", "regra", f'ativou a regra “{dados["nome"]}”.'
+                )
+            else:
+                registrar_atividade_admin(
+                    "desativou", "regra", f'desativou a regra “{dados["nome"]}”.'
+                )
+        else:
+            descricao_atividade = f'editou a regra “{atual["nome"]}”'
+            if dados["nome"] != atual["nome"]:
+                descricao_atividade += f' e renomeou para “{dados["nome"]}”'
+            if mudou_ativo:
+                descricao_atividade += " e " + (
+                    "ativou" if dados["ativo"] else "desativou"
+                )
+            registrar_atividade_admin("editou", "regra", descricao_atividade + ".")
         return jsonify({"mensagem": "Regra atualizada."})
     finally:
         conexao_aberta.close()
@@ -2264,9 +2377,9 @@ def api_salvar_configuracoes():
         try:
             limiar = int(corpo.get("limiar_gargalo"))
         except (TypeError, ValueError) as erro:
-            raise ErroValidacao("Informe um limite de criticidade numérico.") from erro
+            raise ErroValidacao("Informe uma tolerância numérica.") from erro
         if limiar < 0 or limiar > 100:
-            raise ErroValidacao("O limite de criticidade deve ficar entre 0 e 100%.")
+            raise ErroValidacao("A tolerância deve ficar entre 0 e 100%.")
 
     if "monitoramento_ativo" in corpo:
         if not isinstance(corpo["monitoramento_ativo"], bool):
@@ -2303,7 +2416,7 @@ def api_salvar_configuracoes():
         registrar_atividade_admin(
             "alterou",
             "configuracao",
-            f"alterou o limite de criticidade para {limiar}%.",
+            f"alterou a tolerância para {limiar}%.",
         )
     if "monitoramento_ativo" in corpo or "sites_ativos" in corpo:
         if politica["monitoramento_ativo"]:

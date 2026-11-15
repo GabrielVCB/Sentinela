@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { motion } from "framer-motion";
 import { useAnaliseComDebounce } from "@/hooks/use-analise";
-import { BaixarProjetoLink } from "@/components/BaixarProjeto";
 import { BannerRisco } from "@/components/painel/BannerRisco";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,19 +14,49 @@ import {
 import type { RegraEntrada } from "@/lib/detectores";
 import { ArrowUpRight } from "lucide-react";
 
-// A prévia não tem login próprio: o painel real é servido pelo Flask.
+// Esta é a prévia de desenvolvimento do Freebuff. A landing oficial é
+// `servidor/templates/landing.html`; o painel real também é servido pelo Flask.
 // Configure VITE_SENTINELA_URL com a URL pública do servidor.
 const URL_PAINEL = (
   (import.meta.env.VITE_SENTINELA_URL as string | undefined) ||
   "https://sentinela.suaempresa.com"
 ).replace(/\/+$/, "");
-const REGRAS_DEMO: RegraEntrada[] = AREAS_SEED.flatMap((area) =>
-  area.regras.map((regra) => ({
-    ...regra,
-    area: area.nome,
+// Só um conjunto curto de exemplos fica no bundle da prévia. A matriz completa
+// com os padrões de detecção é entregue pela API autenticada da extensão.
+const REGRAS_DEMO: RegraEntrada[] = [
+  {
+    nome: "Orçamento interno",
+    area: "Financeiro",
+    tipo: "palavra-chave",
+    padrao: "orçamento, orcamento, budget",
+    risco: "medio",
     ativo: true,
-  })),
-);
+  },
+  {
+    nome: "Cronograma de projeto",
+    area: "Projetos e Estratégias",
+    tipo: "palavra-chave",
+    padrao: "cronograma, roadmap, cronograma do projeto",
+    risco: "medio",
+    ativo: true,
+  },
+  {
+    nome: "Documento confidencial",
+    area: "Segurança da Informação",
+    tipo: "palavra-chave",
+    padrao: "confidencial, uso interno, confidential",
+    risco: "medio",
+    ativo: true,
+  },
+  {
+    nome: "Dados de clientes",
+    area: "Segurança da Informação",
+    tipo: "palavra-chave",
+    padrao: "lista de clientes, base de clientes, customer list",
+    risco: "alto",
+    ativo: true,
+  },
+];
 const AREAS_ORDENADAS = [...AREAS_SEED].sort((a, b) =>
   a.nome.localeCompare(b.nome, "pt-BR"),
 );
@@ -108,6 +137,11 @@ const RECURSOS = [
         texto:
           "Os alertas filtrados por data, departamento e nível podem ser exportados em CSV ou PDF.",
       },
+      {
+        titulo: "Atividades recentes",
+        texto:
+          "Cada alteração administrativa fica registrada com autor, ação e horário para auditoria.",
+      },
     ],
   },
 ];
@@ -182,8 +216,8 @@ export default function Landing() {
                 Claude e Copilot e avisa antes do envio. O texto nunca sai do navegador.
               </p>
               <p className="mt-3 max-w-md text-xs leading-6 text-muted-foreground">
-                Você define as regras, os departamentos e o limite de criticidade. O Sentinela
-                cuida do resto.
+                Você define as regras, os departamentos e a tolerância. O Sentinela cuida do
+                resto.
               </p>
 
 
@@ -610,7 +644,7 @@ export default function Landing() {
 
             <div className="lg:border-l lg:border-background/15 lg:pl-12">
               <p className="max-w-xs font-serif text-5xl leading-[0.95] tracking-tight">
-                Limite de criticidade
+                Tolerância (%)
               </p>
               <p className="mt-4 max-w-xs text-justify text-sm leading-6 text-background/65">
                 Quando a proporção de alertas de risco alto de um departamento atinge ou passa do
@@ -618,13 +652,13 @@ export default function Landing() {
               </p>
 
               <div className="mt-6 flex flex-wrap gap-2 text-[10px] tracking-[0.08em] uppercase">
-                <span className="border border-risco-alto/60 px-2 py-1 text-risco-alto">Crítico</span>
-                <span className="border border-risco-medio/60 px-2 py-1 text-risco-medio">
-                  Em observação
-                </span>
                 <span className="border border-background/25 px-2 py-1 text-background/70">
                   Normal
                 </span>
+                <span className="border border-risco-medio/60 px-2 py-1 text-risco-medio">
+                  Em observação
+                </span>
+                <span className="border border-risco-alto/60 px-2 py-1 text-risco-alto">Crítico</span>
               </div>
 
               <div className="mt-8 border-t border-background/15 pt-4">
@@ -691,12 +725,20 @@ export default function Landing() {
               <a href="#funciona" className="text-muted-foreground hover:text-foreground">
                 Como funciona
               </a>
-              <BaixarProjetoLink
+              <a
+                href="/sentinela-projeto.zip"
+                download
                 className="text-muted-foreground hover:text-foreground"
-                rotuloBaixando="Baixando projeto"
               >
                 Baixar projeto
-              </BaixarProjetoLink>
+              </a>
+              <a
+                href="/sentinela-extensao.zip"
+                download
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Baixar extensão
+              </a>
             </div>
           </div>
         </div>

@@ -1,8 +1,8 @@
 /**
  * Sentinela — demonstração local da página inicial.
  *
- * Usa o mesmo motor de detecção da extensão (detectores.js) e as regras
- * públicas de /api/config. Nenhum texto sai do navegador.
+ * Usa o mesmo motor de detecção da extensão (detectores.js) e um subconjunto
+ * público de regras. Nenhum texto sai do navegador.
  */
 (function () {
   "use strict";
@@ -28,8 +28,8 @@
     console.warn("Dados padrão da demonstração indisponíveis.", erro);
   }
 
-  // A prévia usa as regras iniciais embutidas na página. A matriz editável do
-  // painel exige o código de verificação e não é exposta na landing pública.
+  // A prévia usa só as regras públicas embutidas na página. A matriz completa
+  // com todos os padrões exige o código de verificação e não é exposta aqui.
   var ultimo = "";
 
   function renderizar(resultado) {

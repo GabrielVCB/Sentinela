@@ -1,0 +1,84 @@
+{
+  "areas": [
+    {
+      "nome": "RH",
+      "descricao": "Dados pessoais, documentos, remuneração e vínculos dos colaboradores. Compartilhamento restrito ao RH.",
+      "regras": [
+        { "nome": "CPF", "risco": "alto" },
+        { "nome": "Nome do colaborador", "risco": "baixo" },
+        { "nome": "Cargo ou função", "risco": "baixo" },
+        { "nome": "Salário", "risco": "alto" },
+        { "nome": "Dados bancários", "risco": "alto" },
+        { "nome": "Documento de identidade", "risco": "alto" },
+        { "nome": "Data de nascimento", "risco": "medio" },
+        { "nome": "Endereço residencial", "risco": "medio" },
+        { "nome": "Dados de saúde", "risco": "alto" },
+        { "nome": "Avaliação de desempenho", "risco": "medio" }
+      ]
+    },
+    {
+      "nome": "Financeiro",
+      "descricao": "Valores, orçamento e resultados da empresa. Publicação somente em canais aprovados.",
+      "regras": [
+        { "nome": "Nome de conta ou departamento", "risco": "baixo" },
+        { "nome": "Valor de despesa", "risco": "medio" },
+        { "nome": "Orçamento interno", "risco": "medio" },
+        { "nome": "Faturamento", "risco": "alto" },
+        { "nome": "Dados bancários da empresa", "risco": "alto" },
+        { "nome": "Nota fiscal ou pedido", "risco": "medio" },
+        { "nome": "Previsão de resultados", "risco": "alto" }
+      ]
+    },
+    {
+      "nome": "TI",
+      "descricao": "Infraestrutura, credenciais e código proprietário. Não devem ser colados em ferramentas externas.",
+      "regras": [
+        { "nome": "Nome de software", "risco": "baixo" },
+        { "nome": "Mensagem de erro genérica", "risco": "baixo" },
+        { "nome": "IP ou servidor interno", "risco": "alto" },
+        { "nome": "Código-fonte interno", "risco": "alto" },
+        { "nome": "Senha ou credencial", "risco": "alto" },
+        { "nome": "Token ou chave de API", "risco": "alto" },
+        { "nome": "Chave privada", "risco": "alto" },
+        { "nome": "String de conexão", "risco": "alto" },
+        { "nome": "URL com token de sessão", "risco": "alto" },
+        { "nome": "Credencial em URL", "risco": "alto" }
+      ]
+    },
+    {
+      "nome": "Segurança da Informação",
+      "descricao": "Credenciais, backups, dados de clientes e informação marcada como confidencial. Compartilhamento somente em canais aprovados pela segurança.",
+      "regras": [
+        { "nome": "Documento confidencial", "risco": "medio" },
+        { "nome": "Código de verificação ou MFA", "risco": "alto" },
+        { "nome": "Dump ou backup de banco", "risco": "alto" },
+        { "nome": "Dados de clientes", "risco": "alto" },
+        { "nome": "Acesso remoto ou VPN", "risco": "alto" },
+        { "nome": "Relatório de vulnerabilidade", "risco": "medio" },
+        { "nome": "Arquivo de ambiente", "risco": "medio" }
+      ]
+    },
+    {
+      "nome": "Jurídico",
+      "descricao": "Contratos, fornecedores e cláusulas. Compartilhamento exige revisão da área jurídica.",
+      "regras": [
+        { "nome": "Nome de fornecedor", "risco": "baixo" },
+        { "nome": "Número de contrato", "risco": "medio" },
+        { "nome": "Valor de contrato", "risco": "alto" },
+        { "nome": "Cláusulas contratuais", "risco": "alto" },
+        { "nome": "Processo judicial", "risco": "alto" }
+      ]
+    },
+    {
+      "nome": "Projetos e Estratégias",
+      "descricao": "Roadmap, lançamentos e movimentos competitivos. Informação estratégica não deve circular antes do anúncio oficial.",
+      "regras": [
+        { "nome": "Nome de projeto interno", "risco": "medio" },
+        { "nome": "Cronograma de projeto", "risco": "medio" },
+        { "nome": "Produto não lançado", "risco": "alto" },
+        { "nome": "Estratégia de negócio", "risco": "alto" },
+        { "nome": "Precificação ou proposta", "risco": "alto" }
+      ]
+    }
+  ]
+}
