@@ -100,7 +100,7 @@ const ETAPAS = [
     numero: "04",
     titulo: "Auditoria sem conteúdo",
     texto:
-      "O painel recebe só metadados do alerta (colaborador, departamento, IP, nível e decisão), nunca o conteúdo.",
+      "O painel recebe só metadados do alerta (colaborador, departamento, nível e decisão), nunca o conteúdo.",
   },
 ];
 
@@ -130,7 +130,7 @@ const RECURSOS = [
       {
         titulo: "Gestão centralizada",
         texto:
-          "IAs monitoradas, ativação e departamentos são definidos no painel e valem para todas as extensões.",
+          "IAs autorizadas, ativação e departamentos são definidos no painel e valem para todas as extensões.",
       },
       {
         titulo: "Relatórios",
@@ -442,7 +442,7 @@ export default function Landing() {
               <div className="border-b border-border p-6 md:border-r md:border-b-0 lg:p-8">
                 <p className="rotulo">Chega ao painel</p>
                 <p className="mt-3 text-justify text-sm leading-6 text-muted-foreground">
-                  IA, departamento, colaborador, IP, origem, nível, tipos e decisão.
+                  IA, departamento, colaborador, origem, nível, tipos e decisão.
                 </p>
               </div>
               <div className="p-6 lg:p-8">

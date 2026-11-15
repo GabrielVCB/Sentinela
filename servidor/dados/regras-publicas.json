@@ -35,7 +35,7 @@
       "regras": [
         { "nome": "Nome de software", "risco": "baixo" },
         { "nome": "Mensagem de erro genérica", "risco": "baixo" },
-        { "nome": "IP ou servidor interno", "risco": "alto" },
+        { "nome": "Endereço de servidor interno", "risco": "alto" },
         { "nome": "Código-fonte interno", "risco": "alto" },
         { "nome": "Senha ou credencial", "risco": "alto" },
         { "nome": "Token ou chave de API", "risco": "alto" },

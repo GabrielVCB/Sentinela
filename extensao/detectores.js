@@ -139,7 +139,7 @@
     ) || [];
     if (ips.length > 0) {
       deteccoes.push({
-        tipo: "IP ou servidor interno",
+        tipo: "Endereço de servidor interno",
         area: "TI",
         risco: "alto",
         ocorrencias: ips.length,

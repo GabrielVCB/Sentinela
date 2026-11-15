@@ -139,7 +139,6 @@ CREATE TABLE IF NOT EXISTS alertas (
     site text NOT NULL,
     departamento text NOT NULL,
     colaborador text,
-    ip text,
     nivel_risco text NOT NULL CHECK (nivel_risco IN ('baixo', 'medio', 'alto')),
     acao text NOT NULL CHECK (acao IN ('enviou', 'cancelou'))
 );
@@ -172,7 +171,6 @@ CREATE TABLE IF NOT EXISTS dispositivos (
     id text PRIMARY KEY,
     colaborador text,
     setor text,
-    ip text,
     versao text,
     codigo_versao integer NOT NULL DEFAULT 1,
     ativo integer NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1)),
@@ -413,6 +411,20 @@ MIGRACOES = [
         "008_status_dispositivos",
         """
         ALTER TABLE dispositivos ADD COLUMN IF NOT EXISTS removido_em text;
+        """,
+    ),
+    (
+        "009_remover_ip",
+        """
+        ALTER TABLE alertas DROP COLUMN IF EXISTS ip;
+        ALTER TABLE dispositivos DROP COLUMN IF EXISTS ip;
+        """,
+    ),
+    (
+        "010_renomear_regra_endereco_interno",
+        """
+        UPDATE regras SET nome = 'Endereço de servidor interno'
+            WHERE nome = 'IP ou servidor interno';
         """,
     ),
 ]
@@ -948,7 +960,6 @@ def registrar_dispositivo(
     dispositivo_id: str,
     colaborador: str,
     setor: str,
-    ip: str,
     versao: str,
     codigo_versao: int,
 ) -> int:
@@ -972,11 +983,11 @@ def registrar_dispositivo(
             conexao_aberta.execute(
                 """
                 UPDATE dispositivos
-                SET colaborador = ?, setor = ?, ip = ?, versao = ?,
+                SET colaborador = ?, setor = ?, versao = ?,
                     codigo_versao = ?, ativo = 1, removido_em = NULL, ultimo_visto = ?
                 WHERE id = ?
                 """,
-                (colaborador, setor, ip, versao, codigo_versao, agora, dispositivo_id),
+                (colaborador, setor, versao, codigo_versao, agora, dispositivo_id),
             )
             conexao_aberta.commit()
             return 1
@@ -984,18 +995,17 @@ def registrar_dispositivo(
         conexao_aberta.execute(
             """
             INSERT INTO dispositivos
-                (id, colaborador, setor, ip, versao, codigo_versao, ativo, primeiro_visto, ultimo_visto)
-            VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+                (id, colaborador, setor, versao, codigo_versao, ativo, primeiro_visto, ultimo_visto)
+            VALUES (?, ?, ?, ?, ?, 1, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 colaborador = excluded.colaborador,
                 setor = excluded.setor,
-                ip = excluded.ip,
                 versao = excluded.versao,
                 codigo_versao = excluded.codigo_versao,
                 removido_em = NULL,
                 ultimo_visto = excluded.ultimo_visto
             """,
-            (dispositivo_id, colaborador, setor, ip, versao, codigo_versao, agora, agora),
+            (dispositivo_id, colaborador, setor, versao, codigo_versao, agora, agora),
         )
         conexao_aberta.commit()
         return 1
@@ -1044,7 +1054,7 @@ def listar_dispositivos(dias_removidos: int = 30) -> list:
     try:
         linhas = conexao_aberta.execute(
             """
-            SELECT id, colaborador, setor, ip, versao, codigo_versao, ativo,
+            SELECT id, colaborador, setor, versao, codigo_versao, ativo,
                    removido_em, primeiro_visto, ultimo_visto
             FROM dispositivos
             WHERE ativo = 1 OR (removido_em IS NOT NULL AND removido_em >= ?)

@@ -128,7 +128,7 @@ visita demora cerca de 1 minuto.
 ## 6. Instalar a extensão
 
 O botão **Baixar extensão (.zip)** monta o arquivo com `config.js` contendo a URL pública deste
-servidor, mantém o resultado em cache por URL e limita downloads repetidos por IP. Ele fica no
+servidor, mantém o resultado em cache por URL e limita downloads repetidos. Ele fica no
 mesmo bloco do código de verificação
 aos funcionários. O código exibido no painel já inclui a URL do servidor; o colaborador cola o
 código completo nas Opções e não precisa informar endereço separado. O
@@ -173,7 +173,7 @@ No painel:
 - [ ] login funciona e o cookie é `Secure`;
 - [ ] 44 regras visíveis;
 - [ ] criar/editar/excluir uma regra e recarregar em outra instância mostra a mudança;
-- [ ] um alerta de teste aparece com site, departamento, colaborador, IP, nível, tipos e origem;
+- [ ] um alerta de teste aparece com site, departamento, colaborador, nível, tipos e origem;
 - [ ] o dispositivo aparece como **Ativo** no Monitoramento e muda para **Sem sinal** após 24 horas sem contato;
 - [ ] texto + imagem no mesmo conteúdo gera detecções das duas origens;
 - [ ] **Monitoramento → Código de verificação** mostra o endereço e o código corretos;

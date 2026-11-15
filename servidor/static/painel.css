@@ -24,6 +24,9 @@
 
 html {
   -webkit-font-smoothing: antialiased;
+  /* Mantém a largura do conteúdo igual ao alternar abas com alturas diferentes. */
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -148,6 +151,8 @@ button {
 }
 
 .login-caixa h1.login-titulo {
+  font-size: 30px;
+  line-height: 1.15;
   text-align: center;
 }
 
@@ -1375,7 +1380,7 @@ textarea:focus {
 
 .lista-simples li {
   display: grid;
-  grid-template-columns: 130px 1fr auto auto;
+  grid-template-columns: 130px minmax(0, 1fr) 74px 62px;
   gap: 12px;
   align-items: center;
   padding: 10px 0;
@@ -1393,9 +1398,15 @@ textarea:focus {
   font-size: 10px;
 }
 
+.lista-simples .badge {
+  justify-self: start;
+}
+
 .lista-simples .acao {
   color: var(--cinza-claro);
   font-size: 10px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 /* ------------------------------- Regras --------------------------------- */
@@ -1641,6 +1652,13 @@ textarea:focus {
   width: min(440px, calc(100vw - 32px));
 }
 
+#texto-info {
+  max-width: none;
+  line-height: 1.65;
+  text-align: justify;
+  text-justify: inter-word;
+}
+
 .formulario-dialogo {
   padding: 24px;
   display: flex;
@@ -1760,6 +1778,10 @@ textarea:focus {
   grid-template-columns: 1fr 1fr;
   gap: 0 20px;
   border-top: 1px solid var(--linha);
+}
+
+.resumo-detalhe-unico {
+  grid-template-columns: 1fr;
 }
 
 .resumo-detalhe > div {
@@ -2030,11 +2052,4 @@ textarea:focus {
   border-radius: 6px;
   background: var(--papel-alt, #f4f3ef);
   user-select: all;
-}
-
-.tabela tbody td.ip {
-  font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
-  font-size: 11px;
-  color: var(--tinta-suave, #55554f);
-  white-space: nowrap;
 }

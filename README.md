@@ -56,7 +56,7 @@ O Sentinela torna esse risco visível no momento certo:
 | **Sincronização automática** | Alterações no painel chegam a todas as extensões em até 1 minuto. |
 | **Auditoria sem conteúdo** | Registro dos alertas com filtros, retenção e exportação em CSV e PDF. |
 | **Letramento por departamento** | Compara envios e cancelamentos e destaca os departamentos críticos. |
-| **Gestão centralizada** | Ativação, IAs monitoradas e dispositivos conectados controlados em um só lugar. |
+| **Gestão centralizada** | Ativação, IAs autorizadas e dispositivos conectados, com status de cada instalação, em um só lugar. |
 | **Auditoria administrativa** | O histórico de atividades mostra quem alterou regras, mensagens, alertas e configurações, com ação e horário. |
 | **Resiliência** | Uma fila local reenvia os alertas quando o servidor ou a rede ficam indisponíveis. |
 
@@ -109,7 +109,7 @@ A extensão consulta periodicamente a versão da configuração e baixa a matriz
 | Tela | O que oferece |
 | --- | --- |
 | **Visão geral** | Indicadores, evolução dos alertas, distribuição por risco, decisão após o aviso, IAs com mais alertas, risco alto por departamento, tipos mais detectados e efetividade dos avisos. |
-| **Alertas** | Auditoria com filtros por data, departamento e nível, retenção e exportação em CSV e PDF. |
+| **Alertas** | Auditoria com filtros por data, departamento e nível, paginação, retenção e exportação em CSV e PDF. |
 | **Regras de detecção** | Busca, criação, edição, ativação e exclusão de regras. |
 | **Departamentos** | Matriz de risco e regras de cada departamento. Ao excluir um departamento, o histórico de alertas é preservado. |
 | **Mensagens educativas** | Textos exibidos no aviso para risco alto, médio, baixo com detecções e sem detecções, em cards compactos. |
@@ -132,11 +132,11 @@ A tolerância é configurável na **Visão geral**.
 
 ### Dispositivos e acessos
 
-- Cada instalação da extensão aparece no painel com colaborador, departamento, IP, status e último contato, e pode ser desconectada individualmente.
+- Cada instalação da extensão aparece no painel com colaborador, departamento, status e último contato, e pode ser desconectada individualmente.
 - Os status são: **Ativo** (contato recente e código atual), **Desatualizada** (contato recente, mas com código antigo), **Sem sinal** (sem contato há mais de 24 horas) e **Removida** (desconectada pelo painel).
 - Computador desligado, falta de rede e extensão desativada ou removida sem aviso aparecem como **Sem sinal**, porque o servidor não recebe um evento confiável nesses casos. As remoções feitas pelo painel ficam visíveis por 30 dias.
 - Ao renovar o código de verificação, cada dispositivo volta a conectar assim que o novo código é salvo nas Opções da extensão, sem reinstalar.
-- A política é central: a ativação e as IAs monitoradas são definidas no painel e valem para todos os computadores. As Opções da extensão guardam apenas o que é específico de cada máquina: código de verificação, departamento e identificador do colaborador.
+- A política é central: a ativação e quais IAs são autorizadas ficam no painel e valem para todos os computadores. As Opções da extensão guardam apenas o que é específico de cada máquina: código de verificação, departamento e identificador do colaborador.
 - O primeiro administrador criado pelo servidor é o **superadmin**. Ele não pode ser excluído e é o único que cria e exclui outros administradores. Contas comuns trocam a própria senha.
 
 ## Privacidade e segurança
@@ -145,7 +145,7 @@ A tolerância é configurável na **Visão geral**.
 
 ### O que chega ao painel
 
-Apenas o registro do alerta: a IA utilizada, o departamento, o colaborador, o IP, a origem do conteúdo (texto, imagem ou PDF), o nível de risco, os tipos de dado detectados e a decisão de enviar ou cancelar.
+Apenas o registro do alerta: a IA utilizada, o departamento, o colaborador, a origem do conteúdo (texto, imagem ou PDF), o nível de risco, os tipos de dado detectados e a decisão de enviar ou cancelar.
 
 ### Controle de acesso
 
@@ -185,7 +185,7 @@ Cada regra do painel pode ser uma **palavra-chave** ou uma **expressão regular 
 
 ## Instalação da extensão
 
-Cada colaborador instala a extensão no próprio Chrome ou Edge. O administrador fornece o código completo, que já inclui o endereço do servidor; o download feito pelo painel também traz esse endereço, é montado uma vez por URL e tem limite de downloads por IP.
+Cada colaborador instala a extensão no próprio Chrome ou Edge. O administrador fornece o código completo, que já inclui o endereço do servidor; o download feito pelo painel também traz esse endereço, é montado uma vez por URL e tem limite de downloads repetidos.
 
 1. O administrador fornece o código de verificação. Para testes sem o painel, há também o [ZIP público](./public/sentinela-extensao.zip).
 2. O arquivo é extraído em uma pasta de fácil acesso.

@@ -1146,7 +1146,7 @@ async function carregarAlertas(pagina) {
   if (!dados.registros.length) {
     const linha = criar("tr");
     const celula = criar("td", "nota", "Nenhum alerta com estes filtros.");
-    celula.colSpan = 10;
+    celula.colSpan = 9;
     linha.appendChild(celula);
     corpo.appendChild(linha);
     return;
@@ -1158,7 +1158,6 @@ async function carregarAlertas(pagina) {
     linha.appendChild(criar("td", "", quando(alerta.data_hora)));
     linha.appendChild(criar("td", "", alerta.departamento));
     linha.appendChild(criar("td", "", alerta.colaborador || "Não informado"));
-    linha.appendChild(criar("td", "ip", alerta.ip || "—"));
     linha.appendChild(criar("td", "", alerta.site));
     linha.appendChild(
       criar("td", "origem", ROTULO_ORIGEM[alerta.origem] || "Texto digitado"),
@@ -1226,7 +1225,6 @@ async function abrirDetalhe(id) {
       ["Nível de risco", ROTULO_NIVEL[alerta.nivel_risco]],
       ["Decisão", alerta.acao === "enviou" ? "Enviou" : "Cancelou"],
       ["Colaborador", alerta.colaborador || "Não informado"],
-      ["IP de origem", alerta.ip || "—"],
       ["Origem", ROTULO_ORIGEM[alerta.origem] || "Texto digitado"],
     ];
     pares.forEach(function (par) {
@@ -1276,7 +1274,6 @@ async function carregarInstalacao() {
   const codigo = dados.codigo || dados.token;
   $("instalacao-token").textContent = codigo;
   $("instalacao-token").dataset.valor = codigo;
-  $("instalacao-origem").textContent = dados.endereco_visto || "—";
 }
 
 async function carregarDispositivos() {
@@ -1304,7 +1301,7 @@ async function carregarDispositivos() {
   if (!estado.dispositivos.length) {
     const linha = criar("tr");
     const celula = criar("td", "micro", "Nenhum dispositivo conectado ainda.");
-    celula.colSpan = 6;
+    celula.colSpan = 5;
     linha.appendChild(celula);
     corpo.appendChild(linha);
     return;
@@ -1319,7 +1316,6 @@ async function carregarDispositivos() {
     );
     linha.appendChild(colaborador);
     linha.appendChild(criar("td", null, dispositivo.setor || "Não informado"));
-    linha.appendChild(criar("td", "ip", dispositivo.ip || "—"));
 
     const status = criar("td");
     status.appendChild(badgeStatusDispositivo(dispositivo.status));
@@ -1945,7 +1941,7 @@ function ligarEventos() {
     tolerancia:
       "Percentual de alertas de risco alto a partir do qual um departamento é marcado como crítico. Vale para departamentos com ao menos 3 alertas; abaixo disso, ficam em observação.",
     alertas:
-      "Registra cada aviso exibido nas extensões, com a IA usada, o departamento, o colaborador, o IP, a origem (texto, imagem ou PDF), o nível de risco, os tipos detectados e a decisão de enviar ou cancelar. O conteúdo da conversa não é guardado. Os registros podem ser filtrados por data, departamento e nível, exportados em CSV ou PDF e mantidos pelo período de retenção definido aqui.",
+      "Registra cada aviso exibido nas extensões, com a IA usada, o departamento, o colaborador, a origem (texto, imagem ou PDF), o nível de risco, os tipos detectados e a decisão de enviar ou cancelar. O conteúdo da conversa não é guardado. Os registros podem ser filtrados por data, departamento e nível, exportados em CSV ou PDF e mantidos pelo período de retenção definido aqui.",
     regras:
       "Reúne as regras que a extensão usa para identificar dados sensíveis. Cada regra pertence a um departamento, tem um nível de risco (baixo, médio ou alto) e um padrão de busca, que pode ser uma palavra-chave ou uma expressão regular. As regras podem ser criadas, editadas, ativadas, desativadas e excluídas, e as mudanças chegam às extensões automaticamente.",
     areas:
@@ -1953,7 +1949,7 @@ function ligarEventos() {
     mensagens:
       "Define os textos que o colaborador lê no aviso exibido antes do envio, com uma mensagem para cada situação: risco baixo, quando há detecções de baixo risco; sem detecções, quando nada sensível é encontrado e o aviso exibe o selo de verificação; risco médio; e risco alto. Como o nível e os tipos detectados já aparecem no próprio aviso, as mensagens trazem apenas a orientação, com limite de caracteres para manter o aviso curto. As alterações chegam às extensões automaticamente.",
     monitoramento:
-      "Define como as extensões se comportam em toda a empresa: se o monitoramento está ativo e quais IAs são acompanhadas. A lista mostra colaborador, departamento, IP e status: Ativo (contato recente e código atual), Desatualizada (contato recente, mas com código antigo), Sem sinal (sem contato há mais de 24 horas; inclui computador desligado, sem rede ou extensão desativada/removida sem aviso) e Removida (desconectada pelo painel; fica visível por 30 dias). Aqui ficam ainda o código de verificação e o download da extensão.",
+      "Define como as extensões se comportam em toda a empresa: se o monitoramento está ativo e quais IAs são acompanhadas. A lista mostra colaborador, departamento e status: Ativo (contato recente e código atual), Desatualizada (contato recente, mas com código antigo), Sem sinal (sem contato há mais de 24 horas; inclui computador desligado, sem rede ou extensão desativada/removida sem aviso) e Removida (desconectada pelo painel; fica visível por 30 dias). Aqui ficam ainda o código de verificação e o download da extensão.",
     administradores:
       "Gerencia as contas que acessam o painel. O superadmin, primeiro administrador criado, não pode ser excluído e é o único que cria e exclui outras contas. As demais contas usam o painel e podem trocar a própria senha. O histórico de atividades mostra quem fez cada alteração, com navegação por páginas.",
     codigo:

@@ -22,7 +22,7 @@ Painel (sessão):
     /api/admin/*             (JSON, protegido por sessão)
 
 O servidor nunca recebe o texto digitado pelo colaborador: apenas metadados
-do alerta (site, departamento, nível, tipos detectados, origem, ação e IP).
+do alerta (site, departamento, nível, tipos detectados, origem e ação).
 """
 import csv
 import hmac
@@ -62,7 +62,7 @@ import pdf
 VERSAO = "2.9"
 # A versão do produto continua 2.9; este sufixo invalida o cache dos arquivos
 # estáticos quando a interface muda sem alterar a versão exibida.
-VERSAO_ASSETS = "2.9.26"
+VERSAO_ASSETS = "2.9.27"
 LIMITE_SEM_SINAL_MINUTOS = 24 * 60
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 
@@ -95,8 +95,9 @@ app.config.update(
     PREFERRED_URL_SCHEME="https",
 )
 
-# Render/Cloud Run + Cloudflare: o ProxyFix recupera o IP real e o https.
-# Ajuste SENTINELA_PROXY_HOPS=2 quando houver Cloudflare na frente do serviço.
+# Render/Cloud Run + Cloudflare: o ProxyFix recupera o endereço de origem
+# usado no limite de requisições e o https. Ajuste SENTINELA_PROXY_HOPS=2
+# quando houver Cloudflare na frente do serviço.
 PROXY_HOPS = max(1, int(os.environ.get("SENTINELA_PROXY_HOPS", "1")))
 app.wsgi_app = ProxyFix(
     app.wsgi_app, x_for=PROXY_HOPS, x_proto=PROXY_HOPS, x_host=PROXY_HOPS
@@ -283,11 +284,11 @@ def limite_utc(data_texto: str, fim: bool = False) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Código de verificação e IP de origem
+# Código de verificação e limite por origem
 # ---------------------------------------------------------------------------
 
 def ip_do_cliente() -> str:
-    """IP de quem enviou o alerta. Atrás do proxy, o ProxyFix já resolveu isto."""
+    """Endereço de origem usado apenas no limite de requisições."""
     endereco = (request.remote_addr or "").strip()
     if not endereco:
         return "desconhecido"
@@ -583,7 +584,6 @@ def itens_do_alerta(conexao_aberta, alerta_id: int) -> list:
 
 
 def serializar_alerta(linha, itens: list) -> dict:
-    colunas = linha.keys()
     return {
         "id": linha["id"],
         "origem": linha["origem"] or "texto",
@@ -591,7 +591,6 @@ def serializar_alerta(linha, itens: list) -> dict:
         "site": linha["site"],
         "departamento": linha["departamento"],
         "colaborador": linha["colaborador"],
-        "ip": linha["ip"] if "ip" in colunas else None,
         "nivel_risco": linha["nivel_risco"],
         "acao": linha["acao"],
         "itens": itens,
@@ -884,7 +883,7 @@ def api_registrar_dispositivo():
     versao = texto_opcional(corpo.get("versao"), "Versão da extensão", 20) or "desconhecida"
     codigo_versao = db.token_versao_api()
     if db.registrar_dispositivo(
-        dispositivo_id, colaborador, departamento, ip_do_cliente(), versao, codigo_versao
+        dispositivo_id, colaborador, departamento, versao, codigo_versao
     ) == 0:
         return (
             jsonify(
@@ -910,7 +909,6 @@ def api_criar_alerta():
     # O código de verificação já foi conferido por @exigir_token_api antes de
     # qualquer gravação.
     corpo = ler_corpo()
-    ip = ip_do_cliente()
 
     site = texto_obrigatorio(corpo.get("site"), "Site", 120)
     departamento = texto_obrigatorio(corpo.get("departamento"), "Departamento", 80)
@@ -985,9 +983,9 @@ def api_criar_alerta():
                 conexao_aberta,
                 """
                 INSERT INTO alertas
-                    (evento_id, origem, data_hora, site, departamento, colaborador, ip,
+                    (evento_id, origem, data_hora, site, departamento, colaborador,
                      nivel_risco, acao)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     evento_id,
@@ -996,7 +994,6 @@ def api_criar_alerta():
                     site,
                     departamento,
                     colaborador,
-                    ip,
                     nivel_final,
                     acao,
                 ),
@@ -1544,7 +1541,6 @@ def api_exportar_csv():
             "Origem",
             "Departamento",
             "Colaborador",
-            "IP",
             "Nível",
             "Decisão",
             "Tipos",
@@ -1566,7 +1562,6 @@ def api_exportar_csv():
                 origens.get(linha["origem"], "Texto digitado"),
                 linha["departamento"],
                 linha["colaborador"] or "Não informado",
-                linha["ip"] or "—",
                 rotulos.get(linha["nivel_risco"], linha["nivel_risco"]),
                 "Enviou" if linha["acao"] == "enviou" else "Cancelou",
                 linha["tipos"] or "",
@@ -1618,7 +1613,6 @@ def api_exportar_pdf():
                 hora_local(linha["data_hora"]),
                 linha["departamento"],
                 linha["colaborador"] or "Não informado",
-                linha["ip"] or "—",
                 linha["site"],
                 origens.get(linha["origem"], "Texto"),
                 rotulos.get(linha["nivel_risco"], linha["nivel_risco"]),
@@ -1650,7 +1644,6 @@ def api_exportar_pdf():
             ("Data/hora", 1.15),
             ("Departamento", 1.1),
             ("Colaborador", 1.05),
-            ("IP", 1.05),
             ("Site", 1.25),
             ("Origem", 0.85),
             ("Nível", 0.62),
@@ -1713,7 +1706,6 @@ def api_instalacao():
             "dispositivos_vinculados": db.contar_dispositivos(db.token_versao_api()),
             "dispositivos_total": db.contar_dispositivos(),
             "superadmin": db.admin_e_superadmin(session.get("admin_id")),
-            "endereco_visto": ip_do_cliente(),
             "versao": VERSAO,
         }
     )

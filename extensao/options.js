@@ -43,6 +43,7 @@ function codigoDaTela() {
 const el = {};
 let avisoPermissao = "";
 let sitesConhecidos = [];
+let sitesTotais = [];
 let sitesPendentes = [];
 
 /**
@@ -195,15 +196,19 @@ function agendarAreas() {
   }, 500);
 }
 
-function desenharSites(sites, pendentes) {
-  sitesConhecidos = Array.isArray(sites) ? sites.slice() : [];
+function desenharSites(sites, pendentes, ativos) {
+  sitesTotais = Array.isArray(sites) ? sites.slice() : [];
   sitesPendentes = Array.isArray(pendentes) ? pendentes.slice() : [];
+  const autorizados = new Set(Array.isArray(ativos) ? ativos : []);
+  sitesConhecidos = sitesTotais.filter(function (site) {
+    return site && autorizados.has(site.id);
+  });
   el.sitesStatus.replaceChildren();
 
   if (!sitesConhecidos.length) {
     const vazio = document.createElement("li");
     vazio.className = "micro";
-    vazio.textContent = "Nenhuma IA carregada ainda. Salve a configuração para consultar o painel.";
+    vazio.textContent = "Nenhuma IA autorizada pelo painel no momento.";
     el.sitesStatus.appendChild(vazio);
   } else {
     sitesConhecidos.forEach(function (site) {
@@ -256,7 +261,7 @@ function atualizarResumo(estado) {
   el.sincronizacao.textContent = estado.cache ? quando(estado.cache.atualizadoEm) : "nunca";
   el.versao.textContent = estado.versao || chrome.runtime.getManifest().version;
   const politica = estado.configuracao || {};
-  const totalSites = Array.isArray(sitesConhecidos) ? sitesConhecidos.length : 0;
+  const totalSites = sitesTotais.length;
   const ativos = Array.isArray(politica.sitesAtivos) ? politica.sitesAtivos.length : 0;
   el.politica.textContent = politica.monitoramentoAtivo === false
     ? "Pausado pelo painel"
@@ -271,6 +276,9 @@ function atualizarResumo(estado) {
 }
 
 async function carregar() {
+  // Atualiza a versão da política antes de desenhar a lista. Assim uma IA
+  // desativada no painel some sem exigir "Testar conexão".
+  await enviar({ tipo: "OBTER_CONFIG" });
   const estado = await enviar({ tipo: "OBTER_ESTADO" });
   if (!estado.ok) {
     avisar(el.resultadoConexao, estado.erro || "Falha ao carregar o estado.", "erro");
@@ -288,7 +296,7 @@ async function carregar() {
   montarDepartamentos(areas, configuracao.departamento);
   // Sem cache (primeira abertura), as áreas vêm do servidor na hora.
   if (!areas || !areas.length) void carregarAreas(false);
-  desenharSites(estado.sites, estado.sitesPendentes);
+  desenharSites(estado.sites, estado.sitesPendentes, configuracao.sitesAtivos);
   atualizarResumo(estado);
 }
 
@@ -447,6 +455,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // A lista de departamentos acompanha o código digitado, sem salvar antes.
   el.token.addEventListener("input", agendarAreas);
+
+  // O service worker atualiza o cache periodicamente; a tela acompanha a
+  // mudança para refletir na hora uma IA desativada no painel.
+  chrome.storage.onChanged.addListener(function (mudancas, area) {
+    if (area !== "local" || !mudancas.cacheConfig) return;
+    void carregar();
+  });
 
   void carregar();
 });

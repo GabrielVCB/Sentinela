@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block titulo %}Entrar · Sentinela{% endblock %}
+{% block titulo %}Painel administrativo · Sentinela{% endblock %}
 
 {% block corpo %}
 <main class="login-pagina">
@@ -13,8 +13,7 @@
   <div class="login-conteudo">
     <section class="login-formulario" aria-labelledby="login-titulo">
       <div class="login-caixa">
-        <p class="rotulo">Painel administrativo</p>
-        <h1 id="login-titulo" class="login-titulo">Entrar</h1>
+        <h1 id="login-titulo" class="login-titulo">Painel administrativo</h1>
 
         <form method="post" action="{{ url_for('login') }}" class="formulario-login">
           <label class="campo">
