@@ -89,11 +89,13 @@
   var indiceRotacao = 1;
   var timerDigitacao = null;
   var timerRotacao = null;
+  var timerRetomada = null;
   var interagiu = false;
 
   function pararRotacao() {
     interagiu = true;
     clearTimeout(timerRotacao);
+    clearTimeout(timerRetomada);
     clearInterval(timerDigitacao);
   }
 
@@ -121,27 +123,33 @@
     }, 16);
   }
 
+  function avancarRotacao() {
+    if (reduzirMovimento || botoesRotacao.length < 2) return;
+    indiceRotacao = (indiceRotacao + 1) % botoesRotacao.length;
+    var botao = botoesRotacao[indiceRotacao];
+    digitar(botao.getAttribute("data-texto") || "", agendarRotacao);
+  }
+
   function agendarRotacao() {
     if (interagiu || reduzirMovimento || botoesRotacao.length < 2) return;
     clearTimeout(timerRotacao);
-    timerRotacao = setTimeout(function () {
-      indiceRotacao = (indiceRotacao + 1) % botoesRotacao.length;
-      var botao = botoesRotacao[indiceRotacao];
-      digitar(botao.getAttribute("data-texto") || "", agendarRotacao);
-    }, 4200);
+    timerRotacao = setTimeout(avancarRotacao, 4200);
   }
 
-  campo.addEventListener("input", function () {
-    pararRotacao();
-    analisar();
-  });
-  campo.addEventListener("focus", pararRotacao);
+  function retomarAposPausa() {
+    clearTimeout(timerRetomada);
+    timerRetomada = setTimeout(function () {
+      interagiu = false;
+      avancarRotacao();
+    }, 10000);
+  }
 
   document.querySelectorAll("[data-texto]").forEach(function (botao) {
     botao.addEventListener("click", function () {
       pararRotacao();
-      campo.focus();
-      digitar(botao.getAttribute("data-texto") || "", null);
+      var posicao = botoesRotacao.indexOf(botao);
+      if (posicao >= 0) indiceRotacao = posicao;
+      digitar(botao.getAttribute("data-texto") || "", retomarAposPausa);
     });
   });
 

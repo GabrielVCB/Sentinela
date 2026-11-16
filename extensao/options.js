@@ -11,6 +11,7 @@ const PADROES = {
 };
 
 let servidorAtual = PADROES.serverUrl;
+const CHAVE_TEMA = "temaExtensao";
 
 /**
  * O painel entrega um único código no formato `https://servidor|codigo`.
@@ -448,6 +449,22 @@ document.addEventListener("DOMContentLoaded", function () {
   el.testar = document.getElementById("testar");
   el.salvar = document.getElementById("salvar");
   el.versao = document.getElementById("versao-extensao");
+  el.tema = document.getElementById("tema-escuro");
+
+  chrome.storage.local.get([CHAVE_TEMA], function (dados) {
+    el.tema.checked = dados[CHAVE_TEMA] === "escuro";
+  });
+
+  el.tema.addEventListener("change", function () {
+    const tema = el.tema.checked ? "escuro" : "claro";
+    document.documentElement.dataset.tema = tema;
+    try {
+      localStorage.setItem(CHAVE_TEMA, tema);
+    } catch (erro) {
+      /* o tema continua valendo nesta sessão */
+    }
+    chrome.storage.local.set({ [CHAVE_TEMA]: tema });
+  });
 
   el.testar.addEventListener("click", testar);
   el.salvar.addEventListener("click", function () {
@@ -460,7 +477,12 @@ document.addEventListener("DOMContentLoaded", function () {
   // O service worker atualiza o cache periodicamente; a tela acompanha a
   // mudança para refletir na hora uma IA desativada no painel.
   chrome.storage.onChanged.addListener(function (mudancas, area) {
-    if (area !== "local" || !mudancas.cacheConfig) return;
+    if (area !== "local") return;
+    if (mudancas[CHAVE_TEMA]) {
+      el.tema.checked = mudancas[CHAVE_TEMA].newValue === "escuro";
+      return;
+    }
+    if (!mudancas.cacheConfig) return;
     void carregar();
   });
 

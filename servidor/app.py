@@ -526,6 +526,34 @@ def normalizar_url_do_site(valor: str) -> tuple:
     return host, f"https://{host}"
 
 
+def normalizar_urls_do_site(valor) -> tuple[list[str], list[str]]:
+    """Normaliza uma ou várias URLs, sem repetir hosts no mesmo cadastro."""
+    if isinstance(valor, str):
+        valores = [valor]
+    elif isinstance(valor, list):
+        valores = valor
+    else:
+        raise ErroValidacao("Informe ao menos uma URL da IA.")
+
+    hosts = []
+    urls = []
+    for item in valores:
+        if not isinstance(item, str):
+            raise ErroValidacao("Cada URL da IA deve ser um texto.")
+        if not item.strip():
+            continue
+        host, url = normalizar_url_do_site(item)
+        if host not in hosts:
+            hosts.append(host)
+            urls.append(url)
+
+    if not hosts:
+        raise ErroValidacao("Informe ao menos uma URL da IA.")
+    if len(hosts) > 10:
+        raise ErroValidacao("Cadastre no máximo 10 URLs por IA.")
+    return hosts, urls
+
+
 def gerar_id_site(nome: str, catalogo: dict) -> str:
     base = unicodedata.normalize("NFKD", nome or "")
     base = "".join(c for c in base if not unicodedata.combining(c)).lower()
@@ -2498,14 +2526,14 @@ def api_criar_site():
     nome = texto_obrigatorio(corpo.get("nome"), "Nome da IA", 60)
     if len(nome) < 2:
         raise ErroValidacao("O nome da IA deve ter pelo menos 2 caracteres.")
-    host, url = normalizar_url_do_site(corpo.get("url"))
+    hosts, urls = normalizar_urls_do_site(corpo.get("urls", corpo.get("url")))
     catalogo = catalogo_de_sites()
     for site in catalogo.values():
-        if host in (site.get("hosts") or []):
+        if any(host in (site.get("hosts") or []) for host in hosts):
             raise ErroValidacao("Este endereço já está vinculado a outra IA monitorada.")
 
     site_id = gerar_id_site(nome, catalogo)
-    db.criar_site(site_id, nome, [host], CAMPOS_GENERICOS, ENVIAR_GENERICOS)
+    db.criar_site(site_id, nome, hosts, CAMPOS_GENERICOS, ENVIAR_GENERICOS)
 
     politica = obter_politica_monitoramento()
     ativos = politica["sites_ativos"][:]
@@ -2521,8 +2549,9 @@ def api_criar_site():
                 "site": {
                     "id": site_id,
                     "nome": nome,
-                    "hosts": [host],
-                    "url": url,
+                    "hosts": hosts,
+                    "url": urls[0],
+                    "urls": urls,
                     "padrao": False,
                 },
                 "sites_ativos": ativos,
@@ -2544,20 +2573,28 @@ def api_atualizar_site(site_id: str):
     nome = texto_obrigatorio(corpo.get("nome"), "Nome da IA", 60)
     if len(nome) < 2:
         raise ErroValidacao("O nome da IA deve ter pelo menos 2 caracteres.")
-    host, url = normalizar_url_do_site(corpo.get("url"))
+    hosts, urls = normalizar_urls_do_site(corpo.get("urls", corpo.get("url")))
 
     for outro in db.listar_sites():
-        if outro["id"] != site_id and host in (outro.get("hosts") or []):
+        if outro["id"] != site_id and any(
+            host in (outro.get("hosts") or []) for host in hosts
+        ):
             raise ErroValidacao("Este endereço já está vinculado a outra IA monitorada.")
 
-    if db.atualizar_site(site_id, nome, [host]) == 0:
+    if db.atualizar_site(site_id, nome, hosts) == 0:
         return jsonify({"erro": "IA não encontrada."}), 404
     invalidar_cache_config()
     registrar_atividade_admin("editou", "ia", f'editou a IA monitorada “{site["nome"]}”.')
     return jsonify(
         {
-            "site": {**site, "nome": nome, "hosts": [host], "url": url},
-            "mensagem": "IA atualizada. Autorize o domínio novo nas Opções da extensão, se necessário.",
+            "site": {
+                **site,
+                "nome": nome,
+                "hosts": hosts,
+                "url": urls[0],
+                "urls": urls,
+            },
+            "mensagem": "IA atualizada. Autorize os domínios novos nas Opções da extensão, se necessário.",
         }
     )
 

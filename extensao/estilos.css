@@ -9,6 +9,22 @@
   --baixo: #16a34a;
   --medio: #f59e0b;
   --alto: #dc2626;
+  --papel-2: #f4f3ef;
+}
+
+html[data-tema="escuro"] {
+  --papel: #1a1917;
+  --papel-2: #232220;
+  --tinta: #ece9e2;
+  --cinza: #bdb8ad;
+  --cinza-claro: #938e83;
+  --tinta-suave: #c4bfb4;
+  --linha: #3b3935;
+  --linha-forte: #4a4742;
+  --baixo: #7fa98c;
+  --medio: #c6a06c;
+  --alto: #c88176;
+  color-scheme: dark;
 }
 
 * {
@@ -144,7 +160,7 @@ body.popup {
 .botao {
   appearance: none;
   border: 1px solid var(--linha-forte);
-  background: #fff;
+  background: var(--papel-2, #fff);
   color: var(--tinta);
   font: inherit;
   font-size: 11px;
@@ -172,6 +188,14 @@ body.popup {
   background: #2c2c2a;
 }
 
+html[data-tema="escuro"] .botao:hover {
+  border-color: var(--cinza-claro);
+}
+
+html[data-tema="escuro"] .botao.primario:hover {
+  background: #3b3935;
+}
+
 .botao.perigo {
   color: var(--alto);
   border-color: color-mix(in srgb, var(--alto) 35%, transparent);
@@ -197,7 +221,7 @@ body.popup {
   width: 36px;
   height: 19px;
   border: 1px solid var(--linha-forte);
-  background: #f0efeb;
+  background: var(--papel-2, #f0efeb);
   display: flex;
   align-items: center;
   padding: 2px;
@@ -226,7 +250,7 @@ input[type="url"],
 select {
   width: 100%;
   border: 1px solid var(--linha-forte);
-  background: #fff;
+  background: var(--papel-2, #fff);
   color: var(--tinta);
   font: inherit;
   font-size: 12px;
@@ -495,6 +519,15 @@ body.opcoes {
   background: linear-gradient(90deg, #efeee9 0%, #e2e0d9 50%, #efeee9 100%);
   background-size: 220% 100%;
   animation: esqueleto-opcoes 1.2s ease-in-out infinite;
+}
+
+html[data-tema="escuro"] .esqueleto {
+  background-image: linear-gradient(
+    90deg,
+    #232220 0%,
+    #3b3935 50%,
+    #232220 100%
+  );
 }
 
 @keyframes esqueleto-opcoes {

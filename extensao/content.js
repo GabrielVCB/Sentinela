@@ -260,6 +260,8 @@
     promptVazioEm: 0,
     textoIgnorado: "",
     ignorarTextoAte: 0,
+    tema: "claro",
+    temaRegistrado: false,
   };
 
   // -------------------------------------------------------------------------
@@ -396,11 +398,31 @@
     return true;
   }
 
+  function aplicarTemaExtensao(tema) {
+    estado.tema = tema === "escuro" ? "escuro" : "claro";
+    if (estado.host) estado.host.dataset.tema = estado.tema;
+  }
+
+  function observarTemaExtensao() {
+    if (estado.temaRegistrado) return;
+    estado.temaRegistrado = true;
+    try {
+      chrome.storage.onChanged.addListener(function (mudancas, area) {
+        if (area !== "local" || !mudancas.temaExtensao) return;
+        aplicarTemaExtensao(mudancas.temaExtensao.newValue);
+      });
+    } catch (erro) {
+      /* extensão recarregada: a página será atualizada pelo usuário */
+    }
+  }
+
   function iniciar() {
     if (!contextoAtivo()) return;
+    observarTemaExtensao();
 
-    chrome.storage.local.get(["configuracao", "cacheConfig"], function (dados) {
+    chrome.storage.local.get(["configuracao", "cacheConfig", "temaExtensao"], function (dados) {
       estado.settings = configuracaoLocal(dados.configuracao);
+      aplicarTemaExtensao(dados.temaExtensao);
       if (dados.cacheConfig) {
         aplicarConfig(dados.cacheConfig);
       }
@@ -1017,16 +1039,63 @@
     "animation:none!important;}}",
   ].join("");
 
+  var ESTILOS_ESCUROS = [
+    ":host([data-tema='escuro']){color:#ece9e2;}",
+    ":host([data-tema='escuro']) .painel{background:rgba(35,34,32,.93);",
+    "border-color:rgba(236,233,226,.12);color:#ece9e2;",
+    "box-shadow:0 18px 44px rgba(0,0,0,.42),0 2px 8px rgba(0,0,0,.24);}",
+    ":host([data-tema='escuro']) .painel::before{background:#938e83;}",
+    ":host([data-tema='escuro']) .painel.risco-baixo::before{background:#7fa98c;}",
+    ":host([data-tema='escuro']) .painel.risco-medio::before{background:#c6a06c;}",
+    ":host([data-tema='escuro']) .painel.risco-alto::before{background:#c88176;}",
+    ":host([data-tema='escuro']) .risco-baixo .nivel{color:#7fa98c;}",
+    ":host([data-tema='escuro']) .risco-medio .nivel{color:#c6a06c;}",
+    ":host([data-tema='escuro']) .risco-alto .nivel{color:#c88176;}",
+    ":host([data-tema='escuro']) .contagem{color:#938e83;}",
+    ":host([data-tema='escuro']) .tipos li{border-color:rgba(236,233,226,.13);",
+    "color:#d8d3c8;background:rgba(236,233,226,.045);}",
+    ":host([data-tema='escuro']) .tipos .area{color:#938e83;}",
+    ":host([data-tema='escuro']) .tipos .valor{background:#938e83;}",
+    ":host([data-tema='escuro']) .tipos .valor.medio{background:#c6a06c;}",
+    ":host([data-tema='escuro']) .tipos .valor.alto{background:#c88176;}",
+    ":host([data-tema='escuro']) .mensagem{color:#c4bfb4;}",
+    ":host([data-tema='escuro']) .anexo{border-color:rgba(236,233,226,.2);color:#c4bfb4;",
+    "background:rgba(236,233,226,.035);}",
+    ":host([data-tema='escuro']) .anexo b{color:#ece9e2;}",
+    ":host([data-tema='escuro']) .anexo .estado{color:#938e83;}",
+    ":host([data-tema='escuro']) .anexo.erro{border-color:rgba(200,129,118,.45);color:#c88176;}",
+    ":host([data-tema='escuro']) .anexo button{color:#938e83;}",
+    ":host([data-tema='escuro']) .anexo button:hover{color:#ece9e2;}",
+    ":host([data-tema='escuro']) .rodape{border-color:rgba(236,233,226,.1);color:#938e83;}",
+    ":host([data-tema='escuro']) .fechar{color:#938e83;}",
+    ":host([data-tema='escuro']) .fechar:hover{color:#ece9e2;background:rgba(236,233,226,.07);}",
+    ":host([data-tema='escuro']) .overlay{background:rgba(8,8,7,.55);}",
+    ":host([data-tema='escuro']) .modal{background:rgba(35,34,32,.97);",
+    "border-color:rgba(236,233,226,.13);box-shadow:0 30px 80px rgba(0,0,0,.5);}",
+    ":host([data-tema='escuro']) .modal .rotulo{color:#938e83;}",
+    ":host([data-tema='escuro']) .modal h2{color:#ece9e2;}",
+    ":host([data-tema='escuro']) .modal p{color:#c4bfb4;}",
+    ":host([data-tema='escuro']) .modal ul{border-color:rgba(236,233,226,.1);}",
+    ":host([data-tema='escuro']) .modal li{color:#d8d3c8;border-color:rgba(236,233,226,.1);}",
+    ":host([data-tema='escuro']) .modal li span{color:#938e83;}",
+    ":host([data-tema='escuro']) .acoes{border-color:rgba(236,233,226,.1);}",
+    ":host([data-tema='escuro']) button.acao{border-color:#4a4742;background:#2c2a27;color:#ece9e2;}",
+    ":host([data-tema='escuro']) button.acao:hover{border-color:#938e83;background:#3b3935;}",
+    ":host([data-tema='escuro']) button.acao.primario{background:#ece9e2;border-color:#ece9e2;color:#1a1917;}",
+    ":host([data-tema='escuro']) button.acao.primario:hover{background:#d8d3c8;}",
+  ].join("");
+
   function criarInterface() {
     if (estado.host) return;
 
     var host = document.createElement("div");
     host.id = "sentinela-governanca-host";
     host.setAttribute("data-sentinela", "interface");
+    host.dataset.tema = estado.tema;
     var shadow = host.attachShadow({ mode: "open" });
 
     var estilo = document.createElement("style");
-    estilo.textContent = ESTILOS;
+    estilo.textContent = ESTILOS + ESTILOS_ESCUROS;
 
     var raizBanner = document.createElement("div");
     raizBanner.className = "sentinela-banner";

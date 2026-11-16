@@ -285,7 +285,9 @@ svg {
   font-family: var(--sans);
   font-size: 13px;
   line-height: 1.65;
-  resize: vertical;
+  resize: none;
+  cursor: default;
+  pointer-events: none;
 }
 
 .lp-demo-campo textarea:focus {

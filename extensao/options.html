@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Sentinela · Opções</title>
+    <script src="tema.js"></script>
     <link rel="stylesheet" href="estilos.css" />
   </head>
   <body class="opcoes">
@@ -67,6 +68,25 @@
           <li class="sites-carregando" aria-label="Carregando IAs autorizadas"><span class="esqueleto"></span></li>
         </ul>
         <p id="permissao-sites" class="dica"></p>
+      </section>
+
+      <section class="secao">
+        <div class="secao-titulo">
+          <div>
+            <h2>Aparência</h2>
+            <p>Preferência apenas deste navegador; não altera o painel administrativo.</p>
+          </div>
+        </div>
+        <div class="linha-opcao">
+          <div>
+            <strong>Modo escuro</strong>
+            <p class="dica">Aplica o tema nas opções, no popup e no aviso exibido no chat.</p>
+          </div>
+          <label class="switch">
+            <input id="tema-escuro" type="checkbox" aria-label="Ativar modo escuro na extensão" />
+            <span class="trilho" aria-hidden="true"><span class="bolinha"></span></span>
+          </label>
+        </div>
       </section>
 
       <section class="secao">

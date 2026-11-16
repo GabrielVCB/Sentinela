@@ -245,6 +245,10 @@ export default function Landing() {
   const pausado = useRef(false);
   const timerRotacao = useRef<number | null>(null);
   const timerDigitacao = useRef<number | null>(null);
+  const timerRetomada = useRef<number | null>(null);
+  const retomadaPendente = useRef(false);
+  const indiceDemo = useRef(1);
+  const [recomeco, setRecomeco] = useState(0);
 
   useEffect(() => {
     if (!digitandoDemo.current) setAnaliseExibida(analise);
@@ -253,6 +257,8 @@ export default function Landing() {
   function pararDemo() {
     pausado.current = true;
     if (timerRotacao.current !== null) window.clearTimeout(timerRotacao.current);
+    if (timerRetomada.current !== null) window.clearTimeout(timerRetomada.current);
+    timerRetomada.current = null;
     if (timerDigitacao.current !== null) {
       window.clearInterval(timerDigitacao.current);
       timerDigitacao.current = null;
@@ -261,17 +267,34 @@ export default function Landing() {
     }
   }
 
+  function retomarDepoisDeDezSegundos() {
+    if (reduzirMovimento) return;
+    if (timerRetomada.current !== null) window.clearTimeout(timerRetomada.current);
+    timerRetomada.current = window.setTimeout(() => {
+      timerRetomada.current = null;
+      retomadaPendente.current = true;
+      pausado.current = false;
+      setRecomeco((atual) => atual + 1);
+    }, 10000);
+  }
+
   useEffect(() => {
     if (reduzirMovimento) return;
     pausado.current = false;
+    const retomando = retomadaPendente.current;
+    retomadaPendente.current = false;
     const rotacao = EXEMPLOS_DEMO.filter((exemplo) => exemplo.rotacao);
     // A prévia abre no risco médio; o primeiro giro automático mostra o alto.
-    let indice = 1;
+    let indice = indiceDemo.current;
     let cancelado = false;
 
     const limpar = () => {
       if (timerRotacao.current !== null) window.clearTimeout(timerRotacao.current);
       if (timerDigitacao.current !== null) window.clearInterval(timerDigitacao.current);
+      if (timerRetomada.current !== null) window.clearTimeout(timerRetomada.current);
+      timerRotacao.current = null;
+      timerDigitacao.current = null;
+      timerRetomada.current = null;
     };
 
     const digitar = (alvo: string, aoFinal: () => void) => {
@@ -301,18 +324,19 @@ export default function Landing() {
     const proximo = () => {
       if (cancelado || pausado.current) return;
       indice = (indice + 1) % rotacao.length;
+      indiceDemo.current = indice;
       digitar(rotacao[indice].texto, () => {
         if (cancelado || pausado.current) return;
         timerRotacao.current = window.setTimeout(proximo, 3800);
       });
     };
 
-    timerRotacao.current = window.setTimeout(proximo, 4200);
+    timerRotacao.current = window.setTimeout(proximo, retomando ? 0 : 4200);
     return () => {
       cancelado = true;
       limpar();
     };
-  }, [reduzirMovimento, regras]);
+  }, [reduzirMovimento, regras, recomeco]);
 
   function escolherExemplo(novoTexto: string) {
     pararDemo();
@@ -322,6 +346,10 @@ export default function Landing() {
       setAnaliseExibida(analisarTexto(novoTexto, regras));
       return;
     }
+
+    const rotacao = EXEMPLOS_DEMO.filter((exemplo) => exemplo.rotacao);
+    const posicaoNaRotacao = rotacao.findIndex((exemplo) => exemplo.texto === novoTexto);
+    if (posicaoNaRotacao >= 0) indiceDemo.current = posicaoNaRotacao;
 
     if (timerDigitacao.current !== null) window.clearInterval(timerDigitacao.current);
     let posicao = 0;
@@ -337,6 +365,8 @@ export default function Landing() {
         digitandoDemo.current = false;
         setDigitando(false);
         setAnaliseExibida(analisarTexto(novoTexto, regras));
+        // O risco escolhido fica parado por 10 s; depois a rotação continua.
+        retomarDepoisDeDezSegundos();
       }
     }, 16);
   }
@@ -442,19 +472,16 @@ export default function Landing() {
             >
               <div className="border border-border bg-card shadow-[0_24px_70px_rgba(27,27,26,0.1)]">
                 <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-                  <span className="font-mono text-[11px] text-muted-foreground">ChatGPT</span>
+                  <span className="font-mono text-[11px] text-muted-foreground">IAexemplo.com</span>
                   <span className="rotulo">prévia</span>
                 </div>
 
                 <Textarea
                   value={texto}
-                  onChange={(evento) => {
-                    pararDemo();
-                    setTexto(evento.target.value);
-                  }}
-                  onFocus={pararDemo}
-                  aria-label="Texto de demonstração"
-                  className="min-h-40 resize-none rounded-none border-0 bg-transparent px-4 py-4 text-sm leading-6 shadow-none focus-visible:ring-0"
+                  readOnly
+                  tabIndex={-1}
+                  aria-label="Texto de demonstração (somente leitura)"
+                  className="pointer-events-none min-h-40 cursor-default resize-none rounded-none border-0 bg-transparent px-4 py-4 text-sm leading-6 shadow-none focus-visible:ring-0"
                 />
 
                 <div className="border-t border-border bg-muted/30 p-3">

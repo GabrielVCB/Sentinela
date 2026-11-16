@@ -157,9 +157,8 @@
             <thead>
               <tr>
                 <th>Departamento</th>
-                <th class="direita">Alertas</th>
-                <th class="direita">Risco alto</th>
                 <th>Envios após o aviso</th>
+                <th class="direita">Risco alto / alertas</th>
                 <th>Situação</th>
               </tr>
             </thead>
@@ -623,10 +622,11 @@
       <span class="rotulo">Nome da IA</span>
                     <input type="text" id="site-nome" maxlength="60" required />
     </label>
-    <label class="campo">
-      <span class="rotulo">URL da IA</span>
-      <input type="url" id="site-url" placeholder="https://ia.exemplo.com" required />
-    </label>
+    <div class="campo">
+      <span class="rotulo">URLs da IA</span>
+      <div id="site-urls" class="site-urls"></div>
+      <button type="button" id="adicionar-url" class="botao pequeno adicionar-url">+ Adicionar URL</button>
+    </div>
 
     <div class="dialogo-acoes">
       <button type="button" class="botao" data-fecha="dialogo-site">Cancelar</button>

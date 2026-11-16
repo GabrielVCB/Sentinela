@@ -7,12 +7,12 @@
   --cinza-claro: #8a8a84;
   --linha: #e0ded8;
   --linha-forte: #cfcdc6;
-  --baixo: #16a34a;
-  --baixo-bg: #f0fdf4;
-  --medio: #f59e0b;
-  --medio-bg: #fffbeb;
-  --alto: #dc2626;
-  --alto-bg: #fef2f2;
+  --baixo: #3f7d5b;
+  --baixo-bg: #eff6f1;
+  --medio: #a9792f;
+  --medio-bg: #faf4e7;
+  --alto: #b45144;
+  --alto-bg: #f9eeec;
   --serif: Georgia, "Times New Roman", serif;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
@@ -242,12 +242,12 @@ button {
 }
 
 .item:hover {
-  background: rgba(27, 27, 26, 0.045);
+  background: color-mix(in srgb, var(--tinta) 5%, transparent);
   color: var(--tinta);
 }
 
 .item.ativo {
-  background: #ecebe6;
+  background: var(--menu-ativo, #ecebe6);
   color: var(--tinta);
 }
 
@@ -273,7 +273,7 @@ button {
 
 .menu-rodape {
   border-top: 1px solid var(--linha);
-  padding: 16px 22px;
+  padding: 0 22px 16px;
 }
 
 .usuario {
@@ -353,7 +353,7 @@ button {
   font-family: var(--mono);
   font-size: 10px;
   line-height: 1;
-  cursor: pointer;
+  cursor: default;
 }
 
 .rotulo .info-aba {
@@ -393,7 +393,7 @@ button {
   font-style: italic;
   line-height: 1;
   color: var(--cinza);
-  cursor: help;
+  cursor: default;
   text-transform: none;
   letter-spacing: 0;
 }
@@ -524,6 +524,7 @@ button {
 }
 
 input[type="text"],
+input[type="url"],
 input[type="search"],
 input[type="password"],
 input[type="number"],
@@ -792,6 +793,51 @@ textarea:focus {
   font-size: 10px;
   color: var(--cinza);
   overflow-wrap: anywhere;
+}
+
+.site-urls {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.linha-url {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.linha-url input {
+  flex: 1;
+  min-width: 0;
+}
+
+.remover-url {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 34px;
+  border: 1px solid var(--linha-forte);
+  background: var(--superficie);
+  color: var(--cinza);
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.remover-url:hover {
+  border-color: var(--alto);
+  color: var(--alto);
+}
+
+.remover-url[hidden] {
+  display: none;
+}
+
+.adicionar-url {
+  align-self: flex-start;
 }
 
 .site-origem {
@@ -2141,12 +2187,12 @@ textarea:focus {
 }
 
 .alternar-tema {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  margin-bottom: 16px;
-  padding: 8px 0;
+  width: auto;
+  margin: 0 -22px 16px;
+  padding: 14px 22px;
   border: 0;
   border-bottom: 1px solid var(--linha);
   background: transparent;
@@ -2211,6 +2257,7 @@ html[data-tema="escuro"] .icone-sol {
 }
 
 input[type="text"],
+input[type="url"],
 input[type="search"],
 input[type="password"],
 input[type="number"],
@@ -2474,24 +2521,24 @@ tr.carregando-esqueleto td {
 html[data-tema="escuro"] .app,
 html[data-tema="escuro"] .dialogo,
 html[data-tema="escuro"] .toast {
-  --papel: #151514;
-  --papel-2: #1c1c1a;
-  --superficie: #1f1f1d;
-  --superficie-2: #272725;
-  --menu-ativo: #2b2b28;
-  --tinta: #f0efe9;
-  --tinta-suave: #bcbab2;
-  --cinza: #bcbab2;
-  --cinza-claro: #908e86;
-  --linha: #30302c;
-  --linha-forte: #4b4a44;
-  --papel-alt: #232320;
-  --baixo: #4ade80;
-  --medio: #fbbf24;
-  --alto: #f87171;
-  --baixo-bg: #14281b;
-  --medio-bg: #2a2110;
-  --alto-bg: #2a1515;
+  --papel: #1a1917;
+  --papel-2: #232220;
+  --superficie: #232220;
+  --superficie-2: #2c2a27;
+  --menu-ativo: #2c2a27;
+  --tinta: #ece9e2;
+  --tinta-suave: #c4bfb4;
+  --cinza: #bdb8ad;
+  --cinza-claro: #938e83;
+  --linha: #3b3935;
+  --linha-forte: #4a4742;
+  --papel-alt: #2c2a27;
+  --baixo: #7fa98c;
+  --medio: #c6a06c;
+  --alto: #c88176;
+  --baixo-bg: #1f2a23;
+  --medio-bg: #2b251c;
+  --alto-bg: #2d2220;
   color-scheme: dark;
 }
 
@@ -2506,18 +2553,18 @@ html[data-tema="escuro"] .app textarea,
 html[data-tema="escuro"] .dialogo input,
 html[data-tema="escuro"] .dialogo select,
 html[data-tema="escuro"] .dialogo textarea {
-  background: #1b1b19;
+  background: #232220;
   color: var(--tinta);
 }
 
 html[data-tema="escuro"] .app .botao,
 html[data-tema="escuro"] .dialogo .botao {
-  background: #242421;
+  background: #2c2a27;
 }
 
 html[data-tema="escuro"] .app .botao:hover,
 html[data-tema="escuro"] .dialogo .botao:hover {
-  background: #2c2c28;
+  background: #3b3935;
 }
 
 html[data-tema="escuro"] .app .botao.primario,
@@ -2529,7 +2576,7 @@ html[data-tema="escuro"] .dialogo .botao.primario {
 html[data-tema="escuro"] .badge.admin-badge,
 html[data-tema="escuro"] .mensagem-editor,
 html[data-tema="escuro"] .preview-aviso {
-  background: #232320;
+  background: #2c2a27;
 }
 
 html[data-tema="escuro"] .faixa-status {

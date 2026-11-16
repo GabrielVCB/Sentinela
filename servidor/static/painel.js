@@ -26,6 +26,7 @@ const estado = {
   euSuperadmin: false,
   periodoGrafico: 14,
   resumoCarregado: false,
+  resumoAssinatura: "",
 };
 
 const CHAVE_TEMA = "sentinela-tema";
@@ -312,6 +313,12 @@ async function carregarResumo() {
         encodeURIComponent(estado.periodoGrafico),
     );
 
+    // A atualização automática acontece a cada 15 s. Redesenhar os mesmos
+    // números e gráficos reiniciava animações e dava a impressão de que a
+    // Visão geral estava piscando. Só há novo desenho quando o conteúdo muda.
+    const assinatura = JSON.stringify(dados);
+    if (estado.resumoCarregado && assinatura === estado.resumoAssinatura) return;
+
     animarMetrica($("kpi-total"), dados.total, function (valor) {
       return numero(Math.round(valor));
     });
@@ -375,6 +382,7 @@ async function carregarResumo() {
     desenharLetramento(dados);
     desenharGargalos(dados.gargalos);
     desenharUltimos(dados.ultimos);
+    estado.resumoAssinatura = assinatura;
   } finally {
     if (metricas) metricas.setAttribute("aria-busy", "false");
     estado.resumoCarregado = true;
@@ -529,7 +537,7 @@ function desenharGrafico(evolucao, periodo, tendencia) {
     areaClique.setAttribute("width", Math.max(passo, 4));
     areaClique.setAttribute("height", areaAltura);
     areaClique.setAttribute("fill", "transparent");
-    areaClique.style.cursor = "crosshair";
+    areaClique.style.cursor = "default";
     areaClique.addEventListener("mouseenter", function (evento) {
       tooltip.textContent =
         diaCurto(dia.data) +
@@ -745,7 +753,6 @@ function desenharBarras(porDepartamento) {
     const trilho = criar("span", "barra-trilho");
     const preenchimento = criar("span", "barra-preenchimento");
     preenchimento.style.width = Math.max((item.alto / maximo) * 100, item.alto > 0 ? 2 : 0) + "%";
-    preenchimento.style.background = variavelCss(container, "--alto", "#dc2626");
     trilho.appendChild(preenchimento);
     linha.appendChild(trilho);
 
@@ -792,7 +799,7 @@ function desenharLetramento(dados) {
   if (!dados.por_departamento.length) {
     const linha = criar("tr");
     const celula = criar("td", "", "Nenhum alerta registrado.");
-    celula.colSpan = 5;
+    celula.colSpan = 4;
     linha.appendChild(celula);
     corpo.appendChild(linha);
     return;
@@ -807,11 +814,6 @@ function desenharLetramento(dados) {
     nome.appendChild(criar("span", "", item.departamento));
     linha.appendChild(nome);
 
-    linha.appendChild(criar("td", "direita", item.total));
-
-    const alto = criar("td", "direita", item.alto + " · " + percentual(item.taxa_alto));
-    linha.appendChild(alto);
-
     const envio = criar("td");
     const barra = criar("div", "barra-envio");
     const trilho = criar("span", "trilho");
@@ -825,6 +827,13 @@ function desenharLetramento(dados) {
     barra.appendChild(criar("span", "percentual", percentual(item.taxa_envio)));
     envio.appendChild(barra);
     linha.appendChild(envio);
+
+    const alto = criar(
+      "td",
+      "direita",
+      item.alto + " / " + item.total + " · " + percentual(item.taxa_alto),
+    );
+    linha.appendChild(alto);
 
     const situacao = criar("td");
     if (gargalos.indexOf(item.departamento) >= 0) {
@@ -1851,8 +1860,47 @@ async function exportarPdfFiltrosAtuais() {
 // Monitoramento
 // ---------------------------------------------------------------------------
 
-function urlDoSite(site) {
-  return "https://" + ((site.hosts && site.hosts[0]) || "");
+function urlsDoSite(site) {
+  return (site.hosts || []).map(function (host) {
+    return "https://" + host;
+  });
+}
+
+function atualizarRemocaoUrls() {
+  const linhas = document.querySelectorAll("#site-urls .linha-url");
+  linhas.forEach(function (linha) {
+    const remover = linha.querySelector(".remover-url");
+    if (remover) remover.hidden = linhas.length <= 1;
+  });
+  const adicionar = $("adicionar-url");
+  if (adicionar) adicionar.disabled = linhas.length >= 10;
+}
+
+function adicionarLinhaUrl(valor) {
+  const container = $("site-urls");
+  if (!container || container.children.length >= 10) return;
+
+  const linha = criar("div", "linha-url");
+  const campo = document.createElement("input");
+  campo.type = "url";
+  campo.placeholder = "https://ia.exemplo.com";
+  campo.value = valor || "";
+  campo.setAttribute("aria-label", "URL da IA");
+
+  const remover = criar("button", "remover-url", "×");
+  remover.type = "button";
+  remover.setAttribute("aria-label", "Remover URL");
+  remover.hidden = container.children.length === 0;
+  remover.addEventListener("click", function () {
+    if (container.children.length <= 1) return;
+    linha.remove();
+    atualizarRemocaoUrls();
+  });
+
+  linha.appendChild(campo);
+  linha.appendChild(remover);
+  container.appendChild(linha);
+  atualizarRemocaoUrls();
 }
 
 function atualizarInterruptorMonitoramento() {
@@ -1886,7 +1934,7 @@ function desenharSitesMonitorados(disponiveis, ativos) {
     const topo = criar("div", "site-card-topo");
     const identidade = criar("div", "site-identidade");
     identidade.appendChild(criar("h3", null, site.nome || site.id));
-    identidade.appendChild(criar("p", "site-url", urlDoSite(site)));
+    identidade.appendChild(criar("p", "site-url", urlsDoSite(site).join(" · ")));
     topo.appendChild(identidade);
     card.appendChild(topo);
 
@@ -1940,7 +1988,12 @@ async function carregarMonitoramento() {
 function abrirSite(site) {
   $("site-id").value = site ? site.id : "";
   $("site-nome").value = site ? site.nome : "";
-  $("site-url").value = site ? urlDoSite(site) : "";
+  limpar($("site-urls"));
+  const urls = site ? urlsDoSite(site) : [""];
+  urls.forEach(function (url) {
+    adicionarLinhaUrl(url);
+  });
+  if (!urls.length) adicionarLinhaUrl("");
   $("titulo-site").textContent = site ? "Editar IA" : "Adicionar IA";
   $("dialogo-site").showModal();
   setTimeout(function () { $("site-nome").focus(); }, 30);
@@ -1949,7 +2002,14 @@ function abrirSite(site) {
 async function salvarSite(evento) {
   evento.preventDefault();
   const id = $("site-id").value.trim();
-  const corpo = JSON.stringify({ nome: $("site-nome").value.trim(), url: $("site-url").value.trim() });
+  const urls = Array.from(document.querySelectorAll("#site-urls .linha-url input"))
+    .map(function (campo) { return campo.value.trim(); })
+    .filter(Boolean);
+  if (!urls.length) {
+    avisar("Informe ao menos uma URL da IA.", "erro");
+    return;
+  }
+  const corpo = JSON.stringify({ nome: $("site-nome").value.trim(), urls: urls });
   try {
     await api(id ? "/api/admin/sites/" + encodeURIComponent(id) : "/api/admin/sites", {
       method: id ? "PUT" : "POST",
@@ -2063,6 +2123,12 @@ function ligarEventos() {
   });
 
   $("adicionar-chat").addEventListener("click", function () { abrirSite(null); });
+  $("adicionar-url").addEventListener("click", function () {
+    adicionarLinhaUrl("");
+    const campos = document.querySelectorAll("#site-urls .linha-url input");
+    const ultimo = campos[campos.length - 1];
+    if (ultimo) ultimo.focus();
+  });
   $("form-site").addEventListener("submit", salvarSite);
 
   $("nova-regra").addEventListener("click", function () { abrirRegra(null); });
