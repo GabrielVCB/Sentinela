@@ -377,7 +377,6 @@ async function carregarResumo() {
       "Comportamento dos colaboradores após o alerta",
     );
     desenharSites(dados.por_site || []);
-    desenharBarras(dados.por_departamento);
     desenharTipos(dados.tipos);
     desenharLetramento(dados);
     desenharGargalos(dados.gargalos);
@@ -724,41 +723,6 @@ function desenharSites(sites) {
     bloco.appendChild(linha);
   });
   container.appendChild(bloco);
-}
-
-function desenharBarras(porDepartamento) {
-  const container = $("barras-departamento");
-  limpar(container);
-
-  if (!porDepartamento.length) {
-    container.appendChild(
-      criar(
-        "p",
-        "grafico-vazio",
-        "Ainda não há dados por departamento. Eles aparecerão aqui após as primeiras detecções.",
-      ),
-    );
-    return;
-  }
-
-  const maximo = Math.max.apply(
-    null,
-    [1].concat(porDepartamento.map(function (item) { return item.alto; })),
-  );
-
-  porDepartamento.forEach(function (item) {
-    const linha = criar("div", "barra-item");
-    linha.appendChild(criar("span", "nome", item.departamento));
-
-    const trilho = criar("span", "barra-trilho");
-    const preenchimento = criar("span", "barra-preenchimento");
-    preenchimento.style.width = Math.max((item.alto / maximo) * 100, item.alto > 0 ? 2 : 0) + "%";
-    trilho.appendChild(preenchimento);
-    linha.appendChild(trilho);
-
-    linha.appendChild(criar("span", "barra-valor", item.alto + " de " + item.total));
-    container.appendChild(linha);
-  });
 }
 
 function desenharTipos(tipos) {
