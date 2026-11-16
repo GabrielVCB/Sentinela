@@ -7,12 +7,12 @@
   --cinza-claro: #8a8a84;
   --linha: #e0ded8;
   --linha-forte: #cfcdc6;
-  --baixo: #3f7d5b;
-  --baixo-bg: #eff6f1;
-  --medio: #a9792f;
-  --medio-bg: #faf4e7;
-  --alto: #b45144;
-  --alto-bg: #f9eeec;
+  --baixo: #16a34a;
+  --baixo-bg: #f0fdf4;
+  --medio: #f59e0b;
+  --medio-bg: #fffbeb;
+  --alto: #dc2626;
+  --alto-bg: #fef2f2;
   --serif: Georgia, "Times New Roman", serif;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
@@ -2533,12 +2533,12 @@ html[data-tema="escuro"] .toast {
   --linha: #3b3935;
   --linha-forte: #4a4742;
   --papel-alt: #2c2a27;
-  --baixo: #7fa98c;
-  --medio: #c6a06c;
-  --alto: #c88176;
-  --baixo-bg: #1f2a23;
-  --medio-bg: #2b251c;
-  --alto-bg: #2d2220;
+  --baixo: #16a34a;
+  --medio: #f59e0b;
+  --alto: #dc2626;
+  --baixo-bg: #14281b;
+  --medio-bg: #2a2110;
+  --alto-bg: #2a1515;
   color-scheme: dark;
 }
 
