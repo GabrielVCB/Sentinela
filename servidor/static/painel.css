@@ -511,6 +511,20 @@ button {
   color: var(--cinza);
 }
 
+.form-inline {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.form-inline .campo-inline {
+  align-items: center;
+}
+
+.form-inline .botao {
+  flex: 0 0 auto;
+}
+
 .campos-periodo {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1322,9 +1336,44 @@ textarea:focus {
   font-size: 12px;
 }
 
+/* Colunas com largura previsível. A coluna de risco fica centralizada com
+   o mesmo respiro à esquerda e à direita, entre a barra de envios e a situação. */
+.tabela-efetividade {
+  table-layout: fixed;
+  min-width: 820px;
+}
+
+.tabela-efetividade th:nth-child(1),
+.tabela-efetividade td:nth-child(1) {
+  width: 18%;
+}
+
+.tabela-efetividade th:nth-child(2),
+.tabela-efetividade td:nth-child(2) {
+  width: 34%;
+}
+
+.tabela-efetividade th:nth-child(3),
+.tabela-efetividade td:nth-child(3) {
+  width: 26%;
+  padding-left: 24px;
+  padding-right: 24px;
+  text-align: center;
+}
+
+.tabela-efetividade th:nth-child(4),
+.tabela-efetividade td:nth-child(4) {
+  width: 22%;
+}
+
 .tabela th.direita,
 .tabela td.direita {
   text-align: right;
+}
+
+.tabela th.centro,
+.tabela td.centro {
+  text-align: center;
 }
 
 .tabela th {
@@ -2521,6 +2570,12 @@ textarea {
 .tabela-dispositivos th:last-child,
 .tabela-dispositivos td:last-child {
   padding-right: 0;
+}
+
+.tabela-dispositivos th:nth-child(3),
+.tabela-dispositivos td:nth-child(3) {
+  width: 16%;
+  text-align: center;
 }
 
 .carregando-esqueleto span {

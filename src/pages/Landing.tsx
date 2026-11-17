@@ -32,8 +32,7 @@ import { analisarTexto, type RegraEntrada } from "@/lib/detectores";
 // `servidor/templates/landing.html`; o painel real também é servido pelo Flask.
 // Configure VITE_SENTINELA_URL com a URL pública do servidor.
 const URL_PAINEL = (
-  (import.meta.env.VITE_SENTINELA_URL as string | undefined) ||
-  "https://sentinela.suaempresa.com"
+  (import.meta.env.VITE_SENTINELA_URL as string | undefined) || ""
 ).replace(/\/+$/, "");
 
 // Só um conjunto curto de exemplos fica no bundle da prévia. A matriz completa
@@ -240,7 +239,11 @@ export default function Landing() {
   const mensagem = analiseExibida.deteccoes.length
     ? MENSAGENS_PADRAO[analiseExibida.nivel]
     : MENSAGENS_PADRAO.sem_deteccao;
-  const destino = `${URL_PAINEL}/painel`;
+  // No preview do Freebuff, o painel Flask é servido no mesmo host pelo proxy
+  // do Vite. Em um build publicado, VITE_SENTINELA_URL aponta para o servidor
+  // Flask oficial.
+  const destino =
+    import.meta.env.DEV || !URL_PAINEL ? "/painel" : `${URL_PAINEL}/painel`;
   const reduzirMovimento = useReducedMotion();
   const pausado = useRef(false);
   const timerRotacao = useRef<number | null>(null);

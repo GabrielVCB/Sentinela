@@ -3,10 +3,28 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { defineConfig } from "vite";
+import { painelPreviewPlugin } from "./scripts/painel-preview-plugin";
+
+const portaPainelPreview = process.env.SENTINELA_PREVIEW_PANEL_PORT || "5001";
+const destinosPainel = [
+  "/painel",
+  "/login",
+  "/logout",
+  "/api",
+  "/static",
+  "/downloads",
+  "/favicon.ico",
+];
+const proxyPainel = Object.fromEntries(
+  destinosPainel.map((destino) => [
+    destino,
+    { target: `http://127.0.0.1:${portaPainelPreview}` },
+  ]),
+);
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), vlyPlugin(), tailwindcss()],
+  plugins: [react(), vlyPlugin(), tailwindcss(), painelPreviewPlugin()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -65,6 +83,15 @@ export default defineConfig({
     // Bind to all interfaces so the browser runtime's server-ready event fires.
     host: true,
     port: 5173,
+    // O painel Flask roda ao lado do Vite no preview. O proxy mantém o mesmo
+    // host (localhost:5173), então sessão, cookies e redirecionamentos do
+    // painel continuam funcionando como no servidor publicado.
+    proxy: proxyPainel,
+    // O Postgres embutido grava muitos arquivos; não deixe o watcher do Vite
+    // interpretar cada escrita do banco como mudança da aplicação.
+    watch: {
+      ignored: ["**/.preview/**", "**/__pycache__/**"],
+    },
     // Keep HMR on, but disable full-screen error overlay
     hmr: {
       overlay: false,

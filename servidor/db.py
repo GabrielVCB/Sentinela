@@ -945,7 +945,7 @@ def remover_site(site_id: str) -> int:
 
 
 def versao_config() -> str:
-    """Versão leve da configuração, consultada pelas extensões a cada minuto."""
+    """Versão leve da configuração, consultada pelas abas de IA a cada 5 s."""
     return ler_configuracao("config_versao", "1")
 
 

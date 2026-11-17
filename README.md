@@ -6,7 +6,7 @@
 
 *O que é confidencial não deveria virar prompt.*
 
-Versão 3.0 · Extensão para Chrome e Edge
+Versão 3.0.1 · Extensão para Chrome e Edge
 
 [Baixar a extensão](./public/sentinela-extensao.zip) · [Como funciona](#como-funciona) · [Instalação](#instalação-da-extensão)
 
@@ -176,6 +176,20 @@ A extensão envia os alertas ao painel e recebe as regras e a configuração.
 A landing oficial é servida pelo Flask em `servidor/templates/landing.html`. A página React em
 `src/pages/Landing.tsx` é apenas a prévia de desenvolvimento do ambiente Freebuff e não é
 publicada pelo servidor Python.
+
+### Prévia do painel no ambiente de desenvolvimento
+
+O preview do Vite também inicia o painel Flask real, com um Postgres embutido e dados de
+demonstração. O plugin `scripts/painel-preview-plugin.ts` só roda em desenvolvimento e não
+altera o build nem a implantação.
+
+1. Se necessário, instale as dependências de preview: `python3 -m pip install -r scripts/requirements-preview.txt`.
+2. Clique em **Entrar** na landing ou abra `/painel` no preview (por exemplo, `http://localhost:5173/painel`) e entre com `admin` / `admin123`.
+3. O banco local fica em `.preview/pgdata`; apague essa pasta com o preview parado para recomeçar do zero.
+
+Defina `SENTINELA_PREVIEW_PANEL=0` para iniciar apenas a landing. O preview serve para validar
+painel, APIs e layout; a extensão continua precisando de um servidor HTTPS publicado para testar
+o fluxo completo no navegador.
 
 ### Como a detecção funciona
 

@@ -566,6 +566,10 @@ html[data-tema="escuro"] .esqueleto {
   border-bottom: 1px solid var(--linha);
 }
 
+.barra-salvar > div {
+  min-width: 0;
+}
+
 .nota {
   margin-top: 18px;
   max-width: 620px;

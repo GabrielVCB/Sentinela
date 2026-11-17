@@ -12,6 +12,7 @@ const PADROES = {
 
 let servidorAtual = PADROES.serverUrl;
 const CHAVE_TEMA = "temaExtensao";
+const CHAVE_TEMA_EM = "temaExtensaoEm";
 
 /**
  * O painel entrega um único código no formato `https://servidor|codigo`.
@@ -454,14 +455,42 @@ document.addEventListener("DOMContentLoaded", function () {
   el.versao = document.getElementById("versao-extensao");
   el.tema = document.getElementById("tema-escuro");
 
-  chrome.storage.local.get([CHAVE_TEMA], function (dados) {
-    el.tema.checked = dados[CHAVE_TEMA] === "escuro";
+  // O espelho local pode estar à frente do armazenamento por alguns
+  // milissegundos logo após a troca de tema. O maior horário vence, para o
+  // interruptor nunca abrir no estado oposto ao do popup.
+  let temaLocal = null;
+  let temaLocalEm = 0;
+  try {
+    const salvo = localStorage.getItem(CHAVE_TEMA);
+    if (salvo === "escuro" || salvo === "claro") temaLocal = salvo;
+    temaLocalEm = Number(localStorage.getItem(CHAVE_TEMA_EM)) || 0;
+  } catch (erro) {
+    /* sem espelho local */
+  }
+  if (temaLocal) el.tema.checked = temaLocal === "escuro";
+
+  chrome.storage.local.get([CHAVE_TEMA, CHAVE_TEMA_EM], function (dados) {
+    const salvoEm = Number(dados[CHAVE_TEMA_EM]) || 0;
+    if (!temaLocal || salvoEm > temaLocalEm) {
+      el.tema.checked = dados[CHAVE_TEMA] === "escuro";
+    }
   });
 
   el.tema.addEventListener("change", function () {
     const tema = el.tema.checked ? "escuro" : "claro";
+    const agora = Date.now();
+    temaLocalEm = agora;
     document.documentElement.dataset.tema = tema;
-    chrome.storage.local.set({ [CHAVE_TEMA]: tema });
+    // O espelho local é síncrono e deixa o popup já no tema certo mesmo se ele
+    // for aberto imediatamente depois do clique; o armazenamento compartilha
+    // o valor com as demais páginas da extensão.
+    try {
+      localStorage.setItem(CHAVE_TEMA, tema);
+      localStorage.setItem(CHAVE_TEMA_EM, String(agora));
+    } catch (erro) {
+      /* o tema continua valendo nesta sessão */
+    }
+    chrome.storage.local.set({ [CHAVE_TEMA]: tema, [CHAVE_TEMA_EM]: agora });
   });
 
   el.testar.addEventListener("click", testar);
@@ -476,8 +505,19 @@ document.addEventListener("DOMContentLoaded", function () {
   // mudança para refletir na hora uma IA adicionada ou desativada no painel.
   chrome.storage.onChanged.addListener(function (mudancas, area) {
     if (area !== "local") return;
-    if (mudancas[CHAVE_TEMA]) {
-      el.tema.checked = mudancas[CHAVE_TEMA].newValue === "escuro";
+    if (mudancas[CHAVE_TEMA] || mudancas[CHAVE_TEMA_EM]) {
+      const novoEm = Number(
+        mudancas[CHAVE_TEMA_EM] && mudancas[CHAVE_TEMA_EM].newValue,
+      ) || 0;
+      // Só aceita o valor compartilhado se ele não for mais antigo que o
+      // espelho local; assim uma notificação fora de ordem não faz o
+      // interruptor piscar no estado oposto ao do popup.
+      if (!novoEm || novoEm >= temaLocalEm) {
+        if (novoEm) temaLocalEm = novoEm;
+        if (mudancas[CHAVE_TEMA]) {
+          el.tema.checked = mudancas[CHAVE_TEMA].newValue === "escuro";
+        }
+      }
       return;
     }
     if (!mudancas.cacheConfig) return;

@@ -35,6 +35,9 @@ function pintarStatus(conectado, texto) {
 }
 
 async function carregar() {
+  // Confere a versão da política em segundo plano. Além de atualizar o estado,
+  // isso aplica imediatamente uma IA desativada no painel às abas já abertas.
+  void enviar({ tipo: "OBTER_CONFIG" });
   const estado = await enviar({ tipo: "OBTER_ESTADO" });
   if (!estado.ok) {
     pintarStatus(false, "Não foi possível ler a configuração.");
@@ -97,6 +100,14 @@ document.addEventListener("DOMContentLoaded", function () {
   elementos.opcoes.addEventListener("click", function () {
     chrome.runtime.openOptionsPage();
     window.close();
+  });
+
+  // Quando a sincronização termina e grava uma política nova, o popup aberto
+  // atualiza sozinho sem precisar ser fechado e reaberto.
+  chrome.storage.onChanged.addListener(function (mudancas, area) {
+    if (area !== "local") return;
+    if (!mudancas.cacheConfig && !mudancas.configuracao) return;
+    void carregar();
   });
 
   void carregar();

@@ -54,7 +54,7 @@ precisa existir no container. O `Dockerfile` também copia esse arquivo.
 | `SENTINELA_COOKIE_SEGURO` | sim | `1` em HTTPS. |
 | `SENTINELA_FORCAR_HTTPS` | sim | `1` em produção. |
 | `SENTINELA_PROXY_HOPS` | sim | `1` na Render; `2` com Cloudflare na frente. |
-| `SENTINELA_CONFIG_CACHE` | não | Segundos de cache do `/api/config`; padrão 30. |
+| `SENTINELA_CONFIG_CACHE` | não | Segundos de cache do `/api/config`; padrão 5. |
 | `SENTINELA_API_TOKEN` | não | Se definido, tem prioridade sobre o token do banco. |
 | `SENTINELA_CORS_ORIGINS` | não | Origens web exatas, separadas por vírgula. A extensão (`chrome-extension://`) é sempre permitida. Não use `*`. |
 

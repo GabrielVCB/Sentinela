@@ -32,10 +32,25 @@
     // Contexto antigo invalidado: a nova injeção pode assumir a aba.
     anteriorAtiva = false;
   }
-  if (anteriorAtiva) return;
+  if (anteriorAtiva) {
+    // A injeção pode ter sido feita justamente para avisar de uma mudança de
+    // política. A instância que já está na página confere a versão na hora.
+    try {
+      if (typeof instanciaAnterior.atualizar === "function") {
+        instanciaAnterior.atualizar();
+      }
+    } catch (erro) {
+      /* instância antiga sem o gancho de atualização */
+    }
+    return;
+  }
   globalThis.__SENTINELA_CONTENT_ATIVO__ = {
     ativa: function () {
       return contextoAtivo() && !(estado && estado.encerrado);
+    },
+    atualizar: function () {
+      if (!estado || !contextoAtivo() || estado.encerrado) return;
+      solicitarConfig();
     },
   };
 
@@ -427,22 +442,28 @@
   function iniciar() {
     if (!contextoAtivo()) return;
 
+    // Remove uma interface órfã de uma injeção/versão anterior antes de decidir
+    // se esta aba deve ou não continuar monitorada.
+    var antigo = document.getElementById("sentinela-governanca-host");
+    if (antigo) antigo.remove();
+
     iniciarAtualizacaoAoVivo();
     chrome.storage.local.get(["configuracao", "cacheConfig"], function (dados) {
       estado.settings = configuracaoLocal(dados.configuracao);
       if (dados.cacheConfig) {
         aplicarConfig(dados.cacheConfig);
       }
-      garantirMonitoramento();
-      // Mesmo sem o site ativo, consulta a política: o painel pode ativá-lo
-      // enquanto a aba já está aberta.
+      // Só monta a interface se a IA estiver realmente autorizada. Em uma IA
+      // desativada, a aba continua escutando a política para poder voltar a
+      // funcionar assim que o painel reativar, mas sem exibir aviso.
+      if (monitoramentoAtivo()) garantirMonitoramento();
       solicitarConfig();
     });
   }
 
   /**
    * Enquanto o chat estiver visível, confere a versão da política ao ganhar
-   * foco e a cada 30 s. Assim uma alteração feita pelo administrador aparece
+   * foco e a cada 5 s. Assim uma alteração feita pelo administrador aparece
    * na conversa aberta sem recarregar a página nem pedir ação ao funcionário.
    */
   function iniciarAtualizacaoAoVivo() {
@@ -455,10 +476,12 @@
     }
 
     estado.sincronizacaoTimer = setInterval(function () {
+      // Vale para qualquer aba visível, mesmo quando o foco está no painel
+      // administrativo em outra janela. É isso que faz o aviso sumir assim
+      // que a IA é desativada, sem exigir clicar de volta no chat.
       if (estado.encerrado || document.visibilityState !== "visible") return;
-      if (typeof document.hasFocus === "function" && !document.hasFocus()) return;
       solicitarConfig();
-    }, 30000);
+    }, 5000);
     window.addEventListener("focus", conferirSeVisivel);
     document.addEventListener("visibilitychange", conferirSeVisivel);
   }
@@ -499,11 +522,11 @@
       estado.settings.sitesAtivos = estado.config.sitesAtivos.slice();
     }
     if (!estado.site) {
-      esconderInterface();
+      removerInterface();
       return;
     }
     if (!monitoramentoAtivo()) {
-      esconderInterface();
+      removerInterface();
       return;
     }
     garantirMonitoramento();
@@ -532,14 +555,8 @@
     estado.vigias.push(setInterval(vigiarTexto, INTERVALO_VIGIA));
     window.addEventListener("resize", agendarPosicao, { passive: true });
     window.addEventListener("scroll", agendarPosicao, { passive: true });
-    // Ao voltar para a aba, confere a versão na hora em vez de esperar o
-    // próximo alarme de 30 segundos. O painel continua sendo a fonte da verdade.
-    window.addEventListener("focus", function () {
-      if (!estado.encerrado) solicitarConfig();
-    });
-    document.addEventListener("visibilitychange", function () {
-      if (!document.hidden && !estado.encerrado) solicitarConfig();
-    });
+    // Foco/visibilidade já são tratados por `iniciarAtualizacaoAoVivo`, que
+    // mantém um único poll de política por aba.
   }
 
   /**
@@ -1028,8 +1045,6 @@
     ".anexo.erro{border-color:rgba(220,38,38,.35);color:#dc2626;}",
     ".anexo button{appearance:none;border:0;background:transparent;color:#a09f98;font-size:12px;",
     "line-height:1;padding:0 1px;cursor:pointer;}.anexo button:hover{color:#1b1b1a;}",
-    ".rodape{margin:0;padding-top:7px;border-top:1px solid rgba(27,27,26,.09);font-size:9px;",
-    "letter-spacing:.04em;color:#a09f98;display:flex;justify-content:space-between;gap:8px;}",
     ".fechar{position:absolute;top:6px;right:6px;border:0;background:transparent;color:#a09f98;",
     "font-size:14px;line-height:1;padding:5px;cursor:pointer;border-radius:6px;",
     "transition:background .15s ease,color .15s ease;}",
@@ -1075,6 +1090,10 @@
 
   function criarInterface() {
     if (estado.host) return;
+    // Uma injeção anterior (por exemplo, antes de a extensão ser atualizada)
+    // pode ter deixado o aviso no DOM. Remove antes de montar a interface nova.
+    var antigo = document.getElementById("sentinela-governanca-host");
+    if (antigo) antigo.remove();
 
     var host = document.createElement("div");
     host.id = "sentinela-governanca-host";
@@ -1147,6 +1166,25 @@
     if (estado.raizBanner) estado.raizBanner.replaceChildren();
     if (estado.raizModal) estado.raizModal.replaceChildren();
     estado.modalAberto = false;
+  }
+
+  /**
+   * Remove a interface do DOM quando a IA deixa de ser monitorada. Apenas
+   * esconder o host pode falhar se o CSS do site usar `display` com
+   * `!important`; remover garante que nenhum aviso antigo permaneça na aba.
+   * Se a IA for reativada, `garantirMonitoramento` cria a interface de novo.
+   */
+  function removerInterface() {
+    esconderInterface();
+    if (estado.host) estado.host.remove();
+    // Também limpa um host órfão de uma injeção/versão anterior, mesmo que
+    // esta instância ainda não tenha montado a própria interface.
+    var orfao = document.getElementById("sentinela-governanca-host");
+    if (orfao) orfao.remove();
+    estado.host = null;
+    estado.shadow = null;
+    estado.raizBanner = null;
+    estado.raizModal = null;
   }
 
   function assinaturaAtual() {
@@ -1284,13 +1322,6 @@
       analise.deteccoes.length > 0 ? analise.nivel : "sem_deteccao",
     );
     conteudo.appendChild(mensagem);
-
-    var rodape = document.createElement("p");
-    rodape.className = "rodape";
-    var local = document.createElement("span");
-    local.textContent = "Análise local · o texto não sai do navegador";
-    rodape.appendChild(local);
-    conteudo.appendChild(rodape);
 
     var fechar = document.createElement("button");
     fechar.className = "fechar";
@@ -2022,7 +2053,7 @@
         estado.bannerOculto = false;
         clearTimeout(estado.limpandoPrompt);
         estado.limpandoPrompt = null;
-        esconderInterface();
+        removerInterface();
         return;
       }
       if (estado.host) estado.host.style.display = "";
@@ -2041,7 +2072,7 @@
         estado.bannerOculto = false;
         clearTimeout(estado.limpandoPrompt);
         estado.limpandoPrompt = null;
-        esconderInterface();
+        removerInterface();
         return;
       }
       if (estado.host) estado.host.style.display = "";

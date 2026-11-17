@@ -53,7 +53,7 @@ services:
       - key: SENTINELA_PROXY_HOPS
         value: "1"
       - key: SENTINELA_CONFIG_CACHE
-        value: "30"
+        value: "5"
       # Deixe vazio para permitir apenas a extensão. Se houver um site externo
       # consumindo a API, informe as origens exatas separadas por vírgula.
       - key: SENTINELA_CORS_ORIGINS

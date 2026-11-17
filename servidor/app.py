@@ -62,7 +62,7 @@ import pdf
 VERSAO = "3.0"
 # Este sufixo invalida o cache dos arquivos estáticos quando a interface muda
 # sem alterar a versão exibida do produto.
-VERSAO_ASSETS = "3.0.0"
+VERSAO_ASSETS = "3.0.1"
 LIMITE_SEM_SINAL_MINUTOS = 24 * 60
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 
@@ -93,6 +93,10 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
     MAX_CONTENT_LENGTH=256 * 1024,
     PREFERRED_URL_SCHEME="https",
+    # No preview local, templates e estáticos precisam refletir a edição sem
+    # reiniciar o servidor. Em produção o cache normal do Flask continua.
+    TEMPLATES_AUTO_RELOAD=AMBIENTE != "producao",
+    SEND_FILE_MAX_AGE_DEFAULT=0 if AMBIENTE != "producao" else 3600,
 )
 
 # Render/Cloud Run + Cloudflare: o ProxyFix recupera o endereço de origem
@@ -128,7 +132,7 @@ CORS(
 # Cache curto só do /api/config. É derivado do banco e invalidado em toda
 # alteração; existe para 500 extensões não consultarem o Postgres a cada poll.
 _CACHE_CONFIG = {"expira": 0.0, "dados": None}
-_CACHE_CONFIG_TTL = max(0, int(os.environ.get("SENTINELA_CONFIG_CACHE", "30")))
+_CACHE_CONFIG_TTL = max(0, int(os.environ.get("SENTINELA_CONFIG_CACHE", "5")))
 
 
 def invalidar_cache_config() -> None:
@@ -172,7 +176,7 @@ db.inicializar_banco(ADMIN_USUARIO, ADMIN_SENHA)
 def variaveis_globais():
     """Deixa a versão disponível em todos os templates.
 
-    Ela entra no endereço dos arquivos estáticos (?v=3.0.0), então o navegador
+    Ela entra no endereço dos arquivos estáticos (?v=3.0.1), então o navegador
     não reaproveita um painel.js ou um CSS de uma publicação anterior.
     """
     return {"versao": VERSAO, "versao_assets": VERSAO_ASSETS}
@@ -799,14 +803,16 @@ def api_health():
 @app.get("/api/config/versao")
 @exigir_token_api
 def api_config_versao():
-    """Resposta mínima consultada pelas extensões para detectar mudanças."""
-    cache = _CACHE_CONFIG["dados"] if time.monotonic() < _CACHE_CONFIG["expira"] else None
-    versao = cache.get("versao_config") if cache else db.versao_config()
-    codigo_versao = cache.get("codigo_versao") if cache else db.token_versao_api()
+    """Resposta mínima consultada pelas extensões para detectar mudanças.
+
+    Lê a versão direto do banco, sem o cache em memória do /api/config. Com
+    mais de um worker/instância, um cache local poderia segurar a versão antiga
+    e impedir que uma IA desativada sumisse da extensão.
+    """
     resposta = jsonify(
         {
-            "versao_config": versao or "1",
-            "codigo_versao": codigo_versao or 1,
+            "versao_config": db.versao_config() or "1",
+            "codigo_versao": db.token_versao_api() or 1,
             "versao": VERSAO,
         }
     )
@@ -818,9 +824,21 @@ def api_config_versao():
 @exigir_token_api
 def api_config():
     if _CACHE_CONFIG["dados"] is not None and time.monotonic() < _CACHE_CONFIG["expira"]:
-        resposta = jsonify(_CACHE_CONFIG["dados"])
-        resposta.headers["Cache-Control"] = f"private, max-age={_CACHE_CONFIG_TTL}"
-        return resposta
+        # Confere a versão antes de reaproveitar o cache. Se outro worker já
+        # gravou uma política nova, este worker não pode devolver a lista
+        # antiga junto com a versão nova (isso deixaria uma IA desativada
+        # visível até o próximo ciclo).
+        try:
+            versao_atual = str(db.versao_config() or "")
+        except Exception:
+            versao_atual = None
+        versao_cache = str(_CACHE_CONFIG["dados"].get("versao_config") or "")
+        if versao_atual is None or versao_atual == versao_cache:
+            resposta = jsonify(_CACHE_CONFIG["dados"])
+            resposta.headers["Cache-Control"] = f"private, max-age={_CACHE_CONFIG_TTL}"
+            return resposta
+        _CACHE_CONFIG["expira"] = 0.0
+        _CACHE_CONFIG["dados"] = None
 
     conexao_aberta = conexao()
     try:
@@ -2629,7 +2647,8 @@ def api_sincronizar_dispositivos():
     """Marca a configuração como nova para todos os dispositivos.
 
     Não há conexão aberta com cada navegador. A extensão consulta a versão a
-    cada 30 segundos e baixa a matriz quando percebe a mudança, sem botão manual.
+    cada 5 segundos nas abas visíveis e baixa a matriz quando percebe a mudança,
+    sem botão manual.
     """
     invalidar_cache_config()
     registrar_atividade_admin(
@@ -2639,7 +2658,7 @@ def api_sincronizar_dispositivos():
         {
             "versao_config": db.versao_config(),
             "dispositivos": db.contar_dispositivos(),
-            "mensagem": "Sincronização solicitada. As extensões aplicam em até 1 minuto.",
+            "mensagem": "Sincronização solicitada. As extensões aplicam em poucos segundos.",
         }
     )
 

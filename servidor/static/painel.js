@@ -794,7 +794,7 @@ function desenharLetramento(dados) {
 
     const alto = criar(
       "td",
-      "tabular",
+      "tabular centro",
       item.alto + " / " + item.total + " · " + percentual(item.taxa_alto),
     );
     linha.appendChild(alto);
@@ -1550,7 +1550,7 @@ async function carregarDispositivos() {
     linha.appendChild(
       criar(
         "td",
-        "tabular",
+        "tabular centro",
         numero(dispositivo.alertas_emitidos || 0),
       ),
     );
@@ -1927,7 +1927,15 @@ function desenharSitesMonitorados(disponiveis, ativos) {
       card.classList.toggle("site-card-ativo", checkbox.checked);
       textoInterruptor.textContent = checkbox.checked ? "Ativa" : "Pausada";
       atualizarEstadoMonitoramento();
-      agendarPoliticaMonitoramento();
+      // Desativar precisa chegar à extensão sem o atraso do agrupamento de
+      // cliques. Ativar continua usando o pequeno debounce para evitar uma
+      // sequência de gravações quando o administrador ajusta várias IAs.
+      if (!checkbox.checked) {
+        clearTimeout(timerPoliticaMonitoramento);
+        void salvarPoliticaMonitoramento();
+      } else {
+        agendarPoliticaMonitoramento();
+      }
     });
     alternativa.appendChild(checkbox);
     alternativa.appendChild(criar("span", "interruptor-site-trilho", null));
@@ -2013,6 +2021,8 @@ function removerSite(site) {
 }
 
 let timerPoliticaMonitoramento = null;
+let salvandoPoliticaMonitoramento = false;
+let politicaMonitoramentoPendente = null;
 
 function politicaMonitoramentoDaTela() {
   return {
@@ -2032,6 +2042,20 @@ function agendarPoliticaMonitoramento() {
   }, 250);
 }
 
+async function aplicarPoliticaMonitoramento(politica) {
+  const dados = await api("/api/admin/configuracoes", {
+    method: "PUT",
+    body: JSON.stringify(politica),
+  });
+  estado.monitoramento = Object.assign({}, estado.monitoramento, {
+    monitoramento_ativo: dados.monitoramento_ativo,
+    sites_ativos: dados.sites_ativos,
+    sites_disponiveis: dados.sites_disponiveis,
+  });
+  atualizarEstadoMonitoramento();
+  avisar("Monitoramento atualizado.");
+}
+
 async function salvarPoliticaMonitoramento() {
   const politica = politicaMonitoramentoDaTela();
   if (politica.monitoramento_ativo && !politica.sites_ativos.length) {
@@ -2040,21 +2064,26 @@ async function salvarPoliticaMonitoramento() {
     return;
   }
 
+  // Uma desativação pode disparar outra antes de a primeira gravação
+  // terminar. A fila mantém a ordem e garante que a última escolha da tela
+  // seja a política final, sem uma resposta antiga sobrescrever a nova.
+  politicaMonitoramentoPendente = politica;
+  if (salvandoPoliticaMonitoramento) return;
+  salvandoPoliticaMonitoramento = true;
   try {
-    const dados = await api("/api/admin/configuracoes", {
-      method: "PUT",
-      body: JSON.stringify(politica),
-    });
-    estado.monitoramento = Object.assign({}, estado.monitoramento, {
-      monitoramento_ativo: dados.monitoramento_ativo,
-      sites_ativos: dados.sites_ativos,
-      sites_disponiveis: dados.sites_disponiveis,
-    });
-    atualizarEstadoMonitoramento();
-    avisar("Monitoramento atualizado.");
-  } catch (erro) {
-    tratarErro(erro);
-    await carregarMonitoramento();
+    while (politicaMonitoramentoPendente) {
+      const atual = politicaMonitoramentoPendente;
+      politicaMonitoramentoPendente = null;
+      try {
+        await aplicarPoliticaMonitoramento(atual);
+      } catch (erro) {
+        tratarErro(erro);
+        await carregarMonitoramento();
+        break;
+      }
+    }
+  } finally {
+    salvandoPoliticaMonitoramento = false;
   }
 }
 

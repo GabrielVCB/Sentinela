@@ -20,9 +20,9 @@ try {
   /* configuração antiga sem config.js: a URL pode ser informada nas Opções */
 }
 
-// A extensão consulta só a versão da configuração a cada 30 segundos. A matriz
-// completa (regras, mensagens, áreas e chats) só é baixada quando essa versão
-// muda. Isso mantém a atualização transparente sem multiplicar o tráfego.
+// A extensão consulta só a versão da configuração a cada 5 segundos nas abas
+// visíveis, com um alarme de 1 minuto como rede de segurança. A matriz completa
+// (regras, mensagens, áreas e chats) só é baixada quando essa versão muda.
 const INTERVALO_SYNC = 30 * 1000;
 const VERSAO_EXTENSAO = chrome.runtime.getManifest().version;
 const LIMITE_TEXTO_ANEXO = 60000;
@@ -138,7 +138,7 @@ async function enfileirarAlerta(alerta) {
 async function garantirAlarmeSync() {
   // Um minuto é o menor período aceito por todas as versões do Chrome/Edge.
   // O alarme é só uma rede de segurança: as abas com IA aberta também
-  // consultam a versão ao ganhar foco e a cada 30 segundos.
+  // consultam a versão ao ganhar foco e a cada 5 segundos.
   try {
     await chrome.alarms.create(ALARME_SYNC, { periodInMinutes: 1 });
   } catch (erro) {
@@ -168,9 +168,14 @@ const HOSTS_ESTATICOS = [
 ];
 const ID_SCRIPT_DINAMICO = "sentinela-sites-dinamicos";
 
-function hostsDinamicos(sites) {
+function hostsDinamicos(sites, sitesAtivos) {
   const hosts = [];
+  const ativos = Array.isArray(sitesAtivos) ? sitesAtivos : null;
   (Array.isArray(sites) ? sites : []).forEach(function (site) {
+    // Ao registrar scripts novos, considera só as IAs ativas. A lista completa
+    // é usada para injetar/avisar abas já abertas e limpar avisos de IAs que
+    // acabaram de ser desativadas.
+    if (ativos && ativos.indexOf(String((site && site.id) || "")) < 0) return;
     (Array.isArray(site && site.hosts) ? site.hosts : []).forEach(function (host) {
       const limpo = String(host || "")
         .trim()
@@ -203,9 +208,9 @@ function origensDosHosts(hosts) {
  * mostram um botão para liberar os hosts configurados. A permissão é lembrada
  * pelo Chrome e os scripts são registrados de novo a cada sincronização.
  */
-async function registrarSitesDinamicos(sites) {
+async function registrarSitesDinamicos(sites, sitesAtivos) {
   if (!chrome.scripting || !chrome.permissions) return;
-  const hosts = hostsDinamicos(sites);
+  const hosts = hostsDinamicos(sites, sitesAtivos);
 
   try {
     await chrome.scripting.unregisterContentScripts({ ids: [ID_SCRIPT_DINAMICO] });
@@ -260,9 +265,12 @@ async function registrarSitesDinamicos(sites) {
  * script tem uma trava de inicialização, então isso é seguro mesmo quando o
  * registro dinâmico já o carregou.
  */
-async function injetarNasAbasAbertas(sites) {
+async function injetarNasAbasAbertas(sites, sitesAtivos) {
   if (!chrome.tabs || !chrome.scripting) return;
-  const hosts = hostsDinamicos(sites);
+  // Inclui os hosts estáticos para substituir uma instância órfã que tenha
+  // ficado na aba depois de uma atualização da extensão. O guard do content
+  // script evita duplicar a interface quando a instância ainda está viva.
+  const hosts = HOSTS_ESTATICOS.concat(hostsDinamicos(sites, sitesAtivos));
   if (!hosts.length) return;
 
   let abas = [];
@@ -604,10 +612,32 @@ async function registrarPeriodicamente(configuracao) {
 }
 
 /**
+ * Serializa as sincronizações. Várias abas podem pedir a política ao mesmo
+ * tempo; sem isso, uma resposta antiga poderia terminar depois da nova e
+ * regravar o cache com uma IA que já foi desativada.
+ */
+let sincronizacaoEmCurso = null;
+
+function sincronizarConfig(forcar, verificarRemoto) {
+  if (sincronizacaoEmCurso) {
+    if (!forcar) return sincronizacaoEmCurso;
+    return sincronizacaoEmCurso
+      .catch(function () { return null; })
+      .then(function () { return sincronizarConfig(true, verificarRemoto); });
+  }
+  sincronizacaoEmCurso = sincronizarConfigInterno(forcar, verificarRemoto).finally(
+    function () {
+      sincronizacaoEmCurso = null;
+    },
+  );
+  return sincronizacaoEmCurso;
+}
+
+/**
  * Atualiza o cache de regras. Com `verificarRemoto`, consulta primeiro só a
  * versão da configuração; se nada mudou, nem abre a matriz completa.
  */
-async function sincronizarConfig(forcar, verificarRemoto) {
+async function sincronizarConfigInterno(forcar, verificarRemoto) {
   const cache = await lerArmazenado(CHAVES.cache, null);
 
   if (!forcar && !verificarRemoto && cache && Date.now() - cache.atualizadoEm < INTERVALO_SYNC) {
@@ -656,7 +686,9 @@ async function sincronizarConfig(forcar, verificarRemoto) {
       atualizadoEm: Date.now(),
     };
     await salvarArmazenado(CHAVES.cache, novoCache);
-    await registrarSitesDinamicos(novoCache.sites);
+    await registrarSitesDinamicos(novoCache.sites, novoCache.sitesAtivos);
+    // Inclui também as IAs desativadas para limpar avisos antigos que tenham
+    // ficado abertos; o content script lê a política e não exibe nada nelas.
     await injetarNasAbasAbertas(novoCache.sites);
     await notificarAbasAtualizadas(novoCache);
     await registrarStatus(true, "Configuração sincronizada.");

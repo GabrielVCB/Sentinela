@@ -1,0 +1,4 @@
+# Dependências do painel quando ele é iniciado junto do Vite no preview.
+# O pgserver baixa um Postgres embutido para o banco de desenvolvimento local.
+-r ../servidor/requirements.txt
+pgserver>=0.1.4
