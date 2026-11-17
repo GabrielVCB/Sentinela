@@ -880,6 +880,14 @@ textarea:focus {
   user-select: none;
 }
 
+/* A largura reserva o espaço de "Pausada" para o interruptor e o texto
+   ficarem na mesma posição nos dois estados. */
+.interruptor-site-texto {
+  display: inline-block;
+  width: 4.5em;
+  white-space: nowrap;
+}
+
 .interruptor-regra {
   white-space: nowrap;
 }

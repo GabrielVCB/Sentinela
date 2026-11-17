@@ -1878,7 +1878,12 @@ function atualizarInterruptorMonitoramento() {
 }
 
 function atualizarEstadoMonitoramento() {
-  const ativos = document.querySelectorAll("#sites-monitorados .site-toggle:checked").length;
+  const geralAtivo = Boolean(
+    estado.monitoramento && estado.monitoramento.monitoramento_ativo,
+  );
+  const ativos = geralAtivo
+    ? document.querySelectorAll("#sites-monitorados .site-toggle:checked").length
+    : 0;
   atualizarInterruptorMonitoramento();
   $("monitoramento-chats-ativas").textContent = String(ativos);
   $("monitoramento-chats-total").textContent = String(estado.sites.length);
@@ -2149,7 +2154,7 @@ function ligarEventos() {
     if (estado.monitoramento) {
       estado.monitoramento.monitoramento_ativo = checkbox.checked;
     }
-    atualizarInterruptorMonitoramento();
+    atualizarEstadoMonitoramento();
     agendarPoliticaMonitoramento();
   });
 
