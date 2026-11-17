@@ -108,12 +108,12 @@ A extensão consulta periodicamente a versão da configuração e baixa a matriz
 
 | Tela | O que oferece |
 | --- | --- |
-| **Visão geral** | Indicadores, evolução dos alertas em períodos de 7, 14, 30 e 90 dias, tendência em relação ao período anterior, distribuição por risco, comportamento após alerta, IAs com mais ocorrências, risco alto por departamento, categorias mais identificadas e efetividade dos avisos. |
+| **Visão geral** | Indicadores, evolução dos alertas em períodos de 7, 14, 30 e 90 dias, tendência em relação ao período anterior, distribuição por risco, comportamento após alerta, IAs com mais ocorrências, categorias mais identificadas e efetividade dos avisos. |
 | **Alertas** | Auditoria com filtros por data, departamento e nível, paginação, retenção e exportação em CSV e PDF. |
 | **Regras de detecção** | Busca, criação, edição, ativação e exclusão de regras. |
 | **Departamentos** | Matriz de risco e regras de cada departamento. Ao excluir um departamento, o histórico de alertas é preservado. |
 | **Mensagens educativas** | Textos exibidos no aviso para risco alto, médio, baixo com detecções e sem detecções, em cards compactos. |
-| **Monitoramento** | Ativação geral, IAs monitoradas, dispositivos conectados com alertas emitidos por colaborador, código de verificação e download da extensão. A contagem de IAs ativas só é atualizada depois de salvar a configuração. |
+| **Monitoramento** | Ativação geral, IAs monitoradas, dispositivos conectados com alertas emitidos por colaborador, código de verificação e download da extensão. A ativação é salva automaticamente, e novas IAs entram na sincronização sem exigir salvar as Opções da extensão. |
 | **Administradores** | Contas com acesso ao painel. O superadmin cria e exclui administradores; contas comuns trocam a própria senha. O histórico de atividades mostra quem alterou regras, mensagens, alertas e configurações, com navegação por páginas. |
 
 ### Letramento
@@ -196,6 +196,7 @@ Cada colaborador instala a extensão no próprio Chrome ou Edge. O administrador
 7. Em seguida, são escolhidos o departamento e o identificador do colaborador.
 8. Ao salvar, a autorização de acesso ao servidor é confirmada, se solicitada, e o botão **Testar conexão** verifica a ligação.
 9. Por fim, um teste com um dado fictício no ChatGPT, Gemini, Claude ou Copilot confirma que o aviso aparece.
+10. Novas IAs cadastradas no painel são sincronizadas automaticamente. A permissão de hosts HTTPS permite monitorar os domínios autorizados sem repetir a configuração da extensão.
 
 ## Licença
 

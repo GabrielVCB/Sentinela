@@ -547,14 +547,34 @@ def _atualizar_descricoes_departamentos(conexao_aberta: _Conexao) -> None:
         )
 
 
+def _sites_excluidos(conexao_aberta: _Conexao) -> set[str]:
+    """IDs de IAs padrão removidas pelo painel e que não devem voltar no seed."""
+    linha = conexao_aberta.execute(
+        "SELECT valor FROM configuracoes WHERE chave = 'sites_excluidos'"
+    ).fetchone()
+    if not linha:
+        return set()
+    try:
+        valores = json.loads(linha["valor"])
+    except (TypeError, ValueError):
+        return set()
+    if not isinstance(valores, list):
+        return set()
+    return {str(valor) for valor in valores if valor}
+
+
 def _semear_sites(conexao_aberta: _Conexao) -> None:
     """Garante no banco os chats conhecidos do catálogo.
 
-    Os sites padrão podem ter nome/URL editados no painel. Por isso o seed usa
-    DO NOTHING: ele cria o que falta, mas não desfaz uma edição do cliente.
+    Os sites padrão podem ter nome/URL editados ou ser excluídos no painel. Por
+    isso o seed usa DO NOTHING e respeita a lista de exclusões: ele cria o que
+    falta, mas não desfaz uma edição ou exclusão do cliente.
     """
     agora = datetime.now().isoformat(timespec="seconds")
+    excluidos = _sites_excluidos(conexao_aberta)
     for site in SITES_MONITORADOS:
+        if site["id"] in excluidos:
+            continue
         conexao_aberta.execute(
             """
             INSERT INTO sites_monitorados
@@ -894,12 +914,30 @@ def atualizar_site(site_id: str, nome: str, hosts: list) -> int:
 
 
 def remover_site(site_id: str) -> int:
-    """Só remove chats adicionados pelo cliente; os quatro padrão são protegidos."""
+    """Remove qualquer IA monitorada, inclusive as que vieram do catálogo."""
     conexao_aberta = conectar()
     try:
+        site = conexao_aberta.execute(
+            "SELECT padrao FROM sites_monitorados WHERE id = ?", (site_id,)
+        ).fetchone()
+        if not site:
+            return 0
+
         cursor = conexao_aberta.execute(
-            "DELETE FROM sites_monitorados WHERE id = ? AND padrao = 0", (site_id,)
+            "DELETE FROM sites_monitorados WHERE id = ?", (site_id,)
         )
+        # As IAs do catálogo são semeadas na inicialização. A exclusão fica
+        # registrada para que o próximo boot não recrie o que foi removido.
+        if cursor.rowcount and site["padrao"]:
+            excluidos = _sites_excluidos(conexao_aberta)
+            excluidos.add(site_id)
+            conexao_aberta.execute(
+                """
+                INSERT INTO configuracoes (chave, valor) VALUES (?, ?)
+                ON CONFLICT(chave) DO UPDATE SET valor = excluded.valor
+                """,
+                ("sites_excluidos", json.dumps(sorted(excluidos))),
+            )
         conexao_aberta.commit()
         return cursor.rowcount
     finally:

@@ -1874,7 +1874,6 @@ function atualizarInterruptorMonitoramento() {
 }
 
 function atualizarEstadoMonitoramento() {
-  /* A contagem só muda ao carregar ou salvar; alternar um cartão não a altera. */
   const ativos = document.querySelectorAll("#sites-monitorados .site-toggle:checked").length;
   atualizarInterruptorMonitoramento();
   $("monitoramento-chats-ativas").textContent = String(ativos);
@@ -1916,8 +1915,19 @@ function desenharSitesMonitorados(disponiveis, ativos) {
       checkbox.checked ? "Ativa" : "Pausada",
     );
     checkbox.addEventListener("change", function () {
+      if (
+        !checkbox.checked &&
+        $("monitoramento-ativo").checked &&
+        !document.querySelector("#sites-monitorados .site-toggle:checked")
+      ) {
+        checkbox.checked = true;
+        avisar("Mantenha ao menos uma IA ativa ou pause o monitoramento geral.", "erro");
+        return;
+      }
       card.classList.toggle("site-card-ativo", checkbox.checked);
       textoInterruptor.textContent = checkbox.checked ? "Ativa" : "Pausada";
+      atualizarEstadoMonitoramento();
+      agendarPoliticaMonitoramento();
     });
     alternativa.appendChild(checkbox);
     alternativa.appendChild(criar("span", "interruptor-site-trilho", null));
@@ -1930,12 +1940,10 @@ function desenharSitesMonitorados(disponiveis, ativos) {
     editar.addEventListener("click", function () { abrirSite(site); });
     acoes.appendChild(editar);
 
-    if (!site.padrao) {
-      const excluir = criar("button", "botao pequeno perigo", "Excluir");
-      excluir.type = "button";
-      excluir.addEventListener("click", function () { removerSite(site); });
-      acoes.appendChild(excluir);
-    }
+    const excluir = criar("button", "botao pequeno perigo", "Excluir");
+    excluir.type = "button";
+    excluir.addEventListener("click", function () { removerSite(site); });
+    acoes.appendChild(excluir);
     rodape.appendChild(acoes);
     card.appendChild(rodape);
     container.appendChild(card);
@@ -2004,30 +2012,49 @@ function removerSite(site) {
   );
 }
 
-async function salvarMonitoramento() {
-  const ativo = $("monitoramento-ativo").checked;
-  const sites = Array.from(
-    document.querySelectorAll("#sites-monitorados .site-toggle:checked"),
-  ).map(function (checkbox) {
-    return checkbox.value;
-  });
+let timerPoliticaMonitoramento = null;
 
-  if (ativo && !sites.length) {
+function politicaMonitoramentoDaTela() {
+  return {
+    monitoramento_ativo: $("monitoramento-ativo").checked,
+    sites_ativos: Array.from(
+      document.querySelectorAll("#sites-monitorados .site-toggle:checked"),
+    ).map(function (checkbox) {
+      return checkbox.value;
+    }),
+  };
+}
+
+function agendarPoliticaMonitoramento() {
+  clearTimeout(timerPoliticaMonitoramento);
+  timerPoliticaMonitoramento = setTimeout(function () {
+    void salvarPoliticaMonitoramento();
+  }, 250);
+}
+
+async function salvarPoliticaMonitoramento() {
+  const politica = politicaMonitoramentoDaTela();
+  if (politica.monitoramento_ativo && !politica.sites_ativos.length) {
     avisar("Selecione ao menos uma IA ou pause o monitoramento.", "erro");
+    await carregarMonitoramento();
     return;
   }
 
   try {
     const dados = await api("/api/admin/configuracoes", {
       method: "PUT",
-      body: JSON.stringify({ monitoramento_ativo: ativo, sites_ativos: sites }),
+      body: JSON.stringify(politica),
     });
-    estado.monitoramento = dados;
-    desenharSitesMonitorados(dados.sites_disponiveis, dados.sites_ativos);
+    estado.monitoramento = Object.assign({}, estado.monitoramento, {
+      monitoramento_ativo: dados.monitoramento_ativo,
+      sites_ativos: dados.sites_ativos,
+      sites_disponiveis: dados.sites_disponiveis,
+    });
     atualizarEstadoMonitoramento();
     avisar("Monitoramento atualizado.");
   } catch (erro) {
     tratarErro(erro);
+    await carregarMonitoramento();
   }
 }
 
@@ -2075,15 +2102,22 @@ function ligarEventos() {
     }
   });
 
-  $("salvar-monitoramento").addEventListener("click", function () {
-    void salvarMonitoramento();
-  });
-
   $("monitoramento-ativo").addEventListener("change", function () {
+    const checkbox = $("monitoramento-ativo");
+    if (
+      checkbox.checked &&
+      !document.querySelector("#sites-monitorados .site-toggle:checked")
+    ) {
+      checkbox.checked = false;
+      atualizarInterruptorMonitoramento();
+      avisar("Ative ao menos uma IA para retomar o monitoramento.", "erro");
+      return;
+    }
     if (estado.monitoramento) {
-      estado.monitoramento.monitoramento_ativo = $("monitoramento-ativo").checked;
+      estado.monitoramento.monitoramento_ativo = checkbox.checked;
     }
     atualizarInterruptorMonitoramento();
+    agendarPoliticaMonitoramento();
   });
 
   $("adicionar-chat").addEventListener("click", function () { abrirSite(null); });
@@ -2272,7 +2306,7 @@ function ligarEventos() {
     mensagens:
       "Define os textos que o colaborador lê no aviso exibido antes do envio, com uma mensagem para cada situação: risco baixo, quando há detecções de baixo risco; sem detecções, quando nada sensível é encontrado e o aviso exibe o selo de verificação; risco médio; e risco alto. Como o nível e as categorias identificadas já aparecem no próprio aviso, as mensagens trazem apenas a orientação, com limite de caracteres para manter o aviso curto. As alterações chegam às extensões automaticamente.",
     monitoramento:
-      "Define como as extensões se comportam em toda a empresa: se o monitoramento está ativo e quais IAs são acompanhadas. A lista mostra colaborador, departamento, alertas emitidos e status: Ativo (contato recente e código atual), Desatualizada (contato recente, mas com código antigo), Sem sinal (sem contato há mais de 24 horas; inclui computador desligado, sem rede ou extensão desativada/removida sem aviso) e Removida (desconectada pelo painel; fica visível por 30 dias). Aqui ficam ainda o código de verificação e o download da extensão.",
+      "Define como as extensões se comportam em toda a empresa: se o monitoramento está ativo e quais IAs são acompanhadas. A ativação geral e os interruptores de cada IA são salvos automaticamente. A lista mostra colaborador, departamento, alertas emitidos e status: Ativo (contato recente e código atual), Desatualizada (contato recente, mas com código antigo), Sem sinal (sem contato há mais de 24 horas; inclui computador desligado, sem rede ou extensão desativada/removida sem aviso) e Removida (desconectada pelo painel; fica visível por 30 dias). Aqui ficam ainda o código de verificação e o download da extensão.",
     administradores:
       "Gerencia as contas que acessam o painel. O superadmin, primeiro administrador criado, não pode ser excluído e é o único que cria e exclui outras contas. As demais contas usam o painel e podem trocar a própria senha. O histórico de atividades mostra quem fez cada alteração, com navegação por páginas.",
     codigo:

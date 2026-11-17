@@ -2555,7 +2555,7 @@ def api_criar_site():
                     "padrao": False,
                 },
                 "sites_ativos": ativos,
-                "mensagem": "IA adicionada. Autorize o novo domínio nas Opções da extensão.",
+                "mensagem": "IA adicionada. A extensão sincronizará o novo domínio automaticamente.",
             }
         ),
         201,
@@ -2594,7 +2594,7 @@ def api_atualizar_site(site_id: str):
                 "url": urls[0],
                 "urls": urls,
             },
-            "mensagem": "IA atualizada. Autorize os domínios novos nas Opções da extensão, se necessário.",
+            "mensagem": "IA atualizada. A extensão sincronizará os domínios automaticamente.",
         }
     )
 
@@ -2605,8 +2605,6 @@ def api_remover_site(site_id: str):
     site = db.obter_site(site_id)
     if not site:
         return jsonify({"erro": "IA não encontrada."}), 404
-    if site["padrao"]:
-        raise ErroValidacao("As IAs padrão não podem ser excluídas; desative-as se não quiser monitorar.")
     if db.remover_site(site_id) == 0:
         return jsonify({"erro": "IA não encontrada."}), 404
 

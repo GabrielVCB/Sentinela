@@ -197,7 +197,6 @@ function origensDosHosts(hosts) {
 async function registrarSitesDinamicos(sites) {
   if (!chrome.scripting || !chrome.permissions) return;
   const hosts = hostsDinamicos(sites);
-  const origens = origensDosHosts(hosts);
 
   try {
     await chrome.scripting.unregisterContentScripts({ ids: [ID_SCRIPT_DINAMICO] });
@@ -205,19 +204,29 @@ async function registrarSitesDinamicos(sites) {
     /* ainda não havia script registrado */
   }
 
-  if (!origens.length) {
+  if (!hosts.length) {
     await salvarArmazenado(CHAVES.sitesPendentes, []);
     return;
   }
 
-  let autorizados = [];
-  try {
-    autorizados = await chrome.permissions.contains({ origins: origens });
-  } catch (erro) {
-    autorizados = false;
+  // Uma permissão negada não pode impedir os outros chats de serem injetados.
+  const autorizados = [];
+  const pendentes = [];
+  for (const host of hosts) {
+    const origens = origensDosHosts([host]);
+    let autorizado = false;
+    try {
+      autorizado = await chrome.permissions.contains({ origins: origens });
+    } catch (erro) {
+      autorizado = false;
+    }
+    if (autorizado) autorizados.push(host);
+    else pendentes.push(host);
   }
-  if (!autorizados) {
-    await salvarArmazenado(CHAVES.sitesPendentes, hosts);
+
+  const origens = origensDosHosts(autorizados);
+  if (!origens.length) {
+    await salvarArmazenado(CHAVES.sitesPendentes, pendentes);
     return;
   }
 
@@ -231,12 +240,39 @@ async function registrarSitesDinamicos(sites) {
         persistAcrossSessions: true,
       },
     ]);
-    await salvarArmazenado(CHAVES.sitesPendentes, []);
+    await salvarArmazenado(CHAVES.sitesPendentes, pendentes);
   } catch (erro) {
-    await salvarArmazenado(
-      CHAVES.sitesPendentes,
-      hosts,
-    );
+    await salvarArmazenado(CHAVES.sitesPendentes, hosts);
+  }
+}
+
+/**
+ * Injeta o detector nas abas de IAs novas que já estavam abertas. O content
+ * script tem uma trava de inicialização, então isso é seguro mesmo quando o
+ * registro dinâmico já o carregou.
+ */
+async function injetarNasAbasAbertas(sites) {
+  if (!chrome.tabs || !chrome.scripting) return;
+  const hosts = hostsDinamicos(sites);
+  if (!hosts.length) return;
+
+  let abas = [];
+  try {
+    abas = await chrome.tabs.query({ url: origensDosHosts(hosts) });
+  } catch (erro) {
+    return;
+  }
+
+  for (const aba of abas) {
+    if (!aba.id) continue;
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: aba.id },
+        files: ["detectores.js", "content.js"],
+      });
+    } catch (erro) {
+      /* aba fechada, descartada ou sem acesso no momento */
+    }
   }
 }
 
@@ -574,6 +610,7 @@ async function sincronizarConfig(forcar, verificarRemoto) {
     };
     await salvarArmazenado(CHAVES.cache, novoCache);
     await registrarSitesDinamicos(novoCache.sites);
+    await injetarNasAbasAbertas(novoCache.sites);
     await registrarStatus(true, "Configuração sincronizada.");
 
     // O registro é feito depois de a configuração ser aceita. Se o painel
@@ -912,6 +949,8 @@ chrome.runtime.onInstalled.addListener(async function () {
 
 chrome.runtime.onStartup.addListener(function () {
   void garantirAlarmeSync();
+  // Registra os domínios já configurados antes de o usuário abrir uma nova IA.
+  void sincronizarConfig(false, true);
   void processarFila();
 });
 

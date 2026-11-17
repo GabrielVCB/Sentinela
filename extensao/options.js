@@ -61,8 +61,11 @@ async function garantirPermissao(url) {
   }
 
   try {
-    // Chame request diretamente no gesto do clique; contains antes poderia
-    // consumir a ativação do usuário e impedir o pedido de permissão.
+    // A permissão ampla de hosts já cobre o servidor e as IAs novas. Se ela
+    // estiver presente, não há prompt nem dependência do clique em Salvar.
+    const jaAutorizado = await chrome.permissions.contains({ origins: [origem] });
+    if (jaAutorizado) return { ok: true };
+
     const concedido = await chrome.permissions.request({ origins: [origem] });
     return concedido
       ? { ok: true }
@@ -227,7 +230,7 @@ function desenharSites(sites, pendentes, ativos) {
 
   if (sitesPendentes.length) {
     el.permissaoSites.textContent =
-      "Domínios pendentes: " + sitesPendentes.join(", ") + ". Salve para autorizar.";
+      "Domínios ainda sem permissão no navegador: " + sitesPendentes.join(", ") + ".";
     el.permissaoSites.className = "dica erro";
   } else {
     el.permissaoSites.textContent = "";
@@ -475,7 +478,7 @@ document.addEventListener("DOMContentLoaded", function () {
   el.token.addEventListener("input", agendarAreas);
 
   // O service worker atualiza o cache periodicamente; a tela acompanha a
-  // mudança para refletir na hora uma IA desativada no painel.
+  // mudança para refletir na hora uma IA adicionada ou desativada no painel.
   chrome.storage.onChanged.addListener(function (mudancas, area) {
     if (area !== "local") return;
     if (mudancas[CHAVE_TEMA]) {

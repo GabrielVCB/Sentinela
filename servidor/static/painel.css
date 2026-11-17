@@ -945,11 +945,6 @@ textarea:focus {
   text-align: center;
 }
 
-.acoes-monitoramento {
-  justify-content: flex-start;
-  margin-top: 18px;
-}
-
 .nome-colaborador {
   font-weight: 600;
   font-size: 11px;
@@ -2194,6 +2189,7 @@ textarea:focus {
   position: relative;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   width: calc(100% + 44px);
   margin: 0 -22px 16px;
@@ -2221,7 +2217,13 @@ textarea:focus {
   color: var(--tinta);
 }
 
+.alternar-tema > span {
+  line-height: 1;
+}
+
 .icone-tema {
+  display: block;
+  flex: 0 0 15px;
   width: 15px;
   height: 15px;
   stroke-linecap: round;
@@ -2501,7 +2503,24 @@ textarea {
 }
 
 .tabela-dispositivos {
-  min-width: 920px;
+  min-width: 960px;
+  table-layout: fixed;
+}
+
+.tabela-dispositivos th,
+.tabela-dispositivos td {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.tabela-dispositivos th:first-child,
+.tabela-dispositivos td:first-child {
+  padding-left: 0;
+}
+
+.tabela-dispositivos th:last-child,
+.tabela-dispositivos td:last-child {
+  padding-right: 0;
 }
 
 .carregando-esqueleto span {
