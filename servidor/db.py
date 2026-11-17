@@ -1319,6 +1319,17 @@ def registrar_atividade(admin_id, usuario: str, acao: str, entidade: str, descri
         conexao_aberta.close()
 
 
+def limpar_atividades() -> int:
+    """Apaga todo o histórico administrativo e devolve quantas linhas saíram."""
+    conexao_aberta = conectar()
+    try:
+        cursor = conexao_aberta.execute("DELETE FROM atividades_admin")
+        conexao_aberta.commit()
+        return max(0, int(cursor.rowcount))
+    finally:
+        conexao_aberta.close()
+
+
 def contar_atividades() -> int:
     conexao_aberta = conectar()
     try:

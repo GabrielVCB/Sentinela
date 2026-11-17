@@ -1636,6 +1636,10 @@ async function confirmarRenovacaoToken() {
 async function carregarAdmins() {
   const dados = await api("/api/admin/usuarios");
   estado.euSuperadmin = Boolean(dados.superadmin);
+  const botaoLimparAtividades = $("limpar-atividades");
+  if (botaoLimparAtividades) {
+    botaoLimparAtividades.hidden = !estado.euSuperadmin;
+  }
   const admins = dados.usuarios || [];
   const corpo = $("tabela-admins");
   corpo.setAttribute("aria-busy", "true");
@@ -2217,6 +2221,32 @@ function ligarEventos() {
     carregarAtividades(estado.paginaAtividades).catch(tratarErro);
   });
 
+  const botaoLimparAtividades = $("limpar-atividades");
+  if (botaoLimparAtividades) {
+    botaoLimparAtividades.addEventListener("click", function () {
+      confirmar(
+        "Excluir todo o histórico de atividades?",
+        "Todos os registros de auditoria administrativa serão apagados. Esta ação não pode ser desfeita.",
+        "Excluir histórico",
+        async function () {
+          try {
+            const resposta = await api("/api/admin/atividades", { method: "DELETE" });
+            const removidos = Number(resposta.removidos) || 0;
+            avisar(
+              removidos === 0
+                ? "O histórico de atividades já estava vazio."
+                : plural(removidos, "atividade excluída", "atividades excluídas") +
+                    " definitivamente.",
+            );
+            await carregarAtividades(1);
+          } catch (erro) {
+            tratarErro(erro);
+          }
+        },
+      );
+    });
+  }
+
   $("atividades-pagina-anterior").addEventListener("click", function () {
     if (estado.paginaAtividades > 1) {
       carregarAtividades(estado.paginaAtividades - 1).catch(tratarErro);
@@ -2337,7 +2367,7 @@ function ligarEventos() {
     monitoramento:
       "Define como as extensões se comportam em toda a empresa: se o monitoramento está ativo e quais IAs são acompanhadas. A ativação geral e os interruptores de cada IA são salvos automaticamente. A lista mostra colaborador, departamento, alertas emitidos e status: Ativo (contato recente e código atual), Desatualizada (contato recente, mas com código antigo), Sem sinal (sem contato há mais de 24 horas; inclui computador desligado, sem rede ou extensão desativada/removida sem aviso) e Removida (desconectada pelo painel; fica visível por 30 dias). Aqui ficam ainda o código de verificação e o download da extensão.",
     administradores:
-      "Gerencia as contas que acessam o painel. O superadmin, primeiro administrador criado, não pode ser excluído e é o único que cria e exclui outras contas. As demais contas usam o painel e podem trocar a própria senha. O histórico de atividades mostra quem fez cada alteração, com navegação por páginas.",
+      "Gerencia as contas que acessam o painel. O superadmin, primeiro administrador criado, não pode ser excluído e é o único que cria e exclui outras contas. As demais contas usam o painel e podem trocar a própria senha. O histórico de atividades mostra quem fez cada alteração, com navegação por páginas; apenas o superadmin pode apagar todo esse histórico.",
     codigo:
       "Conecta a extensão ao painel e autoriza o envio de alertas ao painel.",
   };

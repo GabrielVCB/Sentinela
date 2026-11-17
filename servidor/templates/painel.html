@@ -345,7 +345,12 @@
             <h2>Histórico de atividades</h2>
             <p class="micro">Últimas alterações feitas pelos administradores.</p>
           </div>
-          <button type="button" class="botao" id="atualizar-atividades">Atualizar dados</button>
+          <div class="acoes-titulo">
+            <button type="button" class="botao" id="atualizar-atividades">Atualizar dados</button>
+            {% if superadmin %}
+            <button type="button" class="botao perigo" id="limpar-atividades">Excluir histórico</button>
+            {% endif %}
+          </div>
         </div>
         <p class="rotulo" id="atividades-resumo"></p>
         <ul id="lista-atividades" class="lista-atividades" aria-live="polite" aria-busy="true">

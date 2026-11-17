@@ -405,7 +405,7 @@ def exigir_sessao_api(funcao):
 
 
 def exigir_superadmin_api(funcao):
-    """Restringe criar/excluir administradores ao superadmin inicial."""
+    """Restringe ações administrativas sensíveis ao superadmin inicial."""
     @wraps(funcao)
     def interna(*args, **kwargs):
         admin_id = session.get("admin_id")
@@ -415,7 +415,7 @@ def exigir_superadmin_api(funcao):
             session.clear()
             return jsonify({"erro": "Sessão encerrada. Entre novamente."}), 401
         if not db.admin_e_superadmin(admin_id):
-            return jsonify({"erro": "Apenas o superadmin pode gerenciar administradores."}), 403
+            return jsonify({"erro": "Apenas o superadmin pode executar esta ação."}), 403
         return funcao(*args, **kwargs)
 
     return interna
@@ -1944,6 +1944,25 @@ def api_listar_atividades():
             "pagina": pagina,
             "total_paginas": total_paginas,
             "por_pagina": por_pagina,
+        }
+    )
+
+
+@app.delete("/api/admin/atividades")
+@exigir_superadmin_api
+def api_limpar_atividades():
+    removidos = db.limpar_atividades()
+    # A limpeza não é registrada em atividades_admin: o objetivo é deixar o
+    # histórico realmente vazio. O evento fica no log do servidor.
+    app.logger.info(
+        "Superadmin %s excluiu %s atividades administrativas.",
+        session.get("admin_usuario", "admin"),
+        removidos,
+    )
+    return jsonify(
+        {
+            "removidos": removidos,
+            "mensagem": "Histórico de atividades excluído.",
         }
     )
 

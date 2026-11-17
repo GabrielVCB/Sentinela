@@ -299,6 +299,9 @@
     promptVazioEm: 0,
     textoIgnorado: "",
     ignorarTextoAte: 0,
+    tema: "claro",
+    temaEm: 0,
+    varreduraInicialAgendada: false,
   };
 
   // -------------------------------------------------------------------------
@@ -436,7 +439,23 @@
       estado.eventosRegistrados = true;
     }
     if (!estado.observador) observarCampo();
+    agendarVarreduraInicial();
     return true;
+  }
+
+  function normalizarTema(valor) {
+    return valor === "escuro" ? "escuro" : "claro";
+  }
+
+  function aplicarTema(valor, em) {
+    var escolhido = normalizarTema(valor);
+    var momento = Number(em) || 0;
+    // O tema é salvo em duas chaves; um evento atrasado não pode reverter o
+    // valor mais novo escolhido nas opções.
+    if (momento && estado.temaEm && momento < estado.temaEm) return;
+    if (momento > estado.temaEm) estado.temaEm = momento;
+    estado.tema = escolhido;
+    if (estado.host) estado.host.dataset.tema = escolhido;
   }
 
   function iniciar() {
@@ -448,17 +467,21 @@
     if (antigo) antigo.remove();
 
     iniciarAtualizacaoAoVivo();
-    chrome.storage.local.get(["configuracao", "cacheConfig"], function (dados) {
-      estado.settings = configuracaoLocal(dados.configuracao);
-      if (dados.cacheConfig) {
-        aplicarConfig(dados.cacheConfig);
-      }
-      // Só monta a interface se a IA estiver realmente autorizada. Em uma IA
-      // desativada, a aba continua escutando a política para poder voltar a
-      // funcionar assim que o painel reativar, mas sem exibir aviso.
-      if (monitoramentoAtivo()) garantirMonitoramento();
-      solicitarConfig();
-    });
+    chrome.storage.local.get(
+      ["configuracao", "cacheConfig", "temaExtensao", "temaExtensaoEm"],
+      function (dados) {
+        aplicarTema(dados.temaExtensao, dados.temaExtensaoEm);
+        estado.settings = configuracaoLocal(dados.configuracao);
+        if (dados.cacheConfig) {
+          aplicarConfig(dados.cacheConfig);
+        }
+        // Só monta a interface se a IA estiver realmente autorizada. Em uma IA
+        // desativada, a aba continua escutando a política para poder voltar a
+        // funcionar assim que o painel reativar, mas sem exibir aviso.
+        if (monitoramentoAtivo()) garantirMonitoramento();
+        solicitarConfig();
+      },
+    );
   }
 
   /**
@@ -557,6 +580,149 @@
     window.addEventListener("scroll", agendarPosicao, { passive: true });
     // Foco/visibilidade já são tratados por `iniciarAtualizacaoAoVivo`, que
     // mantém um único poll de política por aba.
+  }
+
+  /**
+   * A extensão pode carregar depois de a página já ter restaurado um rascunho
+   * ou um anexo. Esta varredura encontra esse conteúdo existente sem esperar
+   * um evento de digitação/colagem.
+   */
+  function analisarConteudoExistente() {
+    if (estado.encerrado || !monitoramentoAtivo() || !estado.campo) return;
+    capturarAnexosExistentes();
+    var texto = lerTexto();
+    if (!texto.trim() && estado.anexos.length === 0) return;
+
+    if (texto !== estado.textoAnalisado) {
+      agendarAnalise(0);
+      return;
+    }
+    if (estado.bannerVisivel || estado.bannerOculto) return;
+    if (estado.analise.deteccoes.length > 0) {
+      renderizarBanner();
+    } else {
+      // Cobre o caso em que a primeira análise ocorreu antes de o motor de
+      // detectores estar disponível: repete uma vez, sem esperar uma tecla.
+      analisar();
+    }
+  }
+
+  function agendarVarreduraInicial() {
+    if (estado.varreduraInicialAgendada) return;
+    estado.varreduraInicialAgendada = true;
+    [250, 1000, 2500, 5000].forEach(function (atraso) {
+      setTimeout(function () {
+        if (estado.encerrado || !contextoAtivo()) return;
+        analisarConteudoExistente();
+      }, atraso);
+    });
+  }
+
+  function blobDaImagem(imagem) {
+    return new Promise(function (resolver) {
+      function converter() {
+        try {
+          var largura = imagem.naturalWidth || imagem.width;
+          var altura = imagem.naturalHeight || imagem.height;
+          if (!largura || !altura) {
+            resolver(null);
+            return;
+          }
+          var canvas = document.createElement("canvas");
+          canvas.width = largura;
+          canvas.height = altura;
+          var contexto = canvas.getContext("2d");
+          if (!contexto) {
+            resolver(null);
+            return;
+          }
+          contexto.drawImage(imagem, 0, 0);
+          canvas.toBlob(function (blob) {
+            resolver(blob || null);
+          }, "image/png");
+        } catch (erro) {
+          resolver(null);
+        }
+      }
+
+      if (imagem.complete && imagem.naturalWidth) {
+        converter();
+        return;
+      }
+      imagem.addEventListener("load", converter, { once: true });
+      imagem.addEventListener(
+        "error",
+        function () {
+          resolver(null);
+        },
+        { once: true },
+      );
+      setTimeout(function () {
+        if (!imagem.complete || !imagem.naturalWidth) converter();
+      }, 1200);
+    });
+  }
+
+  /**
+   * Anexos já presentes no compositor não passam por change/paste. Lê o input
+   * de arquivo quando ele ainda guarda o File e, para imagens, recupera o
+   * preview local pelo canvas antes de mandar para o OCR da extensão.
+   */
+  function capturarAnexosExistentes() {
+    if (!estado.campo || !monitoramentoAtivo() || estado.anexos.length > 0) return;
+    var area = estado.campo.closest("form") || estado.campo.parentElement;
+    if (!area) return;
+
+    try {
+      var arquivoNoInput = false;
+      var entradas = area.querySelectorAll('input[type="file"]');
+      for (var i = 0; i < entradas.length; i++) {
+        var arquivos = entradas[i].files;
+        if (!arquivos) continue;
+        for (var j = 0; j < arquivos.length; j++) {
+          var arquivo = arquivos[j];
+          arquivoNoInput = true;
+          tratarArquivo(
+            arquivo,
+            "existente",
+            "arquivo:" + arquivo.name + ":" + arquivo.size + ":" + arquivo.lastModified,
+          );
+        }
+      }
+      // O File do input é a fonte mais fiel; evita ler o mesmo anexo de novo
+      // como thumbnail e mandar a imagem duas vezes para o OCR.
+      if (arquivoNoInput) return;
+
+      var imagens = area.querySelectorAll('img[src^="blob:"], img[src^="data:image"]');
+      for (var k = 0; k < imagens.length; k++) {
+        var imagem = imagens[k];
+        if (imagem.dataset.sentinelaAnexoLido === "1") continue;
+        var retangulo = imagem.getBoundingClientRect();
+        if (retangulo.width < 32 || retangulo.height < 32) continue;
+        imagem.dataset.sentinelaAnexoLido = "1";
+        var chave = "preview:" + (imagem.currentSrc || imagem.src || "");
+        (function (preview, chavePreview) {
+          blobDaImagem(preview).then(function (blob) {
+            if (!blob || !blob.size) {
+              // A imagem pode ainda estar carregando; a próxima varredura tenta.
+              preview.dataset.sentinelaAnexoLido = "";
+              return;
+            }
+            if (blob.size > LIMITE_ARQUIVO) return;
+            try {
+              var anexo = new File([blob], "imagem-anexada.png", {
+                type: blob.type || "image/png",
+              });
+              tratarArquivo(anexo, "existente", chavePreview);
+            } catch (erro) {
+              preview.dataset.sentinelaAnexoLido = "";
+            }
+          });
+        })(imagem, chave);
+      }
+    } catch (erro) {
+      /* o DOM do site mudou durante a varredura */
+    }
   }
 
   /**
@@ -699,7 +865,12 @@
     if (elemento.tagName === "TEXTAREA" || elemento.tagName === "INPUT") {
       return elemento.value || "";
     }
-    return elemento.innerText || elemento.textContent || "";
+    // Em editores ricos, innerText pode vir vazio enquanto o nó ainda não foi
+    // pintado. textContent preserva o rascunho restaurado pela página.
+    var texto = elemento.innerText || "";
+    if (texto.trim()) return texto;
+    var conteudo = elemento.textContent || "";
+    return conteudo.trim() ? conteudo : texto;
   }
 
   function escolherCampo(candidatos) {
@@ -759,6 +930,13 @@
       }
     }
 
+    // Se o site mudou os seletores, ainda encontra o editor visível pelo
+    // próprio papel do elemento — inclusive um rascunho que não está focado.
+    if (!escolhido) {
+      escolhido = escolherCampo(
+        consultarCampo('textarea, [contenteditable="true"], [role="textbox"]'),
+      );
+    }
     if (!escolhido) escolhido = campoAtivo();
 
     if (!escolhido) {
@@ -770,6 +948,8 @@
     if (escolhido !== estado.campo) {
       var trocou = estado.campo !== null;
       estado.campo = escolhido;
+      // O compositor pode já conter um print/PDF restaurado pela própria IA.
+      capturarAnexosExistentes();
       if (trocou) {
         // O compositor troca de nó quando uma imagem é anexada. Os anexos já
         // analisados continuam valendo; antes, esta linha os apagava e o texto
@@ -1076,6 +1256,43 @@
     "button.acao:active{transform:translateY(1px);}",
     "button.acao.primario{background:#1b1b1a;border-color:#1b1b1a;color:#fdfdfb;}",
     "button.acao.primario:hover{background:#2c2c2a;}",
+    ":host([data-tema=\"escuro\"]){color:#ece9e2;}",
+    ":host([data-tema=\"escuro\"]) .painel{background:rgba(32,31,29,.92);color:#ece9e2;",
+    "border-color:rgba(236,233,226,.14);box-shadow:0 18px 44px rgba(0,0,0,.42),0 2px 8px rgba(0,0,0,.2);}",
+    ":host([data-tema=\"escuro\"]) .painel.risco-baixo{background:color-mix(in srgb,#16a34a 10%,rgba(32,31,29,.92));}",
+    ":host([data-tema=\"escuro\"]) .painel.risco-medio{background:color-mix(in srgb,#f59e0b 10%,rgba(32,31,29,.92));}",
+    ":host([data-tema=\"escuro\"]) .painel.risco-alto{background:color-mix(in srgb,#dc2626 10%,rgba(32,31,29,.92));}",
+    ":host([data-tema=\"escuro\"]) .contagem{color:#9a958a;}",
+    ":host([data-tema=\"escuro\"]) .tipos li{border-color:rgba(236,233,226,.14);color:#dedad2;",
+    "background:rgba(255,255,255,.05);}",
+    ":host([data-tema=\"escuro\"]) .tipos .area{color:#9a958a;}",
+    ":host([data-tema=\"escuro\"]) .mensagem{color:#b9b4a9;}",
+    ":host([data-tema=\"escuro\"]) .anexo{border-color:rgba(236,233,226,.2);color:#b9b4a9;",
+    "background:rgba(255,255,255,.04);}",
+    ":host([data-tema=\"escuro\"]) .anexo b{color:#ece9e2;}",
+    ":host([data-tema=\"escuro\"]) .anexo .estado{color:#9a958a;}",
+    ":host([data-tema=\"escuro\"]) .anexo button{color:#9a958a;}",
+    ":host([data-tema=\"escuro\"]) .anexo button:hover{color:#fff;}",
+    ":host([data-tema=\"escuro\"]) .anexo.erro{border-color:rgba(248,113,113,.5);color:#f87171;}",
+    ":host([data-tema=\"escuro\"]) .fechar{color:#9a958a;}",
+    ":host([data-tema=\"escuro\"]) .fechar:hover{color:#ece9e2;background:rgba(255,255,255,.08);}",
+    ":host([data-tema=\"escuro\"]) .overlay{background:rgba(0,0,0,.55);}",
+    ":host([data-tema=\"escuro\"]) .modal{background:rgba(32,31,29,.97);",
+    "border-color:rgba(236,233,226,.14);box-shadow:0 30px 80px rgba(0,0,0,.55);}",
+    ":host([data-tema=\"escuro\"]) .modal .rotulo{color:#9a958a;}",
+    ":host([data-tema=\"escuro\"]) .modal h2{color:#f4f1e9;}",
+    ":host([data-tema=\"escuro\"]) .modal p{color:#b9b4a9;}",
+    ":host([data-tema=\"escuro\"]) .modal ul{border-top-color:rgba(236,233,226,.12);}",
+    ":host([data-tema=\"escuro\"]) .modal li{border-bottom-color:rgba(236,233,226,.12);color:#ece9e2;}",
+    ":host([data-tema=\"escuro\"]) .modal li span{color:#9a958a;}",
+    ":host([data-tema=\"escuro\"]) .acoes{border-top-color:rgba(236,233,226,.12);}",
+    ":host([data-tema=\"escuro\"]) button.acao{background:rgba(255,255,255,.06);",
+    "border-color:rgba(236,233,226,.2);color:#ece9e2;}",
+    ":host([data-tema=\"escuro\"]) button.acao:hover{background:rgba(255,255,255,.1);",
+    "border-color:rgba(236,233,226,.45);}",
+    ":host([data-tema=\"escuro\"]) button.acao.primario{background:#ece9e2;",
+    "border-color:#ece9e2;color:#1b1b1a;}",
+    ":host([data-tema=\"escuro\"]) button.acao.primario:hover{background:#fff;}",
     "@keyframes sentinela-entra{from{opacity:0;transform:translateY(8px) scale(.985);}",
     "to{opacity:1;transform:none;}}",
     "@keyframes sentinela-sai{from{opacity:1;transform:none;}",
@@ -1098,6 +1315,7 @@
     var host = document.createElement("div");
     host.id = "sentinela-governanca-host";
     host.setAttribute("data-sentinela", "interface");
+    host.dataset.tema = estado.tema;
     var shadow = host.attachShadow({ mode: "open" });
 
     var estilo = document.createElement("style");
@@ -1373,11 +1591,10 @@
     estado.host.style.display = "block";
 
     // Define a largura antes de medir: a altura depende da quebra de linha.
+    // O aviso acompanha a caixa de prompt de cada IA, sem o limite fixo que
+    // fazia campos largos (Gemini/Claude) receberem um painel estreito.
     var retangulo = estado.campo.getBoundingClientRect();
-    var largura = Math.max(
-      280,
-      Math.min(Math.max(retangulo.width, 320), 560, window.innerWidth - 16),
-    );
+    var largura = Math.min(Math.max(retangulo.width, 240), window.innerWidth - 16);
     var esquerda = Math.min(
       Math.max(retangulo.left, 8),
       Math.max(window.innerWidth - largura - 8, 8),
@@ -1813,10 +2030,20 @@
     return null;
   }
 
-  function tratarArquivo(arquivo, via) {
+  function tratarArquivo(arquivo, via, chaveOrigem) {
     var tipo = classificarArquivo(arquivo);
     if (!tipo) return;
     if (estado.anexos.length >= 4) return;
+    var chave =
+      chaveOrigem ||
+      "arquivo:" + arquivo.name + ":" + arquivo.size + ":" + arquivo.lastModified;
+    if (
+      estado.anexos.some(function (atual) {
+        return atual.chaveOrigem === chave;
+      })
+    ) {
+      return;
+    }
 
     var nome = arquivo.name || (tipo === "imagem" ? "print.png" : "documento.pdf");
     var anexo = {
@@ -1824,6 +2051,7 @@
       nome: nome,
       tipo: tipo,
       via: via || "colar",
+      chaveOrigem: chave,
       status: "lendo",
       deteccoes: [],
       erro: null,
@@ -2031,6 +2259,14 @@
   chrome.storage.onChanged.addListener(function (mudancas, area) {
     if (estado.encerrado || !contextoAtivo()) return;
     if (area !== "local") return;
+
+    if (mudancas.temaExtensao || mudancas.temaExtensaoEm) {
+      var tema = mudancas.temaExtensao ? mudancas.temaExtensao.newValue : estado.tema;
+      var em = mudancas.temaExtensaoEm
+        ? Number(mudancas.temaExtensaoEm.newValue) || 0
+        : Date.now();
+      aplicarTema(tema, em);
+    }
 
     if (mudancas.configuracao) {
       estado.settings = configuracaoLocal(mudancas.configuracao.newValue);

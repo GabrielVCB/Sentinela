@@ -114,7 +114,7 @@ A extensão consulta periodicamente a versão da configuração e baixa a matriz
 | **Departamentos** | Matriz de risco e regras de cada departamento. Ao excluir um departamento, o histórico de alertas é preservado. |
 | **Mensagens educativas** | Textos exibidos no aviso para risco alto, médio, baixo com detecções e sem detecções, em cards compactos. |
 | **Monitoramento** | Ativação geral, IAs monitoradas, dispositivos conectados com alertas emitidos por colaborador, código de verificação e download da extensão. A ativação é salva automaticamente, e novas IAs entram na sincronização sem exigir salvar as Opções da extensão. |
-| **Administradores** | Contas com acesso ao painel. O superadmin cria e exclui administradores; contas comuns trocam a própria senha. O histórico de atividades mostra quem alterou regras, mensagens, alertas e configurações, com navegação por páginas. |
+| **Administradores** | Contas com acesso ao painel. O superadmin cria e exclui administradores e é o único que pode apagar todo o histórico de atividades; contas comuns trocam a própria senha. O histórico mostra quem alterou regras, mensagens, alertas e configurações, com navegação por páginas. |
 
 ### Letramento
 

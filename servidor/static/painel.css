@@ -1032,6 +1032,14 @@ textarea:focus {
   gap: 20px;
 }
 
+.acoes-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .grade-duas {
   display: grid;
   grid-template-columns: 1fr 1fr;
