@@ -1,5 +1,6 @@
 /* Sentinela — estilos do popup e da página de opções (minimalismo). */
 :root {
+  color-scheme: light;
   --papel: #fbfbf9;
   --tinta: #1b1b1a;
   --cinza: #55554f;
@@ -35,6 +36,14 @@ html,
 body {
   margin: 0;
   padding: 0;
+}
+
+html[data-tema-carregando] {
+  background: var(--papel);
+}
+
+html[data-tema-carregando] body {
+  visibility: hidden;
 }
 
 body {

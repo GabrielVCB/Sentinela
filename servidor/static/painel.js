@@ -794,7 +794,7 @@ function desenharLetramento(dados) {
 
     const alto = criar(
       "td",
-      "direita",
+      "tabular",
       item.alto + " / " + item.total + " · " + percentual(item.taxa_alto),
     );
     linha.appendChild(alto);
@@ -1550,7 +1550,7 @@ async function carregarDispositivos() {
     linha.appendChild(
       criar(
         "td",
-        "direita tabular",
+        "tabular",
         numero(dispositivo.alertas_emitidos || 0),
       ),
     );

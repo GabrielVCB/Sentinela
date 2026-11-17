@@ -53,7 +53,7 @@ O Sentinela torna esse risco visível no momento certo:
 | **Colagens grandes** | A colagem é analisada antes de chegar ao site, com classificação própria para blocos longos, listas e código. |
 | **Regras técnicas embutidas** | Validação de CPF, CNPJ e cartões, tokens, senhas e código-fonte já vêm prontos na extensão. |
 | **Matriz editável** | Regras, departamentos e mensagens educativas ajustáveis no painel, em português e inglês. |
-| **Sincronização automática** | Alterações no painel chegam a todas as extensões em até 1 minuto. |
+| **Sincronização automática** | Alterações no painel chegam às extensões em segundos, inclusive com o chat da IA já aberto. |
 | **Auditoria sem conteúdo** | Registro dos alertas com filtros, retenção e exportação em CSV e PDF. |
 | **Letramento por departamento** | Compara envios e cancelamentos e destaca os departamentos críticos. |
 | **Gestão centralizada** | Ativação, IAs autorizadas e dispositivos conectados, com status de cada instalação, em um só lugar. |
@@ -102,7 +102,7 @@ O Sentinela vem com mais de 40 regras iniciais. Regras, departamentos, mensagens
 
 ### Sincronização
 
-A extensão consulta periodicamente a versão da configuração e baixa a matriz completa apenas quando uma regra, departamento, mensagem ou política muda. As alterações chegam às extensões em até 1 minuto.
+A extensão consulta periodicamente a versão da configuração e baixa a matriz completa apenas quando uma regra, departamento, mensagem ou política muda. Depois da sincronização, a política é empurrada para as abas de IA já abertas, então ativar, pausar ou adicionar uma IA aparece na conversa sem recarregar a página e sem ação do funcionário.
 
 ## Painel administrativo
 

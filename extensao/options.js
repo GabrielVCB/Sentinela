@@ -461,11 +461,6 @@ document.addEventListener("DOMContentLoaded", function () {
   el.tema.addEventListener("change", function () {
     const tema = el.tema.checked ? "escuro" : "claro";
     document.documentElement.dataset.tema = tema;
-    try {
-      localStorage.setItem(CHAVE_TEMA, tema);
-    } catch (erro) {
-      /* o tema continua valendo nesta sessão */
-    }
     chrome.storage.local.set({ [CHAVE_TEMA]: tema });
   });
 

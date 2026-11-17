@@ -18,8 +18,26 @@
   "use strict";
 
   // A injeção em abas já abertas pode reencontrar um content script ativo.
-  if (globalThis.__SENTINELA_CONTENT_ATIVO__) return;
-  globalThis.__SENTINELA_CONTENT_ATIVO__ = true;
+  // Se a instalação anterior ficou órfã (extensão atualizada/reiniciada), ela
+  // não recebe mais eventos; nesse caso a nova injeção assume a aba em vez de
+  // ficar bloqueada até o funcionário recarregar a página.
+  var instanciaAnterior = globalThis.__SENTINELA_CONTENT_ATIVO__;
+  var anteriorAtiva = false;
+  try {
+    anteriorAtiva =
+      Boolean(instanciaAnterior) &&
+      typeof instanciaAnterior.ativa === "function" &&
+      instanciaAnterior.ativa();
+  } catch (erro) {
+    // Contexto antigo invalidado: a nova injeção pode assumir a aba.
+    anteriorAtiva = false;
+  }
+  if (anteriorAtiva) return;
+  globalThis.__SENTINELA_CONTENT_ATIVO__ = {
+    ativa: function () {
+      return contextoAtivo() && !(estado && estado.encerrado);
+    },
+  };
 
   // -------------------------------------------------------------------------
   // Seletores centralizados por site (fáceis de manter quando o DOM muda).
@@ -260,6 +278,8 @@
     encerrado: false,
     interfaceIniciada: false,
     eventosRegistrados: false,
+    sincronizacaoIniciada: false,
+    sincronizacaoTimer: null,
     limpandoPrompt: null,
     promptVazioEm: 0,
     textoIgnorado: "",
@@ -359,6 +379,10 @@
       clearInterval(id);
     });
     estado.vigias = [];
+    if (estado.sincronizacaoTimer) {
+      clearInterval(estado.sincronizacaoTimer);
+      estado.sincronizacaoTimer = null;
+    }
     if (estado.timer) {
       clearTimeout(estado.timer);
       estado.timer = null;
@@ -403,6 +427,7 @@
   function iniciar() {
     if (!contextoAtivo()) return;
 
+    iniciarAtualizacaoAoVivo();
     chrome.storage.local.get(["configuracao", "cacheConfig"], function (dados) {
       estado.settings = configuracaoLocal(dados.configuracao);
       if (dados.cacheConfig) {
@@ -413,6 +438,29 @@
       // enquanto a aba já está aberta.
       solicitarConfig();
     });
+  }
+
+  /**
+   * Enquanto o chat estiver visível, confere a versão da política ao ganhar
+   * foco e a cada 30 s. Assim uma alteração feita pelo administrador aparece
+   * na conversa aberta sem recarregar a página nem pedir ação ao funcionário.
+   */
+  function iniciarAtualizacaoAoVivo() {
+    if (estado.sincronizacaoIniciada) return;
+    estado.sincronizacaoIniciada = true;
+
+    function conferirSeVisivel() {
+      if (estado.encerrado || document.visibilityState !== "visible") return;
+      solicitarConfig();
+    }
+
+    estado.sincronizacaoTimer = setInterval(function () {
+      if (estado.encerrado || document.visibilityState !== "visible") return;
+      if (typeof document.hasFocus === "function" && !document.hasFocus()) return;
+      solicitarConfig();
+    }, 30000);
+    window.addEventListener("focus", conferirSeVisivel);
+    document.addEventListener("visibilitychange", conferirSeVisivel);
   }
 
   function solicitarConfig() {
@@ -1940,6 +1988,14 @@
   // -------------------------------------------------------------------------
   // Mudanças de configuração feitas nas opções/popup
   // -------------------------------------------------------------------------
+
+  chrome.runtime.onMessage.addListener(function (mensagem) {
+    if (estado.encerrado || !contextoAtivo()) return;
+    if (!mensagem || mensagem.tipo !== "CONFIG_ATUALIZADA" || !mensagem.cache) return;
+    // O service worker envia a política logo após sincronizar; a aba aberta
+    // aplica na hora, sem esperar o próximo ciclo de armazenamento/alarme.
+    aplicarConfig(mensagem.cache);
+  });
 
   chrome.storage.onChanged.addListener(function (mudancas, area) {
     if (estado.encerrado || !contextoAtivo()) return;

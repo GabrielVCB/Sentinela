@@ -136,13 +136,22 @@ async function enfileirarAlerta(alerta) {
 }
 
 async function garantirAlarmeSync() {
-  // O mínimo aceito pelo Chrome atual é 30 segundos. O alarme é só uma rede de
-  // segurança: as páginas abertas também consultam a versão ao ganhar foco.
-  await chrome.alarms.create(ALARME_SYNC, { periodInMinutes: 0.5 });
+  // Um minuto é o menor período aceito por todas as versões do Chrome/Edge.
+  // O alarme é só uma rede de segurança: as abas com IA aberta também
+  // consultam a versão ao ganhar foco e a cada 30 segundos.
+  try {
+    await chrome.alarms.create(ALARME_SYNC, { periodInMinutes: 1 });
+  } catch (erro) {
+    // Sem alarme, a verificação feita pelo content script continua ativa.
+  }
 }
 
 async function garantirAlarmeFila() {
-  await chrome.alarms.create(ALARME_FILA, { delayInMinutes: 1, periodInMinutes: 1 });
+  try {
+    await chrome.alarms.create(ALARME_FILA, { delayInMinutes: 1, periodInMinutes: 1 });
+  } catch (erro) {
+    /* a fila também é processada ao abrir a extensão */
+  }
 }
 
 // Hosts que já entram pelo content_scripts do manifest. Os demais chats
@@ -272,6 +281,44 @@ async function injetarNasAbasAbertas(sites) {
       });
     } catch (erro) {
       /* aba fechada, descartada ou sem acesso no momento */
+    }
+  }
+}
+
+/**
+ * Entrega a nova política às abas de IA já abertas no mesmo instante. O
+ * chrome.storage também avisa os content scripts, mas essa notificação direta
+ * elimina a dependência do próximo ciclo de alarme (que pode levar minutos em
+ * navegadores econômicos) e deixa a mudança visível sem recarregar a página.
+ */
+async function notificarAbasAtualizadas(cache) {
+  if (!chrome.tabs || typeof chrome.tabs.sendMessage !== "function") return;
+  const hosts = HOSTS_ESTATICOS.concat(hostsDinamicos(cache && cache.sites));
+  const origens = [];
+  hosts.forEach(function (host) {
+    origens.push("https://" + host + "/*", "https://*." + host + "/*");
+  });
+
+  let abas = [];
+  try {
+    abas = await chrome.tabs.query({ url: origens });
+  } catch (erro) {
+    return;
+  }
+
+  for (const aba of abas) {
+    if (!aba.id) continue;
+    try {
+      chrome.tabs.sendMessage(
+        aba.id,
+        { tipo: "CONFIG_ATUALIZADA", cache: cache },
+        function () {
+          // Abas sem content script ativo respondem com erro; não é um problema.
+          void chrome.runtime.lastError;
+        },
+      );
+    } catch (erro) {
+      /* aba descartada ou sem acesso no momento */
     }
   }
 }
@@ -611,6 +658,7 @@ async function sincronizarConfig(forcar, verificarRemoto) {
     await salvarArmazenado(CHAVES.cache, novoCache);
     await registrarSitesDinamicos(novoCache.sites);
     await injetarNasAbasAbertas(novoCache.sites);
+    await notificarAbasAtualizadas(novoCache);
     await registrarStatus(true, "Configuração sincronizada.");
 
     // O registro é feito depois de a configuração ser aceita. Se o painel
