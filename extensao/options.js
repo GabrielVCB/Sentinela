@@ -265,7 +265,9 @@ async function autorizarPendentes() {
 
 function atualizarResumo(estado) {
   el.sincronizacao.textContent = estado.cache ? quando(estado.cache.atualizadoEm) : "nunca";
-  el.versao.textContent = estado.versao || chrome.runtime.getManifest().version;
+  if (el.versao) {
+    el.versao.textContent = estado.versao || chrome.runtime.getManifest().version;
+  }
   const politica = estado.configuracao || {};
   const totalSites = sitesTotais.length;
   const ativos = Array.isArray(politica.sitesAtivos) ? politica.sitesAtivos.length : 0;
@@ -274,8 +276,15 @@ function atualizarResumo(estado) {
     : ativos + " de " + totalSites;
 
   const status = estado.status;
-  el.statusPonto.className =
-    "ponto-status " + (status && status.conectado ? "on" : "off");
+  const conectado = Boolean(status && status.conectado);
+  if (el.statusPonto) {
+    el.statusPonto.className = "status-olhos " + (conectado ? "on" : "off");
+    el.statusPonto.alt = conectado ? "Conectado" : "Desconectado";
+    el.statusPonto.setAttribute("aria-label", conectado ? "Conectado" : "Desconectado");
+  }
+  if (el.statusPontoTexto) {
+    el.statusPontoTexto.textContent = conectado ? "Conectado" : "Desconectado";
+  }
   if (status && status.mensagem) {
     el.sincronizacao.title = status.mensagem;
   }
@@ -448,6 +457,7 @@ document.addEventListener("DOMContentLoaded", function () {
   el.sitesStatus = document.getElementById("sites-status");
   el.permissaoSites = document.getElementById("permissao-sites");
   el.statusPonto = document.getElementById("status-ponto");
+  el.statusPontoTexto = document.getElementById("status-ponto-texto");
   el.resultadoConexao = document.getElementById("resultado-conexao");
   el.resultadoSalvar = document.getElementById("resultado-salvar");
   el.testar = document.getElementById("testar");

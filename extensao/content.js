@@ -1207,7 +1207,7 @@
     ".nivel{font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;",
     "display:flex;align-items:center;gap:6px;}",
     ".risco-baixo .nivel{color:#16a34a;}.risco-medio .nivel{color:#f59e0b;}.risco-alto .nivel{color:#dc2626;}",
-    ".ponto{width:6px;height:6px;border-radius:50%;background:currentColor;display:inline-block;}",
+    ".marca-aviso{width:16px;height:16px;display:block;flex:0 0 auto;}",
     ".contagem{font-size:10px;color:#8a8a84;letter-spacing:.04em;}",
     ".tipos{display:flex;flex-wrap:wrap;gap:5px;list-style:none;margin:0;padding:0;}",
     ".tipos li{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(27,27,26,.12);",
@@ -1254,8 +1254,8 @@
     "letter-spacing:.02em;transition:border-color .15s ease,background .15s ease,transform .15s ease;}",
     "button.acao:hover{border-color:rgba(27,27,26,.45);background:#fff;}",
     "button.acao:active{transform:translateY(1px);}",
-    "button.acao.primario{background:#1b1b1a;border-color:#1b1b1a;color:#fdfdfb;}",
-    "button.acao.primario:hover{background:#2c2c2a;}",
+    "button.acao.primario{background:#171716;border-color:#171716;color:#fdfdfb;}",
+    "button.acao.primario:hover{background:#2a2823;border-color:#2a2823;color:#fdfdfb;}",
     ":host([data-tema=\"escuro\"]){color:#ece9e2;}",
     ":host([data-tema=\"escuro\"]) .painel{background:rgba(32,31,29,.92);color:#ece9e2;",
     "border-color:rgba(236,233,226,.14);box-shadow:0 18px 44px rgba(0,0,0,.42),0 2px 8px rgba(0,0,0,.2);}",
@@ -1291,8 +1291,8 @@
     ":host([data-tema=\"escuro\"]) button.acao:hover{background:rgba(255,255,255,.1);",
     "border-color:rgba(236,233,226,.45);}",
     ":host([data-tema=\"escuro\"]) button.acao.primario{background:#ece9e2;",
-    "border-color:#ece9e2;color:#1b1b1a;}",
-    ":host([data-tema=\"escuro\"]) button.acao.primario:hover{background:#fff;}",
+    "border-color:#ece9e2;color:#1a1917;}",
+    ":host([data-tema=\"escuro\"]) button.acao.primario:hover{background:#f5f2ea;color:#1a1917;}",
     "@keyframes sentinela-entra{from{opacity:0;transform:translateY(8px) scale(.985);}",
     "to{opacity:1;transform:none;}}",
     "@keyframes sentinela-sai{from{opacity:1;transform:none;}",
@@ -1461,9 +1461,12 @@
     cabecalho.className = "cabecalho";
     var nivel = document.createElement("span");
     nivel.className = "nivel";
-    var ponto = document.createElement("span");
-    ponto.className = "ponto";
-    nivel.appendChild(ponto);
+    var marca = document.createElement("img");
+    marca.className = "marca-aviso";
+    marca.src = chrome.runtime.getURL("olhos-sentinela.png");
+    marca.alt = "";
+    marca.setAttribute("aria-hidden", "true");
+    nivel.appendChild(marca);
     nivel.appendChild(document.createTextNode("Risco " + ROTULOS[analise.nivel]));
 
     var contagem = document.createElement("span");

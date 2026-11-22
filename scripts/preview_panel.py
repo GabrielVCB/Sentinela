@@ -155,7 +155,7 @@ def _semear_demonstracao(uri: str) -> None:
                     f"dev-preview-{indice + 1}",
                     colaborador,
                     departamento,
-                    "3.0.1",
+                    "4.0.0",
                     (agora - timedelta(days=20)).isoformat(),
                     visto.isoformat(),
                 ),

@@ -3,6 +3,11 @@
   --papel: #fbfbf9;
   --papel-2: #f5f4f0;
   --tinta: #1b1b1a;
+  --marca: #00c896;
+  --marca-claro: #16ddaa;
+  --marca-escuro: #007f60;
+  --grafico-complemento: #111111;
+  --grafite-sentinela: #171716;
   --cinza: #55554f;
   --cinza-claro: #8a8a84;
   --linha: #e0ded8;
@@ -105,8 +110,8 @@ button {
 
 .login-topo .marca-bloco {
   display: inline-flex;
-  align-items: baseline;
-  gap: 10px;
+  align-items: center;
+  gap: 11px;
   padding: 0;
   border: 0;
 }
@@ -206,9 +211,25 @@ button {
 }
 
 .marca-bloco {
-  display: block;
-  padding: 26px 22px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 24px 20px;
   border-bottom: 1px solid var(--linha);
+}
+
+.marca-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.marca-olhos {
+  display: block;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  object-fit: contain;
 }
 
 .marca-bloco .micro {
@@ -441,7 +462,8 @@ button {
 }
 
 .botao:hover {
-  border-color: var(--cinza-claro);
+  border-color: color-mix(in srgb, var(--cinza-claro) 62%, var(--linha-forte));
+  background: color-mix(in srgb, var(--tinta) 2.5%, var(--superficie));
 }
 
 .botao:disabled {
@@ -450,13 +472,16 @@ button {
 }
 
 .botao.primario {
-  background: var(--tinta);
-  border-color: var(--tinta);
-  color: var(--papel);
+  background: var(--grafite-sentinela);
+  border-color: var(--grafite-sentinela);
+  color: #fdfdfb;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .botao.primario:hover {
-  background: #2f2f2c;
+  background: #25231f;
+  border-color: #25231f;
+  color: #fdfdfb;
 }
 
 .botao.perigo {
@@ -754,8 +779,8 @@ textarea:focus {
 }
 
 .faixa-ativa .ponto-status-painel {
-  background: var(--baixo);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--baixo) 12%, transparent);
+  background: var(--marca);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--marca) 14%, transparent);
 }
 
 .faixa-pausada .ponto-status-painel {
@@ -1094,6 +1119,8 @@ textarea:focus {
   height: 7px;
   flex: 0 0 7px;
   display: inline-block;
+  outline: 1px solid var(--linha-forte);
+  outline-offset: 1px;
 }
 
 .donut-legenda strong {
@@ -1173,7 +1200,7 @@ textarea:focus {
 .barra-preenchimento {
   display: block;
   height: 100%;
-  background: var(--tinta);
+  background: var(--marca);
 }
 
 .barra-valor {
@@ -1387,6 +1414,19 @@ textarea:focus {
   text-align: right;
 }
 
+.acoes-tabela {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.acoes-tabela .botao {
+  flex: 0 0 auto;
+  min-height: 28px;
+}
+
 .tabela th.centro,
 .tabela td.centro {
   text-align: center;
@@ -1462,11 +1502,11 @@ textarea:focus {
 }
 
 .barra-envio .enviado {
-  background: var(--tinta);
+  background: var(--marca);
 }
 
 .barra-envio .cancelado {
-  background: #d8d6cf;
+  background: transparent;
 }
 
 .barra-envio .percentual {
@@ -2168,7 +2208,7 @@ textarea:focus {
   user-select: all;
 }
 
-/* ----------------------------- 3.0 · Painel ----------------------------- */
+/* ----------------------------- 4.0 · Painel ----------------------------- */
 
 :root {
   --papel: #f8f8f5;
@@ -2224,21 +2264,23 @@ textarea:focus {
 }
 
 .item.ativo::before {
-  background: var(--tinta);
+  background: var(--marca);
 }
 
 .menu-icone {
   width: 15px;
   height: 15px;
-  color: var(--cinza-claro);
+  color: var(--marca);
+  opacity: 1;
   stroke-linecap: round;
   stroke-linejoin: round;
-  transition: color 0.2s ease, transform 0.2s ease;
+  transition: color 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
 }
 
 .item:hover .menu-icone,
 .item.ativo .menu-icone {
-  color: var(--tinta);
+  color: var(--marca);
+  opacity: 1;
 }
 
 .item.ativo .menu-icone {
@@ -2322,19 +2364,40 @@ html[data-tema="escuro"] .icone-sol {
 
 .botao {
   background: var(--superficie);
+  font-weight: 600;
   box-shadow: 0 1px 0 color-mix(in srgb, var(--tinta) 5%, transparent);
 }
 
 .botao.primario {
-  box-shadow: 0 1px 2px color-mix(in srgb, var(--tinta) 22%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--tinta) 22%, transparent),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .botao:hover {
-  background: var(--superficie-2);
+  background: color-mix(in srgb, var(--tinta) 2.5%, var(--superficie));
 }
 
 .botao.primario:hover {
-  background: color-mix(in srgb, var(--tinta) 88%, #fff);
+  background: #25231f;
+  border-color: #25231f;
+  color: #fdfdfb;
+}
+
+.app .botao.primario,
+.dialogo .botao.primario,
+.login-pagina .botao.primario {
+  background: var(--grafite-sentinela);
+  border-color: var(--grafite-sentinela);
+  color: #fdfdfb;
+}
+
+.app .botao.primario:hover,
+.dialogo .botao.primario:hover,
+.login-pagina .botao.primario:hover {
+  background: #25231f;
+  border-color: #25231f;
+  color: #fdfdfb;
 }
 
 input[type="text"],
@@ -2637,6 +2700,11 @@ html[data-tema="escuro"] .toast {
   --linha: #3b3935;
   --linha-forte: #4a4742;
   --papel-alt: #2c2a27;
+  --marca: #00c896;
+  --marca-claro: #16ddaa;
+  --marca-escuro: #16ddaa;
+  --grafico-complemento: #ffffff;
+  --grafite-sentinela: #171716;
   --baixo: #16a34a;
   --medio: #f59e0b;
   --alto: #dc2626;
@@ -2668,12 +2736,23 @@ html[data-tema="escuro"] .dialogo .botao {
 
 html[data-tema="escuro"] .app .botao:hover,
 html[data-tema="escuro"] .dialogo .botao:hover {
-  background: #3b3935;
+  background: #302e2a;
+  border-color: var(--cinza-claro);
 }
 
 html[data-tema="escuro"] .app .botao.primario,
-html[data-tema="escuro"] .dialogo .botao.primario {
+html[data-tema="escuro"] .dialogo .botao.primario,
+html[data-tema="escuro"] .login-pagina .botao.primario {
   background: var(--tinta);
+  border-color: var(--tinta);
+  color: var(--papel);
+}
+
+html[data-tema="escuro"] .app .botao.primario:hover,
+html[data-tema="escuro"] .dialogo .botao.primario:hover,
+html[data-tema="escuro"] .login-pagina .botao.primario:hover {
+  background: #e8e4da;
+  border-color: #e8e4da;
   color: var(--papel);
 }
 
@@ -2686,6 +2765,9 @@ html[data-tema="escuro"] .preview-aviso {
 html[data-tema="escuro"] .faixa-status {
   background: rgba(255, 255, 255, 0.035);
 }
+
+/* -------------------------- 4.0 · Identidade ---------------------------- */
+
 
 html[data-tema="escuro"] .interruptor-trilho::after,
 html[data-tema="escuro"] .interruptor-site-trilho::after {
@@ -2734,4 +2816,59 @@ html[data-tema="escuro"] .interruptor-regra input:checked + .interruptor-site-tr
   .carregando-esqueleto span {
     animation: none !important;
   }
+}
+
+/* ---------------------- Ações com a cor da marca ------------------------ */
+
+.botao.marca {
+  background: var(--marca);
+  border-color: var(--marca);
+  color: #111111;
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  box-shadow: none;
+}
+
+.botao.marca:hover {
+  background: color-mix(in srgb, var(--marca) 90%, #fff);
+  border-color: color-mix(in srgb, var(--marca) 90%, #fff);
+  color: #111111;
+  box-shadow: none;
+}
+
+html[data-tema="escuro"] .app .botao.marca,
+html[data-tema="escuro"] .dialogo .botao.marca {
+  background: var(--marca);
+  border-color: var(--marca);
+  color: #111111;
+}
+
+html[data-tema="escuro"] .app .botao.marca:hover,
+html[data-tema="escuro"] .dialogo .botao.marca:hover {
+  background: color-mix(in srgb, var(--marca) 90%, #fff);
+  border-color: color-mix(in srgb, var(--marca) 90%, #fff);
+  color: #111111;
+}
+
+.botao-icone {
+  width: 34px;
+  padding: 0;
+}
+
+.botao.pequeno.botao-icone {
+  width: 28px;
+  min-height: 28px;
+}
+
+.botao-icone svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+html[data-tema="escuro"] .badge.admin-badge {
+  color: #fff;
+  border-color: #5a5650;
 }

@@ -1,14 +1,16 @@
 <div align="center">
 
+<img src="./public/logo.png" width="112" alt="Logo Sentinela" />
+
 # Sentinela
 
-**Governança e letramento em IA para o uso de inteligências artificiais no trabalho**
+**Governança e letramento em IA para o uso corporativo de ferramentas generativas**
 
 *O que é confidencial não deveria virar prompt.*
 
-Versão 3.0.1 · Extensão para Chrome e Edge
+Versão **4.0.6** · Extensão para Chrome e Edge · Flask · PostgreSQL
 
-[Baixar a extensão](./public/sentinela-extensao.zip) · [Como funciona](#como-funciona) · [Instalação](#instalação-da-extensão)
+[Baixar a extensão](./public/sentinela-extensao.zip) · [Baixar o projeto](./public/sentinela-projeto.zip) · [Como funciona](#como-funciona) · [Instalação](#instalação-da-extensão)
 
 </div>
 
@@ -16,202 +18,107 @@ Versão 3.0.1 · Extensão para Chrome e Edge
 
 ## Visão geral
 
-O Sentinela é uma camada de governança para o uso de IAs públicas no trabalho. Ele ajuda a empresa a perceber quando informações sensíveis estão prestes a ser enviadas para ferramentas como ChatGPT, Gemini, Claude e Copilot, e faz isso sem armazenar o conteúdo das conversas.
+O Sentinela é uma camada de governança para o uso de IAs públicas no trabalho. A extensão identifica dados sensíveis no conteúdo que será enviado e exibe um aviso educativo antes do envio. O painel administrativo recebe apenas os metadados do alerta e transforma as decisões em indicadores de letramento.
 
-Uma **extensão para Chrome e Edge** analisa o prompt diretamente no chat e exibe um aviso antes do envio. Um **painel administrativo** recebe apenas o alerta e transforma as decisões dos colaboradores em indicadores de letramento.
-
-| Para quem | O que o Sentinela entrega |
+| Público | O que recebe |
 | --- | --- |
-| **Colaborador** | Um aviso curto e educativo, no momento exato em que o risco existe. |
-| **Empresa** | Visibilidade de quais departamentos expõem mais dados e de onde o aviso ainda não funciona. |
+| **Colaborador** | Um aviso curto no momento do risco, com nível, categorias e orientação. |
+| **Empresa** | Visibilidade dos departamentos que mais expõem dados e onde o aviso ainda não funciona. |
 
-## O problema
+## Principais recursos
 
-As pessoas querem automatizar tarefas simples, e a IA virou o caminho mais rápido. O risco é que, junto com a tarefa, seguem dados confidenciais. Situações comuns:
-
-- Colar um trecho de código com uma chave de acesso para pedir ajuda com um erro.
-- Enviar um contrato inteiro para a IA resumir.
-- Colar uma planilha de RH com CPFs e salários para "organizar" os dados.
-
-Os controles tradicionais não enxergam isso. Antivírus e firewall inspecionam arquivos e tráfego de rede, não o significado do que é digitado em uma conversa. A empresa só descobre o vazamento depois, se descobrir, e sem registro de quem enviou, com que risco e em qual departamento, a política de uso de IA fica só no papel.
-
-## A solução
-
-O Sentinela torna esse risco visível no momento certo:
-
-- **Avisa antes do envio**, não depois do incidente.
-- **Ensina** o colaborador com uma mensagem curta e objetiva.
-- **Registra a decisão** (enviar ou cancelar) para a empresa acompanhar o letramento.
-- **Controla o risco, não a conversa**: o conteúdo é analisado diretamente no chat e não é guardado.
-
-## Destaques
-
-| Recurso | Descrição |
-| --- | --- |
-| **Análise local** | Texto digitado, colagens, imagens e PDFs são analisados diretamente no chat, antes do envio. |
-| **Imagens e PDFs** | O texto é extraído por OCR em um contexto isolado da extensão e classificado. A imagem não é guardada em nenhum momento. |
-| **Colagens grandes** | A colagem é analisada antes de chegar ao site, com classificação própria para blocos longos, listas e código. |
-| **Regras técnicas embutidas** | Validação de CPF, CNPJ e cartões, tokens, senhas e código-fonte já vêm prontos na extensão. |
-| **Matriz editável** | Regras, departamentos e mensagens educativas ajustáveis no painel, em português e inglês. |
-| **Sincronização automática** | Alterações no painel chegam às extensões em segundos, inclusive com o chat da IA já aberto. |
-| **Auditoria sem conteúdo** | Registro dos alertas com filtros, retenção e exportação em CSV e PDF. |
-| **Letramento por departamento** | Compara envios e cancelamentos e destaca os departamentos críticos. |
-| **Gestão centralizada** | Ativação, IAs autorizadas e dispositivos conectados, com status de cada instalação, em um só lugar. |
-| **Auditoria administrativa** | O histórico de atividades mostra quem alterou regras, mensagens, alertas e configurações, com ação e horário. |
-| **Resiliência** | Uma fila local reenvia os alertas quando o servidor ou a rede ficam indisponíveis. |
+- **Análise local:** texto digitado, colagens, imagens e PDFs são processados no navegador, antes do envio.
+- **Aviso contextual:** o nível de risco é calculado pela regra mais grave encontrada e exibido no próprio campo de texto.
+- **Auditoria sem conteúdo:** o painel registra IA, departamento, colaborador, origem, nível, categorias e decisão — nunca o texto, a imagem ou o PDF.
+- **Letramento:** compara envios e cancelamentos por departamento e destaca onde o aviso precisa ser reforçado.
+- **Gestão centralizada:** regras, departamentos, mensagens, IAs autorizadas e dispositivos são controlados no painel e sincronizados com as extensões.
+- **Privacidade por design:** o conteúdo é analisado no próprio navegador e descartado; não é armazenado no servidor.
 
 ## Como funciona
 
-```mermaid
-flowchart LR
-    A["Colaborador usa a IA<br/>(texto, imagem ou PDF)"] --> B["Extensão analisa<br/>o prompt"]
-    B --> C{"Risco<br/>encontrado?"}
-    C -- Não --> F["Envio normal"]
-    C -- Sim --> D["Aviso com nível,<br/>categorias e orientação"]
-    D --> E["Colaborador decide:<br/>enviar ou cancelar"]
-    E --> H["Alerta registrado<br/>no painel"]
-```
+1. O colaborador usa uma IA pública com texto, imagem ou PDF.
+2. A extensão analisa o conteúdo localmente e aplica as regras ativas.
+3. Se houver risco, o aviso aparece antes do envio com o nível e as categorias encontradas.
+4. O colaborador decide enviar ou cancelar. Apenas o registro do alerta é enviado ao painel.
 
-### Níveis do aviso
+Em risco médio ou alto, o envio pede confirmação. O Sentinela orienta, mas **não bloqueia** a decisão do colaborador.
 
-| Nível | Quando aparece | O que o colaborador vê |
-| --- | --- | --- |
-| **Alto** | Há dados confidenciais ou sensíveis. | “Remova os dados sensíveis antes de enviar.” |
-| **Médio** | Há dados internos da empresa. | “Compartilhe só o necessário e confira a política de uso de IA antes de enviar.” |
-| **Baixo, com detecções** | Há dados de baixo risco. | “Vale uma revisão rápida antes de enviar.” |
-| **Sem detecções** | Nada sensível foi encontrado. | “Nenhum dado sensível detectado.” |
+## Extensão
 
-Em risco médio ou alto, o envio pede confirmação. O Sentinela orienta e pede confirmação; **não bloqueia** a decisão do colaborador.
+| Item | Informação |
+| --- | --- |
+| **Versão** | 4.0.6 |
+| **Navegadores** | Chrome e Edge (Manifest V3) |
+| **Permissões** | `storage`, `offscreen`, `alarms`, `scripting` |
+| **Acesso a sites** | `https://*/*`, limitado às IAs autorizadas no painel |
+| **Análise** | Local, sem envio do conteúdo ao servidor |
 
-### Matriz de risco
+A permissão `offscreen` permite extrair texto de imagens e PDFs em uma página isolada da extensão. `alarms` mantém a sincronização e a fila de reenvio; `scripting` injeta o detector nas IAs adicionadas pelo painel. A sincronização baixa a matriz completa apenas quando a configuração muda.
 
-Cada regra pertence a um **departamento** e a um **nível** (baixo, médio ou alto). O maior nível encontrado define o alerta: um item de risco alto eleva a mensagem a risco alto; sem itens altos, um item médio eleva a risco médio.
+### Instalação
 
-O mesmo cadastro de departamentos classifica as regras e identifica onde o colaborador trabalha, o que permite cruzar risco e letramento por área da empresa.
+1. Baixe o ZIP pelo painel ou pelo link acima e extraia o arquivo.
+2. Abra `chrome://extensions` ou `edge://extensions` e ative o **Modo do desenvolvedor**.
+3. Escolha **Carregar sem compactação** e selecione a pasta `extensao`.
+4. Nas **Opções**, cole o código de verificação fornecido pelo administrador.
+5. Informe o departamento, o identificador do colaborador e use **Testar conexão**.
 
-| Departamento | Exemplos de risco alto | Exemplos de risco médio |
-| --- | --- | --- |
-| **Financeiro** | Faturamento, dados bancários da empresa, previsão de resultados | Valor de despesa, orçamento interno, nota fiscal ou pedido |
-| **Jurídico** | Valor de contrato, cláusulas contratuais, processo judicial | Número de contrato |
-| **Projetos e Estratégias** | Produto não lançado, estratégia de negócio, precificação ou proposta | Nome de projeto interno, cronograma de projeto |
-| **RH** | CPF, salário, dados bancários, documento de identidade, dados de saúde | Data de nascimento, endereço residencial, avaliação de desempenho |
-| **Segurança da Informação** | Código de verificação ou MFA, dump ou backup de banco, dados de clientes, acesso remoto ou VPN | Documento confidencial, relatório de vulnerabilidade, arquivo de ambiente |
-| **TI** | Senha ou credencial, token ou chave de API, chave privada, string de conexão, código-fonte interno | Sem regras neste nível |
-
-O Sentinela vem com mais de 40 regras iniciais. Regras, departamentos, mensagens e a tolerância podem ser ajustados no painel, e novas regras podem ser criadas por palavra-chave ou expressão regular (regex).
-
-### Sincronização
-
-A extensão consulta periodicamente a versão da configuração e baixa a matriz completa apenas quando uma regra, departamento, mensagem ou política muda. Depois da sincronização, a política é empurrada para as abas de IA já abertas, então ativar, pausar ou adicionar uma IA aparece na conversa sem recarregar a página e sem ação do funcionário.
+O código completo já inclui o endereço do servidor. Após atualizar o projeto, recarregue a extensão em `chrome://extensions` para que o navegador exiba a versão 4.0.6.
 
 ## Painel administrativo
 
-| Tela | O que oferece |
+| Tela | O que centraliza |
 | --- | --- |
-| **Visão geral** | Indicadores, evolução dos alertas em períodos de 7, 14, 30 e 90 dias, tendência em relação ao período anterior, distribuição por risco, comportamento após alerta, IAs com mais ocorrências, categorias mais identificadas e efetividade dos avisos. |
-| **Alertas** | Auditoria com filtros por data, departamento e nível, paginação, retenção e exportação em CSV e PDF. |
-| **Regras de detecção** | Busca, criação, edição, ativação e exclusão de regras. |
-| **Departamentos** | Matriz de risco e regras de cada departamento. Ao excluir um departamento, o histórico de alertas é preservado. |
-| **Mensagens educativas** | Textos exibidos no aviso para risco alto, médio, baixo com detecções e sem detecções, em cards compactos. |
-| **Monitoramento** | Ativação geral, IAs monitoradas, dispositivos conectados com alertas emitidos por colaborador, código de verificação e download da extensão. A ativação é salva automaticamente, e novas IAs entram na sincronização sem exigir salvar as Opções da extensão. |
-| **Administradores** | Contas com acesso ao painel. O superadmin cria e exclui administradores e é o único que pode apagar todo o histórico de atividades; contas comuns trocam a própria senha. O histórico mostra quem alterou regras, mensagens, alertas e configurações, com navegação por páginas. |
+| **Visão geral** | Indicadores, evolução dos alertas, distribuição por risco, comportamentos após alerta e efetividade por departamento. |
+| **Alertas** | Filtros por data, departamento e nível, paginação e exportação em CSV ou PDF. |
+| **Regras e departamentos** | Criação, edição, ativação e exclusão de regras; matriz de risco por área. |
+| **Monitoramento** | Ativação geral, IAs autorizadas, dispositivos conectados, código de verificação e download da extensão. |
+| **Administradores** | Contas de acesso, troca de senha e histórico de alterações administrativas. |
 
-### Letramento
-
-O indicador central é o **"enviou mesmo assim"**. O painel compara envios e cancelamentos por departamento, não para punir, mas para mostrar onde o aviso ainda não funciona e onde o letramento precisa ser reforçado.
-
-| Situação | Critério |
-| --- | --- |
-| **Crítico** | Ao menos 3 alertas, com percentual de risco alto igual ou acima da tolerância. |
-| **Em observação** | Menos de 3 alertas. |
-| **Normal** | Ao menos 3 alertas, com percentual de risco alto abaixo do limite. |
-
-A tolerância é configurável na **Visão geral**.
-
-> **Como ler:** muitos cancelamentos indicam que o aviso está funcionando. Muitos envios em risco alto indicam que o aviso precisa de contexto, treinamento ou uma ferramenta corporativa autorizada.
-
-### Dispositivos e acessos
-
-- Cada instalação da extensão aparece no painel com colaborador, departamento, alertas emitidos, status e último contato, e pode ser desconectada individualmente.
-- Os status são: **Ativo** (contato recente e código atual), **Desatualizada** (contato recente, mas com código antigo), **Sem sinal** (sem contato há mais de 24 horas) e **Removida** (desconectada pelo painel).
-- Computador desligado, falta de rede e extensão desativada ou removida sem aviso aparecem como **Sem sinal**, porque o servidor não recebe um evento confiável nesses casos. As remoções feitas pelo painel ficam visíveis por 30 dias.
-- Ao renovar o código de verificação, cada dispositivo volta a conectar assim que o novo código é salvo nas Opções da extensão, sem reinstalar.
-- A política é central: a ativação e quais IAs são autorizadas ficam no painel e valem para todos os computadores. As Opções da extensão guardam apenas o que é específico de cada máquina: código de verificação, departamento e identificador do colaborador.
-- O primeiro administrador criado pelo servidor é o **superadmin**. Ele não pode ser excluído e é o único que cria e exclui outros administradores. Contas comuns trocam a própria senha.
+O indicador central de letramento é o **“enviou mesmo assim”**. Muitos cancelamentos indicam que o aviso está funcionando; muitos envios em risco alto indicam necessidade de treinamento, contexto ou uma ferramenta corporativa autorizada.
 
 ## Privacidade e segurança
 
-> **Nenhum conteúdo é armazenado.** Texto, imagens e PDFs são analisados diretamente no chat.
+- O conteúdo é analisado no navegador e **não é armazenado**.
+- O painel recebe apenas metadados: IA, departamento, colaborador, origem, nível, categorias e decisão.
+- O acesso ao painel é protegido por login e sessão de duração limitada.
+- O código de verificação autoriza a extensão a registrar alertas, mas não concede acesso ao painel.
+- A matriz completa de regras fica restrita à API autenticada da extensão.
 
-### O que chega ao painel
-
-Apenas o registro do alerta: a IA utilizada, o departamento, o colaborador, a origem do conteúdo (texto, imagem ou PDF), o nível de risco, as categorias identificadas e a decisão de enviar ou cancelar.
-
-### Controle de acesso
-
-- O painel é de uso exclusivo de administradores autorizados, com login e sessão de duração limitada.
-- As contas de administrador são criadas somente pelo superadmin.
-- O código de verificação autoriza a extensão a registrar alertas, mas não dá acesso ao painel.
-- O CORS aceita a origem da extensão e apenas as origens web configuradas explicitamente; não há curinga aberto por padrão.
-- A landing pública recebe apenas um subconjunto de regras de demonstração; a matriz completa com todos os padrões continua restrita à API autenticada da extensão.
-- O health check `/api/health` confirma o Flask e o Postgres; `/api/ping` continua sendo o endpoint leve para monitoramento.
-
-## Arquitetura e tecnologias
+## Arquitetura
 
 ```mermaid
 flowchart LR
-    E["Extensão<br/>Chrome e Edge"] <--> P["Painel"] <--> D[("Banco de dados")]
+    E["Extensão<br/>Chrome e Edge"] <--> P["Painel<br/>Flask"] <--> D[("PostgreSQL")]
 ```
-
-A extensão envia os alertas ao painel e recebe as regras e a configuração.
 
 | Camada | Tecnologia |
 | --- | --- |
-| **Extensão** | Manifest V3 (Chrome e Edge), JavaScript puro e Shadow DOM |
-| **Painel** | Flask (Python), Jinja, HTML e CSS |
-| **Banco de dados** | Postgres (Neon) |
+| **Extensão** | Manifest V3, JavaScript puro e Shadow DOM |
+| **Painel** | Flask, Jinja, HTML e CSS |
+| **Banco de dados** | PostgreSQL (Neon) |
 | **Hospedagem** | Render |
 | **Automação** | GitHub Actions |
 
-A landing oficial é servida pelo Flask em `servidor/templates/landing.html`. A página React em
-`src/pages/Landing.tsx` é apenas a prévia de desenvolvimento do ambiente Freebuff e não é
-publicada pelo servidor Python.
+A landing oficial é servida pelo Flask em `servidor/templates/landing.html`. A página React em `src/pages/Landing.tsx` é apenas a prévia de desenvolvimento do ambiente Freebuff.
 
-### Prévia do painel no ambiente de desenvolvimento
+### Prévia local
 
-O preview do Vite também inicia o painel Flask real, com um Postgres embutido e dados de
-demonstração. O plugin `scripts/painel-preview-plugin.ts` só roda em desenvolvimento e não
-altera o build nem a implantação.
+O preview do Vite inicia o painel Flask real com um PostgreSQL embutido e dados de demonstração. Consulte [`DEPLOY.md`](./DEPLOY.md) para a publicação.
 
-1. Se necessário, instale as dependências de preview: `python3 -m pip install -r scripts/requirements-preview.txt`.
-2. Clique em **Entrar** na landing ou abra `/painel` no preview (por exemplo, `http://localhost:5173/painel`) e entre com `admin` / `admin123`.
-3. O banco local fica em `.preview/pgdata`; apague essa pasta com o preview parado para recomeçar do zero.
+```bash
+bun install
+bun run dev
+```
 
-Defina `SENTINELA_PREVIEW_PANEL=0` para iniciar apenas a landing. O preview serve para validar
-painel, APIs e layout; a extensão continua precisando de um servidor HTTPS publicado para testar
-o fluxo completo no navegador.
+Acesse `/painel` e entre com `admin` / `admin123` no ambiente de prévia. A extensão continua precisando de um servidor HTTPS público para testar o fluxo completo.
 
-### Como a detecção funciona
+## Documentação e suporte
 
-A extensão acompanha o campo de texto das IAs e aplica as regras localmente. O aviso é exibido isolado do estilo do site, e imagens e PDFs passam pelo mesmo conjunto de regras depois de terem o texto extraído.
-
-Cada regra do painel pode ser uma **palavra-chave** ou uma **expressão regular (regex)**. Além delas, a extensão traz regras técnicas embutidas, como a validação de CPF, CNPJ e cartões.
-
-## Instalação da extensão
-
-Cada colaborador instala a extensão no próprio Chrome ou Edge. O administrador fornece o código completo, que já inclui o endereço do servidor; o download feito pelo painel também traz esse endereço, é montado uma vez por URL e tem limite de downloads repetidos.
-
-1. O administrador fornece o código de verificação. Para testes sem o painel, há também o [ZIP público](./public/sentinela-extensao.zip).
-2. O arquivo é extraído em uma pasta de fácil acesso.
-3. A página de extensões do Chrome é `chrome://extensions`, e a do Edge é `edge://extensions`.
-4. Nessa página, o **Modo do desenvolvedor** é ativado.
-5. Com a opção **Carregar sem compactação**, é selecionada a pasta `extensao`.
-6. Nas **Opções** da extensão, é informado apenas o código de verificação recebido. O código completo já inclui a URL do servidor, então não é preciso configurar endereço separado.
-7. Em seguida, são escolhidos o departamento e o identificador do colaborador.
-8. Ao salvar, a autorização de acesso ao servidor é confirmada, se solicitada, e o botão **Testar conexão** verifica a ligação.
-9. Por fim, um teste com um dado fictício no ChatGPT, Gemini, Claude ou Copilot confirma que o aviso aparece.
-10. Novas IAs cadastradas no painel são sincronizadas automaticamente. A permissão de hosts HTTPS permite monitorar os domínios autorizados sem repetir a configuração da extensão.
+- [Guia de deploy](./DEPLOY.md)
+- [Extensão para download](./public/sentinela-extensao.zip)
+- [Projeto completo](./public/sentinela-projeto.zip)
 
 ## Licença
 
-Projeto pessoal de portfólio. Entre em contato antes de qualquer reutilização comercial.
+Projeto pessoal de portfólio. Consulte o autor antes de qualquer reutilização comercial.

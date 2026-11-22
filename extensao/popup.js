@@ -30,8 +30,12 @@ async function enviar(mensagem) {
 
 function pintarStatus(conectado, texto) {
   var ponto = elementos.statusPonto;
-  ponto.className = "ponto-status " + (conectado ? "on" : "off");
-  elementos.statusTexto.textContent = texto || (conectado ? "Conectado" : "Desconectado");
+  var estado = conectado ? "on" : "off";
+  var legenda = texto || (conectado ? "Conectado" : "Desconectado");
+  ponto.className = "status-olhos " + estado;
+  ponto.alt = legenda;
+  ponto.setAttribute("aria-label", legenda);
+  elementos.statusTexto.textContent = legenda;
 }
 
 async function carregar() {

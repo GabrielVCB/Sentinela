@@ -5,8 +5,11 @@
 <div class="app">
   <aside class="menu">
     <a class="marca-bloco" href="/">
-      <p class="marca">Sentinela</p>
-      <p class="micro">governança de ia</p>
+      <img class="marca-olhos" src="{{ url_for('static', filename='olhos-sentinela.png') }}?v={{ versao_assets }}" alt="" aria-hidden="true" />
+      <span class="marca-texto">
+        <span class="marca">Sentinela</span>
+        <span class="micro">governança de ia</span>
+      </span>
     </a>
 
     <nav class="menu-nav" aria-label="Painel">
@@ -63,7 +66,7 @@
           <h1>Visão geral</h1>
           <button type="button" class="info-aba" data-info="visao" aria-label="Sobre Visão geral">i</button>
         </div>
-        <button type="button" class="botao" id="atualizar-resumo">Atualizar dados</button>
+        <button type="button" class="botao marca" id="atualizar-resumo">Atualizar dados</button>
       </header>
 
       <div class="metricas" id="metricas-resumo" aria-busy="true">
@@ -96,7 +99,6 @@
             <p class="micro" id="grafico-periodo">Alertas por dia · últimos 14 dias</p>
           </div>
           <div class="grafico-controles">
-            <span class="tendencia" id="grafico-tendencia">—</span>
             <div class="periodos-grafico" role="group" aria-label="Período do gráfico">
               <button type="button" data-periodo="7">7 dias</button>
               <button type="button" data-periodo="14" class="ativo">14 dias</button>
@@ -143,7 +145,7 @@
               </span>
               <input type="number" id="limiar" min="0" max="100" value="{{ limiar_padrao }}" />
             </label>
-            <button type="submit" class="botao">Aplicar</button>
+            <button type="submit" class="botao marca">Aplicar</button>
           </form>
         </div>
         <div class="tabela-rolagem">
@@ -241,9 +243,8 @@
           <button type="button" class="info-aba" data-info="alertas" aria-label="Sobre Alertas">i</button>
         </div>
         <div class="acoes-cabecalho">
-          <a class="botao" id="exportar" href="{{ url_for('api_exportar_csv') }}">Exportar CSV</a>
-          <a class="botao" id="exportar-pdf" href="{{ url_for('api_exportar_pdf') }}">Exportar PDF</a>
-          <button type="button" class="botao" id="abrir-periodo">Excluir alertas antigos</button>
+          <a class="botao marca" id="exportar" href="{{ url_for('api_exportar_csv') }}">Exportar CSV</a>
+          <a class="botao marca" id="exportar-pdf" href="{{ url_for('api_exportar_pdf') }}">Exportar PDF</a>
           <button type="button" class="botao perigo" id="limpar-tudo">Excluir todos os alertas</button>
         </div>
       </header>
@@ -273,8 +274,8 @@
           </select>
         </label>
         <div class="filtros-acoes">
-          <button type="submit" class="botao primario">Aplicar</button>
-          <button type="button" class="botao" id="limpar-filtros">Limpar filtros</button>
+          <button type="submit" class="botao marca">Aplicar</button>
+          <button type="button" class="botao marca" id="limpar-filtros">Limpar filtros</button>
         </div>
       </form>
 
@@ -302,7 +303,7 @@
       <div class="paginacao">
         <button type="button" class="botao" id="pagina-anterior">Anterior</button>
         <span class="rotulo" id="pagina-info">—</span>
-        <button type="button" class="botao" id="pagina-proxima">Próxima</button>
+        <button type="button" class="botao" id="pagina-proxima">Próximo</button>
       </div>
     </section>
 
@@ -346,9 +347,9 @@
             <p class="micro">Últimas alterações feitas pelos administradores.</p>
           </div>
           <div class="acoes-titulo">
-            <button type="button" class="botao" id="atualizar-atividades">Atualizar dados</button>
+            <button type="button" class="botao marca" id="atualizar-atividades">Atualizar dados</button>
             {% if superadmin %}
-            <button type="button" class="botao perigo" id="limpar-atividades">Excluir histórico</button>
+            <button type="button" class="botao perigo botao-icone" id="limpar-atividades" aria-label="Excluir histórico" title="Excluir histórico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="m6 7 1 13h10l1-13" /><path d="M10 11v5M14 11v5" /></svg></button>
             {% endif %}
           </div>
         </div>
@@ -359,7 +360,7 @@
         <div class="paginacao paginacao-atividades">
           <button type="button" class="botao" id="atividades-pagina-anterior">Anterior</button>
           <span class="rotulo" id="atividades-pagina-info">—</span>
-          <button type="button" class="botao" id="atividades-pagina-proxima">Próxima</button>
+          <button type="button" class="botao" id="atividades-pagina-proxima">Próximo</button>
         </div>
       </section>
     </section>
@@ -401,7 +402,7 @@
             <h2>Código de verificação</h2>
             <button type="button" class="info-aba" data-info="codigo" aria-label="Código de verificação">i</button>
           </div>
-          <button type="button" class="botao" id="renovar-token">Renovar código</button>
+          <button type="button" class="botao marca" id="renovar-token">Renovar código</button>
         </div>
 
         <div class="instalacao-entrega">
@@ -409,7 +410,7 @@
             <code id="instalacao-token" class="codigo-valor">—</code>
           </div>
           <div class="instalacao-entrega-acoes">
-            <button type="button" class="botao" id="copiar-token">Copiar código</button>
+            <button type="button" class="botao marca" id="copiar-token">Copiar código</button>
             <a class="botao primario" href="{{ url_for('baixar_extensao_configurada') }}" download>
               Baixar extensão (.zip)
             </a>
@@ -436,7 +437,7 @@
       <section class="bloco-painel">
         <div class="linha-titulo">
           <h2>Dispositivos</h2>
-          <button type="button" class="botao" id="atualizar-dispositivos">Atualizar dados</button>
+          <button type="button" class="botao marca" id="atualizar-dispositivos">Atualizar dados</button>
         </div>
 
         <div id="resumo-dispositivos" class="micro">—</div>
@@ -678,7 +679,7 @@
     </div>
     <div class="dialogo-acoes">
       <button type="button" class="botao" data-fecha="dialogo-periodo">Cancelar</button>
-      <button type="submit" class="botao primario">Excluir alertas</button>
+      <button type="submit" class="botao perigo">Excluir alertas</button>
     </div>
   </form>
 </dialog>

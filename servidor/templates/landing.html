@@ -11,8 +11,11 @@
   <header class="lp-topo">
     <div class="lp-limite lp-topo-linha">
       <a class="marca-bloco" href="{{ url_for('landing') }}" aria-label="Sentinela, página inicial">
-        <span class="marca">Sentinela</span>
-        <span class="micro">governança de ia</span>
+        <img class="lp-logo" src="{{ url_for('static', filename='olhos-sentinela.png') }}?v={{ versao_assets }}" alt="" aria-hidden="true" />
+        <span class="marca-texto">
+          <span class="marca">Sentinela</span>
+          <span class="micro">governança de ia</span>
+        </span>
       </a>
 
       <nav class="lp-nav" aria-label="Navegação principal">
@@ -73,10 +76,10 @@
           <div class="lp-demo-rodape">
             <span class="rotulo">Testar</span>
             <div class="lp-demo-exemplos">
-              <button type="button" data-rotacao="true" data-texto="Pode revisar o nome do colaborador citado neste rascunho antes de enviar?">Baixo</button>
-              <button type="button" data-rotacao="true" data-texto="Preciso revisar o orçamento interno do trimestre e o cronograma do projeto Atlas.">Médio</button>
-              <button type="button" data-rotacao="true" data-texto="Estou com erro na API. Minha chave é sk-proj-8fJ2kLm9Qr4Tz7Xb1Nc6Vd3.">Alto</button>
-              <button type="button" data-texto="Pode revisar a redação deste e-mail de agradecimento para o cliente?">Sem detecção</button>
+              <button type="button" data-risco="baixo" data-rotacao="true" data-texto="Pode revisar o nome do colaborador citado neste rascunho antes de enviar?">Baixo</button>
+              <button type="button" data-risco="medio" data-rotacao="true" data-texto="Preciso revisar o orçamento interno do trimestre e o cronograma do projeto Atlas.">Médio</button>
+              <button type="button" data-risco="alto" data-rotacao="true" data-texto="Estou com erro na API. Minha chave é sk-proj-8fJ2kLm9Qr4Tz7Xb1Nc6Vd3.">Alto</button>
+              <button type="button" data-risco="sem-deteccao" data-texto="Pode revisar a redação deste e-mail de agradecimento para o cliente?">Sem detecção</button>
             </div>
           </div>
         </div>
@@ -404,8 +407,10 @@
     <div class="lp-limite lp-rodape-grade">
       <div>
         <a class="marca-bloco" href="{{ url_for('landing') }}">
-          <span class="marca">Sentinela</span>
-          <span class="micro">governança de ia</span>
+          <span class="marca-texto">
+            <span class="marca">Sentinela</span>
+            <span class="micro">governança de ia</span>
+          </span>
         </a>
         <p class="lp-rodape-texto">
           Painel de governança, auditoria e letramento em IA.

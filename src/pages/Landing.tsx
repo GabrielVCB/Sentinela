@@ -92,24 +92,39 @@ const EXEMPLOS_DEMO = [
     rotulo: "Baixo",
     texto: "Pode revisar o nome do colaborador citado neste rascunho antes de enviar?",
     rotacao: true,
+    risco: "baixo",
   },
   {
     rotulo: "Médio",
     texto:
       "Preciso revisar o orçamento interno do trimestre e o cronograma do projeto Atlas.",
     rotacao: true,
+    risco: "medio",
   },
   {
     rotulo: "Alto",
     texto: "Estou com erro na API. Minha chave é sk-proj-8fJ2kLm9Qr4Tz7Xb1Nc6Vd3.",
     rotacao: true,
+    risco: "alto",
   },
   {
     rotulo: "Sem detecção",
     texto: "Pode revisar a redação deste e-mail de agradecimento para o cliente?",
     rotacao: false,
+    risco: "sem_deteccao",
   },
-];
+] as const;
+
+const ESTILO_EXEMPLO: Record<(typeof EXEMPLOS_DEMO)[number]["risco"], string> = {
+  baixo:
+    "border-risco-baixo/35 bg-transparent text-risco-baixo hover:bg-risco-baixo-bg/55",
+  medio:
+    "border-risco-medio/35 bg-transparent text-risco-medio hover:bg-risco-medio-bg/55",
+  alto:
+    "border-risco-alto/35 bg-transparent text-risco-alto hover:bg-risco-alto-bg/55",
+  sem_deteccao:
+    "border-border bg-transparent text-muted-foreground hover:bg-muted/35",
+};
 
 const PILARES: Array<{ titulo: string; texto: string; Icon: LucideIcon }> = [
   {
@@ -380,9 +395,12 @@ export default function Landing() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className={`${CONTEUDO} flex items-center justify-between gap-6 py-4`}>
-          <Link to="/" className="flex items-baseline gap-2.5" aria-label="Sentinela, página inicial">
-            <span className="font-serif text-2xl leading-none tracking-tight">Sentinela</span>
-            <span className="rotulo hidden sm:inline">governança de ia</span>
+          <Link to="/" className="flex items-center gap-2.5" aria-label="Sentinela, página inicial">
+            <img src="/logo.png?v=4.0.6" alt="" aria-hidden="true" className="h-10 w-10 shrink-0 object-contain" />
+            <span className="flex flex-col">
+              <span className="font-serif text-2xl leading-none tracking-tight">Sentinela</span>
+              <span className="rotulo mt-1 leading-none">governança de ia</span>
+            </span>
           </Link>
 
           <nav className="hidden items-center gap-7 md:flex" aria-label="Navegação principal">
@@ -403,7 +421,7 @@ export default function Landing() {
             </a>
           </nav>
 
-          <Button asChild className="rounded-sm">
+          <Button asChild variant="outline" className="rounded-sm">
             <a href={destino}>
               Entrar
               <ArrowUpRight className="size-3.5" />
@@ -421,8 +439,7 @@ export default function Landing() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
             >
-              <p className="rotulo">Governança de IA</p>
-              <h1 className="mt-5 max-w-[15ch] font-serif text-[2.8rem] leading-[0.98] tracking-tight text-balance sm:text-6xl lg:text-[4.6rem]">
+              <h1 className="max-w-[15ch] font-serif text-[2.8rem] leading-[0.98] tracking-tight text-balance sm:text-6xl lg:text-[4.6rem]">
                 O que é confidencial não deveria virar <em className="italic">prompt</em>.
               </h1>
               <p className="mt-7 max-w-xl text-justify text-sm leading-7 text-muted-foreground">
@@ -438,7 +455,7 @@ export default function Landing() {
               <div className="mt-8 flex flex-wrap gap-2.5">
                 <Button asChild className="rounded-sm">
                   <a href={destino}>
-                    Abrir painel
+                    Entrar no painel
                     <ArrowUpRight className="size-3.5" />
                   </a>
                 </Button>
@@ -473,8 +490,8 @@ export default function Landing() {
               transition={{ duration: 0.34, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
               className="relative"
             >
-              <div className="border border-border bg-card shadow-[0_24px_70px_rgba(27,27,26,0.1)]">
-                <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+              <div className="relative border border-border bg-card shadow-[0_24px_70px_rgba(27,27,26,0.1)]">
+                <div className="flex items-center justify-between gap-3 border-b border-border bg-card px-4 py-3">
                   <span className="font-mono text-[11px] text-muted-foreground">IAexemplo.com</span>
                   <span className="rotulo">prévia</span>
                 </div>
@@ -484,10 +501,10 @@ export default function Landing() {
                   readOnly
                   tabIndex={-1}
                   aria-label="Texto de demonstração (somente leitura)"
-                  className="pointer-events-none min-h-40 cursor-default resize-none rounded-none border-0 bg-transparent px-4 py-4 text-sm leading-6 shadow-none focus-visible:ring-0"
+                  className="pointer-events-none min-h-40 cursor-default resize-none rounded-none border-0 bg-card px-4 py-4 text-sm leading-6 shadow-none focus-visible:ring-0"
                 />
 
-                <div className="border-t border-border bg-muted/30 p-3">
+                <div className="border-t border-border bg-card p-3">
                   <BannerRisco
                     nivel={analiseExibida.nivel}
                     deteccoes={analiseExibida.deteccoes}
@@ -497,19 +514,18 @@ export default function Landing() {
                   />
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3">
+                <div className="flex flex-wrap items-center gap-2 border-t border-border bg-card px-4 py-3">
                   <span className="rotulo">Testar</span>
                   {EXEMPLOS_DEMO.map((exemplo) => (
                     <button
                       key={exemplo.rotulo}
                       type="button"
                       onClick={() => escolherExemplo(exemplo.texto)}
-                      className={`border px-2 py-1 text-[10px] transition-colors ${
-                        texto === exemplo.texto
-                          ? "border-foreground/50 bg-foreground text-background"
-                          : "border-border bg-background text-muted-foreground hover:border-foreground/40 hover:text-foreground"
-                      }`}
+                      className={`inline-flex min-h-5 items-center gap-1.5 border px-1.5 py-0.5 text-[10px] leading-4 font-medium transition-colors ${ESTILO_EXEMPLO[exemplo.risco]}`}
                     >
+                      {exemplo.risco !== "sem_deteccao" && (
+                        <span className="size-1 rounded-full bg-current" aria-hidden />
+                      )}
                       {exemplo.rotulo}
                     </button>
                   ))}
@@ -914,8 +930,8 @@ export default function Landing() {
         <div className={`${CONTEUDO} flex flex-col gap-8 py-10 lg:flex-row lg:items-start lg:justify-between`}>
           <div>
             <Link to="/" className="flex items-baseline gap-2">
-              <span className="font-serif text-xl tracking-tight">Sentinela</span>
-              <span className="rotulo">governança de ia</span>
+              <span className="font-serif text-xl leading-none tracking-tight">Sentinela</span>
+              <span className="rotulo leading-none">governança de ia</span>
             </Link>
             <p className="mt-3 max-w-sm text-[11px] leading-5 text-muted-foreground">
               Painel de governança, auditoria e letramento em IA.

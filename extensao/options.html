@@ -8,13 +8,11 @@
     <link rel="stylesheet" href="estilos.css" />
   </head>
   <body class="opcoes">
-    <header class="cabecalho-pagina">
-      <div>
+    <header class="cabecalho-pagina cabecalho-marca">
+      <div class="marca-topo">
+        <img class="marca-olhos" src="olhos-sentinela.png?v=4.0.6" alt="" aria-hidden="true" />
         <p class="marca">Sentinela</p>
-        <h1>Configuração da extensão</h1>
-        <p class="micro">Extensão versão <strong id="versao-extensao">3.0.1</strong></p>
       </div>
-      <span id="status-ponto" class="ponto-status" aria-hidden="true"></span>
     </header>
 
     <main class="conteudo-pagina">
@@ -32,7 +30,7 @@
           </label>
         </div>
         <div class="acoes-teste">
-          <button id="testar" class="botao" type="button">Testar conexão</button>
+          <button id="testar" class="botao marca" type="button">Testar conexão</button>
           <p id="resultado-conexao" class="resultado" role="status"></p>
         </div>
       </section>

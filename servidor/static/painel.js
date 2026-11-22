@@ -10,6 +10,15 @@ const $ = function (id) {
   return document.getElementById(id);
 };
 
+const ICONE_LIXEIRA =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="m6 7 1 13h10l1-13"/><path d="M10 11v5M14 11v5"/></svg>';
+
+function aplicarLixeira(botao, rotulo) {
+  botao.innerHTML = ICONE_LIXEIRA;
+  botao.setAttribute("aria-label", rotulo);
+  botao.title = rotulo;
+}
+
 const estado = {
   areas: [],
   regras: [],
@@ -227,7 +236,14 @@ let acaoConfirmada = null;
 function confirmar(titulo, texto, rotulo, aoConfirmar) {
   $("confirmar-titulo").textContent = titulo;
   $("confirmar-texto").textContent = texto;
-  $("confirmar-ok").textContent = rotulo || "Excluir";
+  const botao = $("confirmar-ok");
+  const rotuloBotao = rotulo || "Excluir";
+  // Em Alertas, a exclusão volta a ser textual. Nas demais áreas, mantém o ícone.
+  if (/alerta/i.test(titulo) || /alerta/i.test(rotuloBotao)) {
+    botao.textContent = rotuloBotao;
+  } else {
+    aplicarLixeira(botao, rotuloBotao);
+  }
   acaoConfirmada = aoConfirmar;
   $("dialogo-confirmar").showModal();
 }
@@ -255,6 +271,12 @@ function alternarTema() {
     /* o tema continua valendo nesta sessão */
   }
   atualizarRotuloTema();
+  // Os SVGs recebem cores resolvidas no momento do desenho. Ao trocar o tema,
+  // redesenha a Visão geral para atualizar o complemento da rosca.
+  if (estado.secao === "visao") {
+    estado.resumoCarregado = false;
+    carregarResumo().catch(tratarErro);
+  }
 }
 
 function irPara(secao) {
@@ -340,8 +362,7 @@ async function carregarResumo() {
 
     const periodo = dados.periodo || estado.periodoGrafico;
     $("grafico-periodo").textContent = "Alertas por dia · últimos " + periodo + " dias";
-    renderizarTendencia(dados.tendencia);
-    desenharGrafico(dados.evolucao, periodo, dados.tendencia);
+    desenharGrafico(dados.evolucao, periodo);
 
     const porNivel = dados.por_nivel || {
       baixo: 0,
@@ -356,8 +377,8 @@ async function carregarResumo() {
     const baixo = variavelCss(baseCores, "--baixo", "#16a34a");
     const medio = variavelCss(baseCores, "--medio", "#f59e0b");
     const alto = variavelCss(baseCores, "--alto", "#dc2626");
-    const tinta = variavelCss(baseCores, "--tinta", "#1b1b1a");
-    const cinza = variavelCss(baseCores, "--linha-forte", "#d8d6cf");
+    const marca = variavelCss(baseCores, "--marca", "#00c896");
+    const complemento = variavelCss(baseCores, "--grafico-complemento", "#111111");
 
     desenharDonut(
       "grafico-risco",
@@ -371,8 +392,8 @@ async function carregarResumo() {
     desenharDonut(
       "grafico-acao",
       [
-        { rotulo: "Enviou", valor: porAcao.enviou, cor: tinta },
-        { rotulo: "Cancelou", valor: porAcao.cancelou, cor: cinza },
+        { rotulo: "Enviou", valor: porAcao.enviou, cor: marca },
+        { rotulo: "Cancelou", valor: porAcao.cancelou, cor: complemento },
       ],
       "Comportamento dos colaboradores após o alerta",
     );
@@ -388,36 +409,9 @@ async function carregarResumo() {
   }
 }
 
-function renderizarTendencia(tendencia) {
-  const elemento = $("grafico-tendencia");
-  if (!elemento) return;
-  elemento.className = "tendencia";
-
-  if (!tendencia || tendencia.direcao === "sem_dados") {
-    elemento.textContent = "Sem base de comparação";
-    return;
-  }
-  if (!tendencia.anterior) {
-    elemento.textContent = numero(tendencia.atual) + " no período";
-    return;
-  }
-
-  const variacao = Number(tendencia.variacao) || 0;
-  if (variacao > 0) {
-    elemento.className = "tendencia aumento";
-    elemento.textContent = "↑ " + percentual(variacao) + " vs. período anterior";
-  } else if (variacao < 0) {
-    elemento.className = "tendencia reducao";
-    elemento.textContent = "↓ " + percentual(Math.abs(variacao)) + " vs. período anterior";
-  } else {
-    elemento.textContent = "→ estável vs. período anterior";
-  }
-}
-
-function desenharGrafico(evolucao, periodo, tendencia) {
+function desenharGrafico(evolucao, periodo) {
   const container = $("grafico-evolucao");
   limpar(container);
-  renderizarTendencia(tendencia);
 
   const dias = Array.isArray(evolucao) ? evolucao : [];
   const totalPeriodo = dias.reduce(function (soma, dia) {
@@ -624,7 +618,7 @@ function desenharDonut(id, itens, descricao) {
   fundo.setAttribute("cy", "21");
   fundo.setAttribute("r", "15.9155");
   fundo.setAttribute("fill", "none");
-  fundo.style.stroke = variavelCss(container, "--linha", "#e0ded8");
+  fundo.style.stroke = variavelCss(container, "--superficie-2", "#f3f2ed");
   fundo.setAttribute("stroke-width", "5");
   svg.appendChild(fundo);
 
@@ -783,10 +777,7 @@ function desenharLetramento(dados) {
     const trilho = criar("span", "trilho");
     const enviado = criar("span", "enviado");
     enviado.style.width = item.taxa_envio + "%";
-    const cancelado = criar("span", "cancelado");
-    cancelado.style.width = Math.max(0, 100 - item.taxa_envio) + "%";
     trilho.appendChild(enviado);
-    trilho.appendChild(cancelado);
     barra.appendChild(trilho);
     barra.appendChild(criar("span", "percentual", percentual(item.taxa_envio)));
     envio.appendChild(barra);
@@ -917,8 +908,9 @@ function renderizarAreas() {
     editar.type = "button";
     editar.addEventListener("click", function () { abrirArea(area); });
 
-    const excluir = criar("button", "botao pequeno perigo", "Excluir");
+    const excluir = criar("button", "botao pequeno perigo botao-icone");
     excluir.type = "button";
+    aplicarLixeira(excluir, "Excluir departamento");
     excluir.addEventListener("click", function () {
       confirmar(
         "Excluir departamento?",
@@ -1030,13 +1022,14 @@ function renderizarRegras() {
     linha.appendChild(ativa);
 
     const acoes = criar("td", "direita");
+    const grupoAcoes = criar("div", "acoes-tabela");
     const editar = criar("button", "botao pequeno", "Editar");
     editar.type = "button";
     editar.addEventListener("click", function () { abrirRegra(regra); });
 
-    const excluir = criar("button", "botao pequeno perigo", "Excluir");
+    const excluir = criar("button", "botao pequeno perigo botao-icone");
     excluir.type = "button";
-    excluir.style.marginLeft = "6px";
+    aplicarLixeira(excluir, "Excluir regra");
     excluir.addEventListener("click", function () {
       confirmar(
         "Excluir regra?",
@@ -1055,8 +1048,9 @@ function renderizarRegras() {
       );
     });
 
-    acoes.appendChild(editar);
-    acoes.appendChild(excluir);
+    grupoAcoes.appendChild(editar);
+    grupoAcoes.appendChild(excluir);
+    acoes.appendChild(grupoAcoes);
     linha.appendChild(acoes);
     corpo.appendChild(linha);
   });
@@ -1409,13 +1403,14 @@ async function carregarAlertas(pagina) {
     linha.appendChild(tipos);
 
     const acoes = criar("td", "direita");
+    const grupoAcoes = criar("div", "acoes-tabela");
     const ver = criar("button", "botao pequeno", "Detalhes");
     ver.type = "button";
     ver.addEventListener("click", function () { abrirDetalhe(alerta.id); });
 
-    const excluir = criar("button", "botao pequeno perigo", "Excluir");
+    const excluir = criar("button", "botao pequeno perigo botao-icone");
     excluir.type = "button";
-    excluir.style.marginLeft = "6px";
+    aplicarLixeira(excluir, "Excluir alerta");
     excluir.addEventListener("click", function () {
       confirmar(
         "Excluir alerta?",
@@ -1433,8 +1428,9 @@ async function carregarAlertas(pagina) {
       );
     });
 
-    acoes.appendChild(ver);
-    acoes.appendChild(excluir);
+    grupoAcoes.appendChild(ver);
+    grupoAcoes.appendChild(excluir);
+    acoes.appendChild(grupoAcoes);
     linha.appendChild(acoes);
     corpo.appendChild(linha);
   });
@@ -1679,16 +1675,17 @@ async function carregarAdmins() {
     const acoes = criar("td", "direita");
     const podeTrocarSenha = admin.atual || (estado.euSuperadmin && !admin.superadmin);
     if (podeTrocarSenha) {
-      const senha = criar("button", "botao pequeno", "Trocar senha");
+      const senha = criar("button", "botao pequeno marca", "Trocar senha");
       senha.type = "button";
       senha.addEventListener("click", function () { abrirAdmin(admin); });
       acoes.appendChild(senha);
     }
 
     if (estado.euSuperadmin && !admin.atual && !admin.superadmin) {
-      const excluir = criar("button", "botao pequeno perigo", "Excluir");
+      const excluir = criar("button", "botao pequeno perigo botao-icone");
       excluir.type = "button";
       excluir.style.marginLeft = "6px";
+      aplicarLixeira(excluir, "Excluir administrador");
       excluir.addEventListener("click", function () {
         confirmar(
           "Excluir administrador?",
@@ -1957,8 +1954,9 @@ function desenharSitesMonitorados(disponiveis, ativos) {
     editar.addEventListener("click", function () { abrirSite(site); });
     acoes.appendChild(editar);
 
-    const excluir = criar("button", "botao pequeno perigo", "Excluir");
+    const excluir = criar("button", "botao pequeno perigo botao-icone");
     excluir.type = "button";
+    aplicarLixeira(excluir, "Excluir IA monitorada");
     excluir.addEventListener("click", function () { removerSite(site); });
     acoes.appendChild(excluir);
     rodape.appendChild(acoes);
@@ -2266,12 +2264,6 @@ function ligarEventos() {
 
   $("novo-admin").addEventListener("click", function () { abrirAdmin(null); });
   $("form-admin").addEventListener("submit", salvarAdmin);
-
-  $("abrir-periodo").addEventListener("click", function () {
-    $("periodo-de").value = "";
-    $("periodo-ate").value = "";
-    $("dialogo-periodo").showModal();
-  });
 
   $("form-periodo").addEventListener("submit", async function (evento) {
     evento.preventDefault();

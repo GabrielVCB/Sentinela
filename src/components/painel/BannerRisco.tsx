@@ -32,7 +32,8 @@ export function BannerRisco({
       aria-live="polite"
       aria-label={`Aviso de risco ${ROTULO_RISCO[nivel]}`}
       className={cn(
-        "relative overflow-hidden border bg-card transition-colors duration-300",
+        "relative overflow-hidden border transition-colors duration-300",
+        semDeteccoes ? "bg-card" : cores.fundo,
         cores.borda,
         className,
       )}

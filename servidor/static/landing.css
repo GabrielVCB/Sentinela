@@ -83,8 +83,8 @@ svg {
 
 .lp-topo .marca-bloco {
   display: flex;
-  align-items: baseline;
-  gap: 10px;
+  align-items: center;
+  gap: 11px;
   padding: 0;
   border: 0;
 }
@@ -298,7 +298,7 @@ svg {
   margin: 0 12px 12px;
   border: 1px solid var(--linha);
   border-left: 3px solid var(--risco);
-  background: color-mix(in srgb, var(--risco) 6%, var(--papel));
+  background: color-mix(in srgb, var(--risco) 9%, #fff);
   padding: 11px 13px;
   transition: border-color 0.3s ease, background 0.3s ease;
 }
@@ -332,7 +332,7 @@ svg {
   align-items: center;
   gap: 6px;
   border: 1px solid var(--linha);
-  background: var(--papel);
+  background: #fff;
   padding: 2px 6px;
   font-size: 10px;
   line-height: 16px;
@@ -1177,8 +1177,8 @@ svg {
 
 .lp-rodape .marca-bloco {
   display: flex;
-  align-items: baseline;
-  gap: 9px;
+  align-items: center;
+  gap: 10px;
   padding: 0;
   border: 0;
 }
@@ -1248,7 +1248,7 @@ svg {
 
 /* ------------------------------------------------------------ preferências */
 
-/* ----------------------------- 3.0 · Landing ---------------------------- */
+/* ----------------------------- 4.0 · Landing ---------------------------- */
 
 .landing {
   --lp-superficie: #fffefa;
@@ -1368,14 +1368,31 @@ svg {
 }
 
 .lp-demo-exemplos button {
-  min-height: 24px;
-  padding: 3px 8px;
-  background: var(--lp-superficie);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--linha);
+  background: transparent;
+  color: var(--cinza);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 16px;
+}
+
+.lp-demo-exemplos button::before {
+  content: "";
+  display: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .lp-demo-exemplos button:hover {
-  border-color: var(--tinta);
-  background: var(--lp-superficie-2);
+  background: color-mix(in srgb, var(--tinta) 2.5%, #fff);
 }
 
 .lp-solucao-grade {
@@ -1571,4 +1588,70 @@ svg {
     opacity: 1;
     transform: none;
   }
+}
+
+
+/* Logo no cabeçalho e cores dos exemplos da prévia. */
+.lp-logo {
+  display: block;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.lp-demo-caixa,
+.lp-demo-topo,
+.lp-demo-campo,
+.lp-demo-campo textarea,
+.lp-demo-rodape {
+  background: #fff;
+}
+
+.lp-demo-exemplos button[data-risco="baixo"] {
+  color: var(--baixo);
+  border-color: color-mix(in srgb, var(--baixo) 35%, transparent);
+  background: transparent;
+}
+
+.lp-demo-exemplos button[data-risco="baixo"]::before {
+  display: block;
+}
+
+.lp-demo-exemplos button[data-risco="medio"] {
+  color: var(--medio);
+  border-color: color-mix(in srgb, var(--medio) 35%, transparent);
+  background: transparent;
+}
+
+.lp-demo-exemplos button[data-risco="medio"]::before {
+  display: block;
+}
+
+.lp-demo-exemplos button[data-risco="alto"] {
+  color: var(--alto);
+  border-color: color-mix(in srgb, var(--alto) 35%, transparent);
+  background: transparent;
+}
+
+.lp-demo-exemplos button[data-risco="alto"]::before {
+  display: block;
+}
+
+.lp-demo-exemplos button[data-risco="sem-deteccao"] {
+  color: var(--cinza);
+  border-color: var(--linha-forte);
+  background: transparent;
+}
+
+.lp-demo-exemplos button[data-risco="baixo"]:hover {
+  background: color-mix(in srgb, var(--baixo) 7%, transparent);
+}
+
+.lp-demo-exemplos button[data-risco="medio"]:hover {
+  background: color-mix(in srgb, var(--medio) 7%, transparent);
+}
+
+.lp-demo-exemplos button[data-risco="alto"]:hover {
+  background: color-mix(in srgb, var(--alto) 7%, transparent);
 }

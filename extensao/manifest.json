@@ -1,21 +1,40 @@
 {
   "manifest_version": 3,
-  "name": "Sentinela · Governança e Letramento em IA",
-  "version": "3.0.1",
-  "description": "Analisa localmente o que você digita, cola ou anexa em IAs públicas, avisa antes do envio e registra apenas o alerta no painel de governança.",
+  "name": "Sentinela · Governança de IA",
+  "short_name": "Sentinela",
+  "version": "4.0.6",
+  "description": "Alerta localmente sobre dados sensíveis antes do envio em IAs públicas. Registra apenas metadados no painel de governança.",
   "permissions": ["storage", "offscreen", "alarms", "scripting"],
   "host_permissions": ["https://*/*"],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+  },
+  "icons": {
+    "16": "icones/icone16.png",
+    "32": "icones/icone32.png",
+    "48": "icones/icone48.png",
+    "128": "icones/icone128.png"
   },
   "background": {
     "service_worker": "background.js"
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Sentinela"
+    "default_title": "Sentinela",
+    "default_icon": {
+      "16": "icones/icone16.png",
+      "32": "icones/icone32.png",
+      "48": "icones/icone48.png",
+      "128": "icones/icone128.png"
+    }
   },
   "options_page": "options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["olhos-sentinela.png"],
+      "matches": ["https://*/*"]
+    }
+  ],
   "content_scripts": [
     {
       "matches": [

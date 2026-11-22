@@ -1,6 +1,10 @@
 /* Sentinela — estilos do popup e da página de opções (minimalismo). */
 :root {
   color-scheme: light;
+  --marca: #00c896;
+  --marca-claro: #16ddaa;
+  --marca-escuro: #007f60;
+  --grafite-sentinela: #171716;
   --papel: #fbfbf9;
   --tinta: #1b1b1a;
   --cinza: #55554f;
@@ -22,6 +26,10 @@ html[data-tema="escuro"] {
   --tinta-suave: #c4bfb4;
   --linha: #3b3935;
   --linha-forte: #4a4742;
+  --marca: #00c896;
+  --marca-claro: #16ddaa;
+  --marca-escuro: #16ddaa;
+  --grafite-sentinela: #171716;
   --baixo: #16a34a;
   --medio: #f59e0b;
   --alto: #dc2626;
@@ -83,21 +91,55 @@ dd {
   letter-spacing: 0.14em;
 }
 
-.ponto-status {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+.marca-topo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.marca-topo .micro {
+  margin-top: 3px;
+}
+
+.marca-olhos {
+  display: block;
+  width: 38px;
+  height: 38px;
   flex: 0 0 auto;
-  background: var(--cinza-claro);
+  object-fit: contain;
 }
 
-.ponto-status.on {
-  background: var(--baixo);
+.status-olhos {
+  display: block;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  transition: filter 0.2s ease, opacity 0.2s ease;
 }
 
-.ponto-status.off {
-  background: var(--alto);
+.status-olhos.off {
+  filter: grayscale(1) brightness(1.35);
+  opacity: 0.55;
+}
+
+.status-conexao {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+
+.status-conexao-texto {
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cinza-claro);
+}
+
+.status-conexao:has(.status-olhos.on) .status-conexao-texto {
+  color: var(--marca-escuro);
 }
 
 /* ------------------------------- Popup ---------------------------------- */
@@ -173,13 +215,15 @@ body.popup {
   color: var(--tinta);
   font: inherit;
   font-size: 11px;
+  font-weight: 600;
   padding: 7px 12px;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .botao:hover {
-  border-color: var(--cinza-claro);
+  border-color: color-mix(in srgb, var(--cinza-claro) 62%, var(--linha-forte));
+  background: color-mix(in srgb, var(--tinta) 2.5%, var(--papel-2));
 }
 
 .botao:disabled {
@@ -188,21 +232,59 @@ body.popup {
 }
 
 .botao.primario {
-  background: var(--tinta);
-  border-color: var(--tinta);
-  color: var(--papel);
+  background: var(--grafite-sentinela);
+  border-color: var(--grafite-sentinela);
+  color: #fdfdfb;
 }
 
 .botao.primario:hover {
-  background: #2c2c2a;
+  background: #25231f;
+  border-color: #25231f;
+  color: #fdfdfb;
+}
+
+.botao.marca {
+  background: var(--marca);
+  border-color: var(--marca);
+  color: #111111;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.botao.marca:hover {
+  background: color-mix(in srgb, var(--marca) 90%, #fff);
+  border-color: color-mix(in srgb, var(--marca) 90%, #fff);
+  color: #111111;
 }
 
 html[data-tema="escuro"] .botao:hover {
   border-color: var(--cinza-claro);
 }
 
+html[data-tema="escuro"] .botao.primario {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: var(--papel);
+}
+
 html[data-tema="escuro"] .botao.primario:hover {
-  background: #3b3935;
+  background: #e8e4da;
+  border-color: #e8e4da;
+  color: var(--papel);
+}
+
+html[data-tema="escuro"] .botao.marca {
+  background: var(--marca);
+  border-color: var(--marca);
+  color: #111111;
+}
+
+html[data-tema="escuro"] .botao.marca:hover {
+  background: color-mix(in srgb, var(--marca) 90%, #fff);
+  border-color: color-mix(in srgb, var(--marca) 90%, #fff);
+  color: #111111;
 }
 
 .botao.perigo {
@@ -326,10 +408,18 @@ body.opcoes {
   color: var(--cinza);
 }
 
-.cabecalho-pagina .ponto-status {
-  margin-top: 6px;
-  width: 8px;
-  height: 8px;
+.cabecalho-pagina .status-conexao {
+  margin-top: 2px;
+}
+
+.cabecalho-pagina .status-olhos {
+  width: 38px;
+  height: 38px;
+}
+
+.cabecalho-pagina .marca-olhos {
+  width: 38px;
+  height: 38px;
 }
 
 .conteudo-pagina {
@@ -581,6 +671,16 @@ html[data-tema="escuro"] .esqueleto {
 @media (max-width: 640px) {
   .cabecalho-pagina {
     padding: 32px 20px 22px;
+    flex-wrap: wrap;
+  }
+
+  .cabecalho-pagina .status-conexao {
+    flex-direction: row;
+    margin-left: auto;
+  }
+
+  .cabecalho-pagina .status-conexao-texto {
+    margin-top: 2px;
   }
 
   .conteudo-pagina {
