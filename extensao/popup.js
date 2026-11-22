@@ -28,14 +28,8 @@ async function enviar(mensagem) {
   });
 }
 
-function pintarStatus(conectado, texto) {
-  var ponto = elementos.statusPonto;
-  var estado = conectado ? "on" : "off";
-  var legenda = texto || (conectado ? "Conectado" : "Desconectado");
-  ponto.className = "status-olhos " + estado;
-  ponto.alt = legenda;
-  ponto.setAttribute("aria-label", legenda);
-  elementos.statusTexto.textContent = legenda;
+function pintarStatus(_conectado, texto) {
+  elementos.statusTexto.textContent = texto || "Desconectado";
 }
 
 async function carregar() {
@@ -90,7 +84,6 @@ async function testarConexao() {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-  elementos.statusPonto = document.getElementById("status-ponto");
   elementos.statusTexto = document.getElementById("status-texto");
   elementos.monitoramento = document.getElementById("monitoramento");
   elementos.departamento = document.getElementById("departamento");

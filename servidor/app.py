@@ -62,7 +62,7 @@ import pdf
 VERSAO = "4.0"
 # Este sufixo invalida o cache dos arquivos estáticos quando a interface muda
 # sem alterar a versão exibida do produto.
-VERSAO_ASSETS = "4.0.6"
+VERSAO_ASSETS = "4.0.8"
 LIMITE_SEM_SINAL_MINUTOS = 24 * 60
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 
@@ -176,7 +176,7 @@ db.inicializar_banco(ADMIN_USUARIO, ADMIN_SENHA)
 def variaveis_globais():
     """Deixa a versão disponível em todos os templates.
 
-    Ela entra no endereço dos arquivos estáticos (?v=4.0.6), então o navegador
+    Ela entra no endereço dos arquivos estáticos (?v=4.0.8), então o navegador
     não reaproveita um painel.js ou um CSS de uma publicação anterior.
     """
     return {"versao": VERSAO, "versao_assets": VERSAO_ASSETS}

@@ -8,7 +8,7 @@
 
 *O que é confidencial não deveria virar prompt.*
 
-Versão **4.0.6** · Extensão para Chrome e Edge · Flask · PostgreSQL
+Versão **4.0.7** · Extensão para Chrome e Edge · Flask · PostgreSQL
 
 [Baixar a extensão](./public/sentinela-extensao.zip) · [Baixar o projeto](./public/sentinela-projeto.zip) · [Como funciona](#como-funciona) · [Instalação](#instalação-da-extensão)
 
@@ -36,6 +36,16 @@ O Sentinela é uma camada de governança para o uso de IAs públicas no trabalho
 
 ## Como funciona
 
+```mermaid
+flowchart LR
+    A["Colaborador usa<br/>uma IA pública"] --> B["Extensão analisa<br/>o conteúdo localmente"]
+    B --> C{"Risco encontrado?"}
+    C -- "Não" --> D["Envio segue<br/>normalmente"]
+    C -- "Sim" --> E["Aviso com nível<br/>e categorias"]
+    E --> F["Colaborador decide<br/>enviar ou cancelar"]
+    F --> G["Apenas metadados<br/>chegam ao painel"]
+```
+
 1. O colaborador usa uma IA pública com texto, imagem ou PDF.
 2. A extensão analisa o conteúdo localmente e aplica as regras ativas.
 3. Se houver risco, o aviso aparece antes do envio com o nível e as categorias encontradas.
@@ -47,7 +57,7 @@ Em risco médio ou alto, o envio pede confirmação. O Sentinela orienta, mas **
 
 | Item | Informação |
 | --- | --- |
-| **Versão** | 4.0.6 |
+| **Versão** | 4.0.7 |
 | **Navegadores** | Chrome e Edge (Manifest V3) |
 | **Permissões** | `storage`, `offscreen`, `alarms`, `scripting` |
 | **Acesso a sites** | `https://*/*`, limitado às IAs autorizadas no painel |
@@ -63,7 +73,7 @@ A permissão `offscreen` permite extrair texto de imagens e PDFs em uma página 
 4. Nas **Opções**, cole o código de verificação fornecido pelo administrador.
 5. Informe o departamento, o identificador do colaborador e use **Testar conexão**.
 
-O código completo já inclui o endereço do servidor. Após atualizar o projeto, recarregue a extensão em `chrome://extensions` para que o navegador exiba a versão 4.0.6.
+O código completo já inclui o endereço do servidor. Após atualizar o projeto, recarregue a extensão em `chrome://extensions` para que o navegador exiba a versão 4.0.7.
 
 ## Painel administrativo
 

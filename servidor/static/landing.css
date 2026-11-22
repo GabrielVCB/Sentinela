@@ -1183,6 +1183,14 @@ svg {
   border: 0;
 }
 
+.lp-rodape-logo {
+  display: block;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
 .lp-rodape-texto {
   max-width: 22rem;
   margin-top: 10px;

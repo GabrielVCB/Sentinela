@@ -1,4 +1,4 @@
-# Deploy da Sentinela 4.0.6 no Render Free + Neon
+# Deploy da Sentinela 4.0.7 no Render Free + Neon
 
 Este é o caminho de custo zero do projeto: **Render Free** para o Flask, **Neon Free** para o
 Postgres e, opcionalmente, **UptimeRobot** para manter a demo acordada. O mesmo container pode
@@ -117,7 +117,7 @@ visita demora cerca de 1 minuto.
 4. Confira **Monitoramento → Código de verificação**:
    - a URL pública;
    - o código completo (URL + token);
-   - a versão **4.0.6**;
+   - a versão **4.0.7**;
    - o administrador inicial marcado como **Superadmin**.
 5. Confira **Regras de detecção**: devem existir 44 regras iniciais.
 6. Crie/edite uma regra e confirme que a extensão recebe a nova versão automaticamente em até
@@ -153,7 +153,7 @@ IAs adicionadas no painel usam seletores genéricos de compositor. Se o site tiv
 muito específica, a autorização do domínio ainda é necessária e os seletores podem precisar de
 ajuste em `extensao/content.js`.
 
-A versão 4.0.6 pede as permissões `alarms` e `scripting`. A primeira sincroniza a matriz e
+A versão 4.0.7 pede as permissões `alarms` e `scripting`. A primeira sincroniza a matriz e
 reenvia a fila; a segunda injeta o detector nas IAs adicionadas pelo painel depois que o
 domínio for autorizado nas Opções.
 
@@ -182,7 +182,7 @@ No painel:
   dispositivos conectados para a mesma seção;
 - [ ] um dispositivo desconectado volta a conectar depois de renovar o código e salvar o novo
   código nas Opções;
-- [ ] a extensão mostra **4.0.6** em `chrome://extensions`;
+- [ ] a extensão mostra **4.0.7** em `chrome://extensions`;
 - [ ] desligar a rede, gerar um alerta e religar: a fila reenvia em até 1 minuto;
 - [ ] o mesmo `evento_id` não duplica o alerta na auditoria.
 

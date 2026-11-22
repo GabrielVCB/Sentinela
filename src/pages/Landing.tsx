@@ -396,7 +396,7 @@ export default function Landing() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className={`${CONTEUDO} flex items-center justify-between gap-6 py-4`}>
           <Link to="/" className="flex items-center gap-2.5" aria-label="Sentinela, página inicial">
-            <img src="/logo.png?v=4.0.6" alt="" aria-hidden="true" className="h-10 w-10 shrink-0 object-contain" />
+            <img src="/logo.png?v=4.0.7" alt="" aria-hidden="true" className="h-10 w-10 shrink-0 object-contain" />
             <span className="flex flex-col">
               <span className="font-serif text-2xl leading-none tracking-tight">Sentinela</span>
               <span className="rotulo mt-1 leading-none">governança de ia</span>
@@ -929,7 +929,13 @@ export default function Landing() {
       <footer className="border-t border-border bg-muted/20">
         <div className={`${CONTEUDO} flex flex-col gap-8 py-10 lg:flex-row lg:items-start lg:justify-between`}>
           <div>
-            <Link to="/" className="flex items-baseline gap-2">
+            <Link to="/" className="flex items-center gap-2">
+              <img
+                src="/logo.png?v=4.0.7"
+                alt=""
+                aria-hidden="true"
+                className="h-7 w-7 shrink-0 object-contain"
+              />
               <span className="font-serif text-xl leading-none tracking-tight">Sentinela</span>
               <span className="rotulo leading-none">governança de ia</span>
             </Link>

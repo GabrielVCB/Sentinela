@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Sentinela · Governança de IA",
   "short_name": "Sentinela",
-  "version": "4.0.6",
+  "version": "4.0.7",
   "description": "Alerta localmente sobre dados sensíveis antes do envio em IAs públicas. Registra apenas metadados no painel de governança.",
   "permissions": ["storage", "offscreen", "alarms", "scripting"],
   "host_permissions": ["https://*/*"],
