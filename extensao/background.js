@@ -4,8 +4,8 @@
  * Centraliza TODAS as chamadas de rede, evitando CORS/mixed content nas
  * páginas das IAs. Funciona igual no Chrome e no Microsoft Edge.
  *
- * Cada pedido leva X-API-Token com o código de verificação copiado do painel
- * (Monitoramento > Código de verificação). Sem o código, o servidor recusa o envio. O popup
+ * Cada pedido leva X-API-Token com o código de conexão copiado do painel
+ * (Monitoramento > Código de conexão). Sem o código, o servidor recusa o envio. O popup
  * mostra o aviso em vez de falhar em silêncio. Alertas que falham por rede
  * entram em uma fila persistente e são reenviados por alarme; o cache de regras
  * mantém o aviso funcionando enquanto o servidor estiver fora do ar.
@@ -172,7 +172,7 @@ function hostsDinamicos(sites, sitesAtivos) {
   const hosts = [];
   const ativos = Array.isArray(sitesAtivos) ? sitesAtivos : null;
   (Array.isArray(sites) ? sites : []).forEach(function (site) {
-    // Ao registrar scripts novos, considera só as IAs ativas. A lista completa
+    // Ao registrar scripts novos, considera só as IAs monitoradas ativas. A lista completa
     // é usada para injetar/avisar abas já abertas e limpar avisos de IAs que
     // acabaram de ser desativadas.
     if (ativos && ativos.indexOf(String((site && site.id) || "")) < 0) return;
@@ -416,7 +416,7 @@ async function requisitar(caminho, opcoes, configuracaoExplicita) {
   const configuracao = configuracaoExplicita || (await obterConfiguracao());
   const base = normalizarUrl(configuracao.serverUrl);
   if (!base) {
-    throw new Error("O código completo não incluiu o endereço do servidor. Copie novamente em Monitoramento → Código de verificação.");
+    throw new Error("O código completo não incluiu o endereço do servidor. Copie novamente em Monitoramento → Código de conexão.");
   }
 
   const controlador = new AbortController();
@@ -424,7 +424,7 @@ async function requisitar(caminho, opcoes, configuracaoExplicita) {
 
   try {
     const cabecalhos = { ...(opcoes && opcoes.headers ? opcoes.headers : {}) };
-    // Código de verificação copiado do painel, guardado nas Opções.
+    // Código de conexão copiado do painel, guardado nas Opções.
     const codigo = (configuracao.apiToken || "").trim();
     if (codigo) cabecalhos["X-API-Token"] = codigo;
     // O painel usa este identificador para listar e desconectar um dispositivo
@@ -447,7 +447,7 @@ async function requisitar(caminho, opcoes, configuracaoExplicita) {
         /* resposta sem JSON */
       }
       if (resposta.status === 401) {
-        detalhe = "Código de verificação inválido ou ausente nas Opções.";
+        detalhe = "Código de conexão inválido ou ausente nas Opções.";
       }
       throw new Error(detalhe);
     }
@@ -647,11 +647,11 @@ async function sincronizarConfigInterno(forcar, verificarRemoto) {
   try {
     const configuracao = await obterConfiguracao();
     if (!configuracao.serverUrl) {
-      throw new Error("O código completo não incluiu o endereço do servidor. Copie novamente em Monitoramento → Código de verificação.");
+      throw new Error("O código completo não incluiu o endereço do servidor. Copie novamente em Monitoramento → Código de conexão.");
     }
     if (!(configuracao.apiToken || "").trim()) {
       throw new Error(
-        "Código de verificação não configurado. Abra Opções e cole o código do painel, em Monitoramento.",
+        "Código de conexão não configurado. Abra Opções e cole o código do painel, em Monitoramento.",
       );
     }
 
@@ -759,7 +759,7 @@ function sanearAlerta(alerta) {
 }
 
 function erroDefinitivo(mensagem) {
-  return /Código de verificação|Departamento não|Colaborador não|desconectado|HTTP 400|HTTP 401|HTTP 403/.test(
+  return /Código de conexão|Departamento não|Colaborador não|desconectado|HTTP 400|HTTP 401|HTTP 403/.test(
     String(mensagem || ""),
   );
 }
@@ -783,11 +783,11 @@ async function enviarAlerta(alerta) {
   }
 
   if (cache && cache.monitoramentoAtivo === false) {
-    return recusar("Monitoramento pausado pelo painel. Nenhum alerta será registrado.");
+    return recusar("Monitoramento desativado pelo painel. Nenhum alerta será registrado.");
   }
   if (!(configuracao.apiToken || "").trim()) {
     return recusar(
-      "Código de verificação não configurado. Abra Opções e cole o código do painel, em Monitoramento.",
+      "Código de conexão não configurado. Abra Opções e cole o código do painel, em Monitoramento.",
     );
   }
 
@@ -876,7 +876,7 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
           apiToken: String(mensagem.apiToken || "").trim(),
         };
         if (!configuracao.apiToken) {
-          responder({ ok: false, erro: "Cole o código de verificação para carregar os departamentos." });
+          responder({ ok: false, erro: "Cole o código de conexão para carregar os departamentos." });
           return;
         }
         try {
@@ -919,7 +919,7 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
           const base = normalizarUrl(configuracao.serverUrl);
           if (!base) {
             throw new Error(
-              "O código completo não incluiu o endereço do servidor. Copie novamente em Monitoramento → Código de verificação.",
+              "O código completo não incluiu o endereço do servidor. Copie novamente em Monitoramento → Código de conexão.",
             );
           }
           if (chrome.permissions && chrome.permissions.contains) {
@@ -933,7 +933,7 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
             }
           }
           // /api/ping prova que a rede e a URL funcionam; /api/config também
-          // confere o código de verificação.
+          // confere o código de conexão.
           await requisitar("/api/ping", { method: "GET" });
           const resposta = await requisitar("/api/config", { method: "GET" });
           await registrarDispositivo(configuracao);
@@ -942,6 +942,7 @@ chrome.runtime.onMessage.addListener(function (mensagem, remetente, responder) {
           responder({
             ok: true,
             mensagem: `${totalRegras} ${totalRegras === 1 ? "regra" : "regras"}`,
+            totalRegras: totalRegras,
             latenciaMs: Date.now() - inicio,
           });
         } catch (erro) {
@@ -1020,7 +1021,7 @@ chrome.runtime.onInstalled.addListener(async function () {
   // para colar o código, em vez de ficar recusando alertas em silêncio.
   const configuracao = await obterConfiguracao();
   if (!(configuracao.apiToken || "").trim()) {
-    await registrarStatus(false, "Código de verificação não configurado.");
+    await registrarStatus(false, "Código de conexão não configurado.");
     await chrome.runtime.openOptionsPage();
     return;
   }

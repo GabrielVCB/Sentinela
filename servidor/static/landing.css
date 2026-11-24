@@ -1663,3 +1663,53 @@ svg {
 .lp-demo-exemplos button[data-risco="alto"]:hover {
   background: color-mix(in srgb, var(--alto) 7%, transparent);
 }
+
+/* ------------------------- 5.0 · temas e marca ------------------------- */
+
+.landing {
+  --lp-superficie: #ffffff;
+  --lp-superficie-2: #f1f5f3;
+}
+
+.lp-logo,
+.lp-rodape-logo {
+  object-fit: contain;
+}
+
+.lp-topo {
+  background: color-mix(in srgb, var(--papel) 88%, transparent);
+}
+
+.lp-demo-aviso {
+  border-left-color: var(--risco);
+}
+
+html[data-tema="escuro"] .landing {
+  --lp-superficie: #18241d;
+  --lp-superficie-2: #202d24;
+}
+
+html[data-tema="escuro"] .lp-topo {
+  background: color-mix(in srgb, var(--papel) 88%, transparent);
+}
+
+html[data-tema="escuro"] .lp-demo-aviso {
+  background: color-mix(in srgb, var(--risco) 12%, var(--papel-2));
+}
+
+html[data-tema="escuro"] .lp-demo-tipos li {
+  background: color-mix(in srgb, var(--lp-superficie) 86%, transparent);
+  border-color: color-mix(in srgb, var(--risco) 22%, var(--linha));
+}
+
+html[data-tema="escuro"] .lp-demo-exemplos button:hover {
+  background: color-mix(in srgb, var(--tinta) 8%, transparent);
+}
+
+html[data-tema="escuro"] .lp-demo-caixa {
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.34);
+}
+
+html[data-tema="escuro"] .lp-demo-campo textarea {
+  color: var(--tinta);
+}

@@ -59,10 +59,10 @@ from werkzeug.security import check_password_hash
 import db
 import pdf
 
-VERSAO = "4.0"
+VERSAO = "5.0.0"
 # Este sufixo invalida o cache dos arquivos estáticos quando a interface muda
 # sem alterar a versão exibida do produto.
-VERSAO_ASSETS = "4.0.8"
+VERSAO_ASSETS = "5.0.1"
 LIMITE_SEM_SINAL_MINUTOS = 24 * 60
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 
@@ -176,7 +176,7 @@ db.inicializar_banco(ADMIN_USUARIO, ADMIN_SENHA)
 def variaveis_globais():
     """Deixa a versão disponível em todos os templates.
 
-    Ela entra no endereço dos arquivos estáticos (?v=4.0.8), então o navegador
+    Ela entra no endereço dos arquivos estáticos (?v=5.0.0), então o navegador
     não reaproveita um painel.js ou um CSS de uma publicação anterior.
     """
     return {"versao": VERSAO, "versao_assets": VERSAO_ASSETS}
@@ -288,7 +288,7 @@ def limite_utc(data_texto: str, fim: bool = False) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Código de verificação e limite por origem
+# Código de conexão e limite por origem
 # ---------------------------------------------------------------------------
 
 def ip_do_cliente() -> str:
@@ -306,11 +306,11 @@ def token_esperado() -> str:
 
 
 def conferir_token():
-    """Devolve uma resposta de erro ou None quando o código de verificação confere."""
+    """Devolve uma resposta de erro ou None quando o código de conexão confere."""
     recebido = (request.headers.get("X-API-Token") or "").strip()
     esperado = token_esperado()
     if not recebido or not esperado or not hmac.compare_digest(recebido, esperado):
-        return jsonify({"erro": "Código de verificação inválido ou ausente."}), 401
+        return jsonify({"erro": "Código de conexão inválido ou ausente."}), 401
     return None
 
 
@@ -425,7 +425,7 @@ def dispositivo_revogado() -> bool:
     """Confere o dispositivo enviado pela extensão, quando presente.
 
     Extensões antigas não mandam X-Device-ID; elas continuam funcionando com
-    o código de verificação. Conexões novas podem ser desconectadas.
+    o código de conexão. Conexões novas podem ser desconectadas.
     """
     dispositivo_id = (request.headers.get("X-Device-ID") or "").strip()
     if not dispositivo_id:
@@ -757,7 +757,7 @@ def baixar_extensao_configurada():
 
     O ZIP estático do repositório continua disponível para demonstração, mas o
     download pelo painel evita que o colaborador precise descobrir/colar a URL
-    do Render. O código de verificação continua sendo copiado à parte.
+    do Render. O código de conexão continua sendo copiado à parte.
     """
     if not (RAIZ_PROJETO / "extensao").is_dir():
         return jsonify({"erro": "Arquivo da extensão não encontrado no servidor."}), 404
@@ -935,7 +935,7 @@ def api_registrar_dispositivo():
             jsonify(
                 {
                     "erro": "Este dispositivo foi desconectado pelo painel. "
-                    "Renove o código de verificação no painel e cole o novo código nas Opções."
+                    "Renove o código de conexão no painel e cole o novo código nas Opções."
                 }
             ),
             403,
@@ -952,7 +952,7 @@ def api_registrar_dispositivo():
 @app.post("/api/alertas")
 @exigir_token_api
 def api_criar_alerta():
-    # O código de verificação já foi conferido por @exigir_token_api antes de
+    # O código de conexão já foi conferido por @exigir_token_api antes de
     # qualquer gravação.
     corpo = ler_corpo()
 
@@ -1111,7 +1111,7 @@ def areas_para_landing() -> list:
 
 # A landing é pública. Ela recebe apenas um subconjunto genérico para a demo;
 # a matriz completa, com todos os padrões, só é entregue pela API autenticada
-# pelo código de verificação da extensão.
+# pelo código de conexão da extensão.
 REGRAS_DEMO_PUBLICAS = [
     {
         "nome": "Orçamento interno",
@@ -1574,7 +1574,7 @@ def api_limpar_por_periodo():
 
 
 @app.delete("/api/admin/alertas")
-@exigir_sessao_api
+@exigir_superadmin_api
 def api_limpar_tudo():
     conexao_aberta = conexao()
     try:
@@ -1802,7 +1802,7 @@ def api_renovar_token():
         )
     resultado = db.renovar_token_api()
     invalidar_cache_config()
-    registrar_atividade_admin("renovou", "codigo", "renovou o código de verificação.")
+    registrar_atividade_admin("renovou", "codigo", "renovou o código de conexão.")
     return jsonify(
         {
             **resultado,
@@ -1887,7 +1887,7 @@ def api_desconectar_dispositivo(dispositivo_id: str):
     )
     return jsonify(
         {
-            "mensagem": "Dispositivo desconectado. Ele pode voltar ao salvar um código de verificação renovado nas Opções."
+            "mensagem": "Dispositivo desconectado. Ele pode voltar ao salvar um código de conexão renovado nas Opções."
         }
     )
 
@@ -2368,8 +2368,11 @@ def api_remover_regra(regra_id: int):
     conexao_aberta = conexao()
     try:
         atual = conexao_aberta.execute(
-            "SELECT nome FROM regras WHERE id = ?", (regra_id,)
+            "SELECT area_id, nome, tipo, padrao, risco, ativo FROM regras WHERE id = ?",
+            (regra_id,),
         ).fetchone()
+        if not atual:
+            return jsonify({"erro": "Regra não encontrada."}), 404
         cursor = conexao_aberta.execute("DELETE FROM regras WHERE id = ?", (regra_id,))
         conexao_aberta.commit()
         if cursor.rowcount == 0:
@@ -2518,11 +2521,15 @@ def api_salvar_configuracoes():
         if politica["monitoramento_ativo"]:
             descricao_atividade = (
                 "ativou o monitoramento com "
-                + quantidade(len(politica["sites_ativos"]), "IA ativa", "IAs ativas")
+                + quantidade(
+                    len(politica["sites_ativos"]),
+                    "IA monitorada ativa",
+                    "IAs monitoradas ativas",
+                )
                 + "."
             )
         else:
-            descricao_atividade = "pausou o monitoramento."
+            descricao_atividade = "desativou o monitoramento."
         registrar_atividade_admin("atualizou", "monitoramento", descricao_atividade)
     sites = db.listar_sites()
     return jsonify(
@@ -2694,7 +2701,7 @@ def avisar_configuracao() -> None:
         print("[AVISO] SECRET_KEY de desenvolvimento. Defina SENTINELA_SECRET_KEY.")
     print("[Sentinela] Banco: Postgres externo (SENTINELA_DB_URL)")
     print(f"[Sentinela] Usuário admin: {ADMIN_USUARIO}")
-    print("[Sentinela] Código de verificação: painel → Monitoramento.")
+    print("[Sentinela] Código de conexão: painel → Monitoramento.")
 
 
 avisar_configuracao()

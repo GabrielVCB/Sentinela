@@ -1,15 +1,21 @@
 {
-  "name": "Sentinela · Governança e Letramento em IA",
+  "name": "Sentinela · Governança de IA",
   "short_name": "Sentinela",
-  "description": "Painel de governança, auditoria e letramento em IA. Detecta dados sensíveis antes que eles saiam da empresa.",
+  "description": "Painel de governança, auditoria e letramento em IA. Identifica dados sensíveis antes que eles saiam da empresa.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#fbfbf9",
-  "theme_color": "#00A77A",
+  "background_color": "#f7f8f7",
+  "theme_color": "#01986D",
   "icons": [
     {
-      "src": "/logo.png?v=4.0.7",
-      "sizes": "1024x1024",
+      "src": "/sentinela-logo.svg?v=5.0.1",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.png?v=5.0.1",
+      "sizes": "64x64",
       "type": "image/png",
       "purpose": "any"
     }

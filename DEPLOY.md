@@ -1,4 +1,4 @@
-# Deploy da Sentinela 4.0.7 no Render Free + Neon
+# Deploy da Sentinela 5.0.0 no Render Free + Neon
 
 Este é o caminho de custo zero do projeto: **Render Free** para o Flask, **Neon Free** para o
 Postgres e, opcionalmente, **UptimeRobot** para manter a demo acordada. O mesmo container pode
@@ -114,10 +114,10 @@ visita demora cerca de 1 minuto.
 2. Entre com `SENTINELA_ADMIN_USUARIO` e a senha informada.
 3. Em **Monitoramento**, ative a chave geral, escolha as IAs ou adicione uma nova IA
    com nome e URL.
-4. Confira **Monitoramento → Código de verificação**:
+4. Confira **Monitoramento → Código de conexão**:
    - a URL pública;
    - o código completo (URL + token);
-   - a versão **4.0.7**;
+   - a versão **5.0.0**;
    - o administrador inicial marcado como **Superadmin**.
 5. Confira **Regras de detecção**: devem existir 44 regras iniciais.
 6. Crie/edite uma regra e confirme que a extensão recebe a nova versão automaticamente em até
@@ -129,7 +129,7 @@ visita demora cerca de 1 minuto.
 
 O botão **Baixar extensão (.zip)** monta o arquivo com `config.js` contendo a URL pública deste
 servidor, mantém o resultado em cache por URL e limita downloads repetidos. Ele fica no
-mesmo bloco do código de verificação
+mesmo bloco do código de conexão
 aos funcionários. O código exibido no painel já inclui a URL do servidor; o colaborador cola o
 código completo nas Opções e não precisa informar endereço separado. O
 `public/sentinela-extensao.zip` do repositório é só o fallback de demonstração e pode ser
@@ -142,7 +142,7 @@ zip -qr public/sentinela-extensao.zip extensao -x '*.DS_Store'
 
 O ZIP deve conter a pasta `extensao/` com `manifest.json` dentro. Em cada computador:
 
-1. Baixe o ZIP pelo painel em **Monitoramento → Código de verificação → Baixar extensão (.zip)**. O código do painel já inclui
+1. Baixe o ZIP pelo painel em **Monitoramento → Código de conexão → Baixar extensão (.zip)**. O código do painel já inclui
    a URL do servidor; o ZIP público do repositório continua disponível para demonstração.
 2. Descompacte e recarregue em `chrome://extensions` ou `edge://extensions`.
 3. Abra **Opções**, cole o código completo recebido e informe o departamento e o colaborador.
@@ -153,7 +153,7 @@ IAs adicionadas no painel usam seletores genéricos de compositor. Se o site tiv
 muito específica, a autorização do domínio ainda é necessária e os seletores podem precisar de
 ajuste em `extensao/content.js`.
 
-A versão 4.0.7 pede as permissões `alarms` e `scripting`. A primeira sincroniza a matriz e
+A versão 5.0.0 pede as permissões `alarms` e `scripting`. A primeira sincroniza a matriz e
 reenvia a fila; a segunda injeta o detector nas IAs adicionadas pelo painel depois que o
 domínio for autorizado nas Opções.
 
@@ -176,13 +176,13 @@ No painel:
 - [ ] um alerta de teste aparece com site, departamento, colaborador, nível, tipos e origem;
 - [ ] o dispositivo aparece como **Ativo** no Monitoramento e muda para **Sem sinal** após 24 horas sem contato;
 - [ ] texto + imagem no mesmo conteúdo gera detecções das duas origens;
-- [ ] **Monitoramento → Código de verificação** mostra o endereço e o código corretos;
+- [ ] **Monitoramento → Código de conexão** mostra o endereço e o código corretos;
 - [ ] **Administradores** lista as contas de acesso ao painel;
 - [ ] **Monitoramento** ativa/pausa globalmente e por IA, adiciona IA com URL e move os
   dispositivos conectados para a mesma seção;
 - [ ] um dispositivo desconectado volta a conectar depois de renovar o código e salvar o novo
   código nas Opções;
-- [ ] a extensão mostra **4.0.7** em `chrome://extensions`;
+- [ ] a extensão mostra **5.0.0** em `chrome://extensions`;
 - [ ] desligar a rede, gerar um alerta e religar: a fila reenvia em até 1 minuto;
 - [ ] o mesmo `evento_id` não duplica o alerta na auditoria.
 
@@ -202,7 +202,7 @@ as colunas de lockout e a tabela `schema_migrations` são aditivas.
 - **UptimeRobot Free:** intervalo de 5 minutos e limites de monitores.
 - **Cloud Run:** alternativa com cota gratuita mensal e `min-instances=0`, mas exige faturamento
   ativo; `min-instances=1` tem custo.
-- **Código de verificação:** único para o workspace. Para muitas extensões, o próximo passo é
+- **Código de conexão:** único para o workspace. Para muitas extensões, o próximo passo é
   token por dispositivo com revogação individual.
 
 Se o objetivo é uma demo de portfólio, o conjunto Render + Neon + UptimeRobot é suficiente e

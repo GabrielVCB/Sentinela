@@ -16,7 +16,7 @@
 #   2. Suba o projeto no GitHub, com este arquivo na raiz do repositório.
 #   3. Na Render: New → Blueprint → escolha o repositório.
 #   4. Informe SENTINELA_ADMIN_SENHA e SENTINELA_DB_URL quando ela pedir.
-#   5. Depois do deploy, abra /painel → Monitoramento → Código de verificação
+#   5. Depois do deploy, abra /painel → Monitoramento → Código de conexão
 #      e copie o endereço e o código para as Opções da extensão em cada computador.
 
 services:

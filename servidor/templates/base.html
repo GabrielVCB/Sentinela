@@ -4,7 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <meta name="theme-color" content="#00A77A" />
+    <meta name="theme-color" content="#01986D" />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='sentinela-logo.svg') }}?v={{ versao_assets }}" />
     <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='favicon.png') }}?v={{ versao_assets }}" />
     <title>{% block titulo %}Sentinela · Governança de IA{% endblock %}</title>
     <script src="{{ url_for('static', filename='tema.js') }}?v={{ versao_assets }}"></script>

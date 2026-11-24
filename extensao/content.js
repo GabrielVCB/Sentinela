@@ -233,11 +233,10 @@
 
   // Espelho local das mensagens padrão (fallback quando o servidor nunca respondeu).
   var MENSAGENS_PADRAO = {
-    baixo: "Vale uma revisão rápida antes de enviar.",
-    sem_deteccao: "Nenhum dado sensível detectado.",
-    medio:
-      "Compartilhe só o necessário e confira a política de uso de IA antes de enviar.",
-    alto: "Remova os dados sensíveis antes de enviar.",
+    baixo: "Conteúdo de baixo risco identificado. Confira as informações antes de enviar.",
+    sem_deteccao: "Nenhum dado sensível identificado pelas regras ativas.",
+    medio: "Verifique as informações identificadas e compartilhe somente o necessário.",
+    alto: "Dados sensíveis identificados. Remova essas informações antes de enviar.",
   };
 
   var CONFIGURACAO_PADRAO = {
@@ -265,6 +264,8 @@
     site: null,
     campo: null,
     analise: { nivel: "baixo", deteccoes: [], totalOcorrencias: 0 },
+    expandirDeteccoes: false,
+    forcarBanner: false,
     textoAnalisado: "",
     analisando: false,
     timer: null,
@@ -1300,6 +1301,69 @@
     "@keyframes sentinela-overlay{from{opacity:0;}to{opacity:1;}}",
     "@keyframes sentinela-modal{from{opacity:0;transform:translateY(10px) scale(.975);}",
     "to{opacity:1;transform:none;}}",
+    // 5.0 — superfícies, semântica de risco e acessibilidade.
+    ".painel{background:rgba(255,255,252,.97);border-color:#d8e2de;border-radius:12px;",
+    "backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);",
+    "box-shadow:0 14px 36px rgba(10,25,20,.14),0 2px 8px rgba(10,25,20,.05);}",
+    ".painel::before{width:4px;background:#8a9691;}",
+    ".painel.sem-deteccao{background:color-mix(in srgb,#01986d 5%,#fffefa);border-color:#cfe6dd;}",
+    ".painel.sem-deteccao::before{background:#01986d;}",
+    ".painel.risco-baixo{background:color-mix(in srgb,#01986d 6%,#fffefa);border-color:#cfe6dd;}",
+    ".painel.risco-baixo::before{background:#01986d;}",
+    ".painel.risco-medio{background:color-mix(in srgb,#e5a13d 7%,#fffefa);border-color:#ead7b7;}",
+    ".painel.risco-medio::before{background:#e5a13d;}",
+    ".painel.risco-alto{background:color-mix(in srgb,#d94b58 6%,#fffefa);border-color:#eccbd0;}",
+    ".painel.risco-alto::before{background:#d94b58;}",
+    ".conteudo{padding:13px 44px 12px 17px;gap:9px;}",
+    ".nivel{font-size:10px;letter-spacing:.13em;gap:7px;}",
+    ".risco-baixo .nivel,.sem-deteccao .nivel{color:#086b55;}",
+    ".risco-medio .nivel{color:#8a5a12;}",
+    ".risco-alto .nivel{color:#c33d4b;}",
+    ".marca-aviso{width:18px;height:18px;}",
+    ".contagem{font-size:10px;color:#5f6d67;}",
+    ".tipos{gap:6px;}",
+    ".tipos li{border-color:#d8e2de;border-radius:6px;background:rgba(255,255,255,.72);color:#26332e;}",
+    ".tipos .area{color:#6e7b76;}",
+    ".mais-deteccoes{align-self:flex-start;appearance:none;border:0;background:transparent;",
+    "color:#086b55;font:inherit;font-size:10.5px;font-weight:600;padding:2px 0;cursor:pointer;",
+    "text-decoration:underline;text-underline-offset:2px;}",
+    ".mais-deteccoes:focus-visible{outline:2px solid #01986d;outline-offset:2px;border-radius:3px;}",
+    ".tipos .valor{width:6px;height:6px;background:#01986d;}",
+    ".tipos .valor.medio{background:#e5a13d;}",
+    ".tipos .valor.alto{background:#d94b58;}",
+    ".mensagem{font-size:11.5px;line-height:1.55;color:#4d5a55;}",
+    ".fechar{top:5px;right:5px;width:30px;height:30px;display:inline-flex;align-items:center;",
+    "justify-content:center;padding:0;color:#6e7b76;}",
+    ".fechar:hover,.fechar:focus-visible{color:#16201d;background:rgba(1,152,109,.1);outline:2px solid #01986d;outline-offset:1px;}",
+    "button.acao{border-radius:7px;min-height:34px;}",
+    "button.acao.primario{background:#017f5b;border-color:#017f5b;color:#fff;}",
+    "button.acao.primario:hover{background:#016a4c;border-color:#016a4c;}",
+    ":host([data-tema=\"escuro\"]) .painel{background:rgba(35,47,43,.98);border-color:#344238;",
+    "box-shadow:0 18px 44px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.24);}",
+    ":host([data-tema=\"escuro\"]) .painel.sem-deteccao{background:color-mix(in srgb,#20c99d 8%,#18241d);border-color:#31584a;}",
+    ":host([data-tema=\"escuro\"]) .painel.risco-baixo{background:color-mix(in srgb,#20c99d 8%,#18241d);border-color:#31584a;}",
+    ":host([data-tema=\"escuro\"]) .painel.risco-medio{background:color-mix(in srgb,#e5a13d 9%,#18241d);border-color:#59482e;}",
+    ":host([data-tema=\"escuro\"]) .painel.risco-alto{background:color-mix(in srgb,#d94b58 9%,#18241d);border-color:#5b3339;}",
+    ":host([data-tema=\"escuro\"]) .nivel{filter:none;}",
+    ":host([data-tema=\"escuro\"]) .risco-baixo .nivel,",
+    ":host([data-tema=\"escuro\"]) .sem-deteccao .nivel{color:#20c99d;}",
+    ":host([data-tema=\"escuro\"]) .risco-medio .nivel{color:#f0bd6a;}",
+    ":host([data-tema=\"escuro\"]) .risco-alto .nivel{color:#f08a94;}",
+    ":host([data-tema=\"escuro\"]) .contagem{color:#b4afa6;}",
+    ":host([data-tema=\"escuro\"]) .mensagem{color:#cfd8d3;}",
+    ":host([data-tema=\"escuro\"]) .tipos li{background:rgba(255,255,255,.055);border-color:#344238;color:#f0f5f2;}",
+    ":host([data-tema=\"escuro\"]) .tipos .area{color:#b4afa6;}",
+    ":host([data-tema=\"escuro\"]) .mais-deteccoes{color:#20c99d;}",
+    ":host([data-tema=\"escuro\"]) .fechar{color:#b4afa6;}",
+    ":host([data-tema=\"escuro\"]) button.acao.primario{background:#20c99d;border-color:#20c99d;color:#10201b;}",
+    ":host([data-tema=\"escuro\"]) button.acao.primario:hover{background:#4bd6b2;border-color:#4bd6b2;color:#10201b;}",
+    ".modal{background:rgba(255,255,252,.98);border-color:#d8e2de;border-radius:12px;}",
+    ".modal h2{color:#16201d;}",
+    ".modal p{color:#4d5a55;}",
+    ":host([data-tema=\"escuro\"]) .modal{background:#18241d;border-color:#344238;color:#f0f5f2;}",
+    ":host([data-tema=\"escuro\"]) .modal h2{color:#f0f5f2;}",
+    ":host([data-tema=\"escuro\"]) .modal p,",
+    ":host([data-tema=\"escuro\"]) .modal li{color:#cfd8d3;}",
     "@media (prefers-reduced-motion: reduce){.painel,.painel.saindo,.overlay,.modal{",
     "animation:none!important;}}",
   ].join("");
@@ -1437,22 +1501,34 @@
     }
 
     var assinatura = assinaturaAtual();
-    if (assinatura === estado.assinaturaBanner && estado.raizBanner.firstElementChild) {
+    if (
+      assinatura === estado.assinaturaBanner &&
+      estado.raizBanner.firstElementChild &&
+      !estado.forcarBanner
+    ) {
       agendarPosicao();
       return;
     }
+    if (assinatura !== estado.assinaturaBanner && !estado.forcarBanner) {
+      estado.expandirDeteccoes = false;
+    }
+    estado.forcarBanner = false;
     estado.assinaturaBanner = assinatura;
 
     var jaVisivel = estado.bannerVisivel;
     estado.raizBanner.replaceChildren();
 
     var analise = estado.analise;
+    var semDeteccao = analise.deteccoes.length === 0;
     var painel = document.createElement("section");
-    painel.className = "painel risco-" + analise.nivel;
+    painel.className = "painel " + (semDeteccao ? "sem-deteccao" : "risco-" + analise.nivel);
     if (jaVisivel) painel.style.animation = "none";
     painel.setAttribute("role", "status");
     painel.setAttribute("aria-live", "polite");
-    painel.setAttribute("aria-label", "Aviso de risco " + ROTULOS[analise.nivel]);
+    painel.setAttribute(
+      "aria-label",
+      semDeteccao ? "Nenhuma detecção" : "Alerta de risco " + ROTULOS[analise.nivel],
+    );
 
     var conteudo = document.createElement("div");
     conteudo.className = "conteudo";
@@ -1463,27 +1539,36 @@
     nivel.className = "nivel";
     var marca = document.createElement("img");
     marca.className = "marca-aviso";
-    marca.src = chrome.runtime.getURL("olhos-sentinela.png");
+    marca.src = chrome.runtime.getURL("sentinela-logo.svg");
     marca.alt = "";
     marca.setAttribute("aria-hidden", "true");
     nivel.appendChild(marca);
-    nivel.appendChild(document.createTextNode("Risco " + ROTULOS[analise.nivel]));
+    nivel.appendChild(
+      document.createTextNode(
+        semDeteccao ? "Nenhuma detecção" : "Risco " + ROTULOS[analise.nivel],
+      ),
+    );
 
-    var contagem = document.createElement("span");
-    contagem.className = "contagem";
-    contagem.textContent = analise.deteccoes.length
-      ? plural(analise.deteccoes.length, "tipo", "tipos") +
-        " · " +
-        plural(analise.totalOcorrencias, "ocorrência", "ocorrências")
-      : "sem detecções";
     cabecalho.appendChild(nivel);
-    cabecalho.appendChild(contagem);
+    if (!semDeteccao) {
+      var contagem = document.createElement("span");
+      contagem.className = "contagem";
+      contagem.textContent =
+        plural(analise.deteccoes.length, "tipo", "tipos") +
+        " · " +
+        plural(analise.totalOcorrencias, "ocorrência", "ocorrências");
+      cabecalho.appendChild(contagem);
+    }
     conteudo.appendChild(cabecalho);
 
     if (analise.deteccoes.length > 0) {
       var lista = document.createElement("ul");
       lista.className = "tipos";
-      analise.deteccoes.forEach(function (deteccao) {
+      var limiteTipos = 6;
+      var visiveis = estado.expandirDeteccoes
+        ? analise.deteccoes
+        : analise.deteccoes.slice(0, limiteTipos);
+      visiveis.forEach(function (deteccao) {
         var item = document.createElement("li");
         var valor = document.createElement("span");
         valor.className = "valor " + deteccao.risco;
@@ -1499,6 +1584,23 @@
         lista.appendChild(item);
       });
       conteudo.appendChild(lista);
+      if (analise.deteccoes.length > limiteTipos) {
+        var mais = document.createElement("button");
+        mais.type = "button";
+        mais.className = "mais-deteccoes";
+        mais.textContent = estado.expandirDeteccoes
+          ? "Mostrar menos"
+          : "Ver mais " +
+            (analise.deteccoes.length - limiteTipos) +
+            (analise.deteccoes.length - limiteTipos === 1 ? " tipo" : " tipos");
+        mais.setAttribute("aria-expanded", String(estado.expandirDeteccoes));
+        mais.addEventListener("click", function () {
+          estado.expandirDeteccoes = !estado.expandirDeteccoes;
+          estado.forcarBanner = true;
+          renderizarBanner();
+        });
+        conteudo.appendChild(mais);
+      }
     }
 
     if (estado.anexos.length > 0) {
@@ -1540,7 +1642,7 @@
     var mensagem = document.createElement("p");
     mensagem.className = "mensagem";
     mensagem.textContent = mensagemDoNivel(
-      analise.deteccoes.length > 0 ? analise.nivel : "sem_deteccao",
+      semDeteccao ? "sem_deteccao" : analise.nivel,
     );
     conteudo.appendChild(mensagem);
 

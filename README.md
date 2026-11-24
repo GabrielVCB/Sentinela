@@ -8,7 +8,7 @@
 
 *O que é confidencial não deveria virar prompt.*
 
-Versão **4.0.7** · Extensão para Chrome e Edge · Flask · PostgreSQL
+Versão **5.0.0** · Extensão para Chrome e Edge · Flask · PostgreSQL
 
 [Baixar a extensão](./public/sentinela-extensao.zip) · [Baixar o projeto](./public/sentinela-projeto.zip) · [Como funciona](#como-funciona) · [Instalação](#instalação-da-extensão)
 
@@ -57,7 +57,7 @@ Em risco médio ou alto, o envio pede confirmação. O Sentinela orienta, mas **
 
 | Item | Informação |
 | --- | --- |
-| **Versão** | 4.0.7 |
+| **Versão** | 5.0.0 |
 | **Navegadores** | Chrome e Edge (Manifest V3) |
 | **Permissões** | `storage`, `offscreen`, `alarms`, `scripting` |
 | **Acesso a sites** | `https://*/*`, limitado às IAs autorizadas no painel |
@@ -70,10 +70,10 @@ A permissão `offscreen` permite extrair texto de imagens e PDFs em uma página 
 1. Baixe o ZIP pelo painel ou pelo link acima e extraia o arquivo.
 2. Abra `chrome://extensions` ou `edge://extensions` e ative o **Modo do desenvolvedor**.
 3. Escolha **Carregar sem compactação** e selecione a pasta `extensao`.
-4. Nas **Opções**, cole o código de verificação fornecido pelo administrador.
+4. Nas **Opções**, cole o código de conexão fornecido pelo administrador.
 5. Informe o departamento, o identificador do colaborador e use **Testar conexão**.
 
-O código completo já inclui o endereço do servidor. Após atualizar o projeto, recarregue a extensão em `chrome://extensions` para que o navegador exiba a versão 4.0.7.
+O código completo já inclui o endereço do servidor. Após atualizar o projeto, recarregue a extensão em `chrome://extensions` para que o navegador exiba a versão 5.0.0.
 
 ## Painel administrativo
 
@@ -82,7 +82,7 @@ O código completo já inclui o endereço do servidor. Após atualizar o projeto
 | **Visão geral** | Indicadores, evolução dos alertas, distribuição por risco, comportamentos após alerta e efetividade por departamento. |
 | **Alertas** | Filtros por data, departamento e nível, paginação e exportação em CSV ou PDF. |
 | **Regras e departamentos** | Criação, edição, ativação e exclusão de regras; matriz de risco por área. |
-| **Monitoramento** | Ativação geral, IAs autorizadas, dispositivos conectados, código de verificação e download da extensão. |
+| **Monitoramento** | Monitoramento geral, IAs autorizadas, dispositivos conectados, código de conexão e download da extensão. |
 | **Administradores** | Contas de acesso, troca de senha e histórico de alterações administrativas. |
 
 O indicador central de letramento é o **“enviou mesmo assim”**. Muitos cancelamentos indicam que o aviso está funcionando; muitos envios em risco alto indicam necessidade de treinamento, contexto ou uma ferramenta corporativa autorizada.
@@ -92,7 +92,7 @@ O indicador central de letramento é o **“enviou mesmo assim”**. Muitos canc
 - O conteúdo é analisado no navegador e **não é armazenado**.
 - O painel recebe apenas metadados: IA, departamento, colaborador, origem, nível, categorias e decisão.
 - O acesso ao painel é protegido por login e sessão de duração limitada.
-- O código de verificação autoriza a extensão a registrar alertas, mas não concede acesso ao painel.
+- O código de conexão autoriza a extensão a registrar alertas, mas não concede acesso ao painel.
 - A matriz completa de regras fica restrita à API autenticada da extensão.
 
 ## Arquitetura

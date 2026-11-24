@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Sentinela · Governança de IA",
   "short_name": "Sentinela",
-  "version": "4.0.7",
-  "description": "Alerta localmente sobre dados sensíveis antes do envio em IAs públicas. Registra apenas metadados no painel de governança.",
+  "version": "5.0.0",
+  "description": "O Sentinela ajuda a identificar possíveis dados sensíveis durante o uso de ferramentas de inteligência artificial, emitindo alertas antes do envio das informações.",
   "permissions": ["storage", "offscreen", "alarms", "scripting"],
   "host_permissions": ["https://*/*"],
   "content_security_policy": {
@@ -31,7 +31,7 @@
   "options_page": "options.html",
   "web_accessible_resources": [
     {
-      "resources": ["olhos-sentinela.png"],
+      "resources": ["sentinela-logo.svg"],
       "matches": ["https://*/*"]
     }
   ],

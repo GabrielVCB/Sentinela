@@ -10,7 +10,7 @@
   <body class="popup">
     <header class="popup-topo">
       <div class="marca-topo">
-        <img class="marca-olhos" src="olhos-sentinela.png?v=4.0.7" alt="" aria-hidden="true" />
+        <img class="marca-olhos" src="sentinela-logo.svg?v=5.0.1" alt="" aria-hidden="true" />
         <div>
           <p class="marca">Sentinela</p>
           <p class="micro">governança de ia</p>
@@ -18,15 +18,15 @@
       </div>
     </header>
 
-    <section class="bloco">
+    <section class="bloco resumo-popup">
       <div class="linha">
         <span class="rotulo">Monitoramento</span>
-        <span id="monitoramento" class="valor">—</span>
+        <span id="monitoramento" class="badge status-neutro">—</span>
       </div>
-      <p id="status-texto" class="micro">Carregando…</p>
-    </section>
-
-    <section class="bloco">
+      <div class="linha">
+        <span class="rotulo">Situação da conexão</span>
+        <span id="status-texto" class="badge status-neutro">Carregando…</span>
+      </div>
       <div class="linha">
         <span class="rotulo">Departamento</span>
         <span id="departamento" class="valor">—</span>
@@ -35,23 +35,21 @@
         <span class="rotulo">Colaborador</span>
         <span id="colaborador" class="valor">—</span>
       </div>
-    </section>
-
-    <section class="bloco">
       <div class="linha">
         <span class="rotulo">Regras ativas</span>
         <span id="regras" class="valor">0</span>
       </div>
       <div class="linha">
-        <span class="rotulo">Atualizado automaticamente</span>
+        <span class="rotulo">Última sincronização</span>
         <span id="sincronizacao" class="valor">—</span>
       </div>
     </section>
 
     <div class="acoes-popup">
-      <button id="testar" class="botao marca" type="button">Testar conexão</button>
       <button id="opcoes" class="botao primario" type="button">Opções</button>
+      <button id="testar" class="botao" type="button">Testar conexão</button>
     </div>
+    <p id="resultado-teste" class="resultado-popup" role="status" aria-live="polite"></p>
 
 
     <script src="popup.js" defer></script>

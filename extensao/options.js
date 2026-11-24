@@ -47,6 +47,8 @@ let avisoPermissao = "";
 let sitesConhecidos = [];
 let sitesTotais = [];
 let sitesPendentes = [];
+let configuracaoSalva = null;
+let tokenVisivel = false;
 
 /**
  * Servidor na internet exige permissão do navegador para ser acessado.
@@ -160,7 +162,7 @@ async function carregarAreas(mostrarErro) {
   const atual = el.departamento.value;
 
   if (!/^https:\/\//i.test(servidor) || !codigo) {
-    montarDepartamentos([], atual, "Cole o código de verificação");
+    montarDepartamentos([], atual, "Cole o código de conexão");
     return;
   }
 
@@ -214,7 +216,7 @@ function desenharSites(sites, pendentes, ativos) {
   if (!sitesConhecidos.length) {
     const vazio = document.createElement("li");
     vazio.className = "micro";
-    vazio.textContent = "Nenhuma IA autorizada pelo painel no momento.";
+    vazio.textContent = "Nenhuma IA autorizada foi encontrada na configuração atual.";
     el.sitesStatus.appendChild(vazio);
   } else {
     sitesConhecidos.forEach(function (site) {
@@ -263,8 +265,39 @@ async function autorizarPendentes() {
   }
 }
 
+function estadoDaSincronizacao(estado) {
+  if (!estado.cache) return { texto: "Nunca sincronizado", chave: "neutro" };
+  if (estado.status && estado.status.mensagem && !estado.status.conectado) {
+    return { texto: "Falha na sincronização", chave: "erro" };
+  }
+  const idade = Date.now() - Number(estado.cache.atualizadoEm || 0);
+  if (idade > 24 * 60 * 60 * 1000) {
+    return { texto: "Dados desatualizados", chave: "atencao" };
+  }
+  return { texto: "Atualizado", chave: "ok" };
+}
+
 function atualizarResumo(estado) {
-  el.sincronizacao.textContent = estado.cache ? quando(estado.cache.atualizadoEm) : "nunca";
+  el.sincronizacao.textContent =
+    estado.cache && estado.cache.atualizadoEm
+      ? new Date(estado.cache.atualizadoEm).toLocaleString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "nunca";
+  if (el.sincronizacao) {
+    el.sincronizacao.title = estado.cache && estado.cache.atualizadoEm
+      ? new Date(estado.cache.atualizadoEm).toLocaleString("pt-BR")
+      : "Nenhuma sincronização concluída.";
+  }
+  const sincronizacao = estadoDaSincronizacao(estado);
+  if (el.estadoSincronizacao) {
+    el.estadoSincronizacao.textContent = sincronizacao.texto;
+    el.estadoSincronizacao.className = "estado-sincronizacao " + sincronizacao.chave;
+  }
   if (el.versao) {
     el.versao.textContent = estado.versao || chrome.runtime.getManifest().version;
   }
@@ -272,8 +305,8 @@ function atualizarResumo(estado) {
   const totalSites = sitesTotais.length;
   const ativos = Array.isArray(politica.sitesAtivos) ? politica.sitesAtivos.length : 0;
   el.politica.textContent = politica.monitoramentoAtivo === false
-    ? "Pausado pelo painel"
-    : ativos + " de " + totalSites;
+    ? "Monitoramento desativado"
+    : ativos + " de " + totalSites + " IAs autorizadas";
 
   const status = estado.status;
   const conectado = Boolean(status && status.conectado);
@@ -286,7 +319,75 @@ function atualizarResumo(estado) {
     el.statusPontoTexto.textContent = conectado ? "Conectado" : "Desconectado";
   }
   if (status && status.mensagem) {
-    el.sincronizacao.title = status.mensagem;
+    el.sincronizacao.title = (el.sincronizacao.title || "") + " · " + status.mensagem;
+  }
+}
+
+function configuracoesDaTela() {
+  return {
+    apiToken: el.token.value.trim(),
+    departamento: el.departamento.value.trim(),
+    colaborador: el.colaborador.value.trim(),
+  };
+}
+
+function atualizarPendente() {
+  if (!el.alteracoesPendentes) return;
+  if (!configuracaoSalva) {
+    el.alteracoesPendentes.hidden = true;
+    return;
+  }
+  const atual = configuracoesDaTela();
+  el.alteracoesPendentes.hidden =
+    atual.apiToken === configuracaoSalva.apiToken &&
+    atual.departamento === configuracaoSalva.departamento &&
+    atual.colaborador === configuracaoSalva.colaborador;
+}
+
+function limparErrosCampos() {
+  document.querySelectorAll(".erro-campo").forEach(function (erro) { erro.remove(); });
+  [el.token, el.departamento, el.colaborador].forEach(function (campo) {
+    if (!campo) return;
+    campo.removeAttribute("aria-invalid");
+  });
+}
+
+function marcarErroCampo(campo, mensagem) {
+  if (!campo) return;
+  limparErroCampo(campo);
+  campo.setAttribute("aria-invalid", "true");
+  const erro = document.createElement("p");
+  erro.className = "erro-campo";
+  erro.setAttribute("role", "alert");
+  erro.textContent = mensagem;
+  const rotulo = campo.closest("label") || campo.parentElement;
+  rotulo.appendChild(erro);
+}
+
+function limparErroCampo(campo) {
+  campo.removeAttribute("aria-invalid");
+  const rotulo = campo.closest("label") || campo.parentElement;
+  const erro = rotulo && rotulo.querySelector(".erro-campo");
+  if (erro) erro.remove();
+}
+
+function atualizarTokenVisivel() {
+  if (!el.token || !el.alternarToken) return;
+  el.token.type = tokenVisivel ? "text" : "password";
+  el.alternarToken.textContent = tokenVisivel ? "Ocultar" : "Mostrar";
+  el.alternarToken.setAttribute("aria-pressed", String(tokenVisivel));
+}
+
+async function copiarCodigo() {
+  const valor = el.token.value.trim();
+  if (!valor) return;
+  try {
+    await navigator.clipboard.writeText(valor);
+    avisar(el.resultadoConexao, "Código copiado.", "ok");
+  } catch (erro) {
+    el.token.focus();
+    el.token.select();
+    avisar(el.resultadoConexao, "Selecione e copie o código manualmente.", "erro");
   }
 }
 
@@ -309,6 +410,8 @@ async function carregar() {
 
   const areas = estado.cache ? estado.cache.areas : [];
   montarDepartamentos(areas, configuracao.departamento);
+  configuracaoSalva = configuracoesDaTela();
+  atualizarPendente();
   // Sem cache (primeira abertura), as áreas vêm do servidor na hora.
   if (!areas || !areas.length) void carregarAreas(false);
   desenharSites(estado.sites, estado.sitesPendentes, configuracao.sitesAtivos);
@@ -316,6 +419,28 @@ async function carregar() {
 }
 
 async function salvar(silencioso, completo) {
+  if (!silencioso && el.salvar && el.salvar.disabled) return false;
+  if (!silencioso && el.salvar) {
+    el.salvar.disabled = true;
+    el.salvar.textContent = "Salvando…";
+    if (el.estadoSincronizacao) {
+      el.estadoSincronizacao.textContent = "Atualizando";
+      el.estadoSincronizacao.className = "estado-sincronizacao atencao";
+    }
+  }
+  try {
+    return await executarSalvamento(silencioso, completo);
+  } finally {
+    if (!silencioso && el.salvar) {
+      el.salvar.disabled = false;
+      el.salvar.textContent = "Salvar conexão e identificação";
+    }
+    atualizarPendente();
+  }
+}
+
+async function executarSalvamento(silencioso, completo) {
+  if (!silencioso) limparErrosCampos();
   const exigirIdentificacao = completo !== false;
   const departamento = el.departamento.value.trim();
   const dadosCodigo = codigoDaTela();
@@ -327,41 +452,35 @@ async function salvar(silencioso, completo) {
     endereco = null;
   }
   if (!endereco || endereco.protocol !== "https:") {
-    avisar(
-      el.resultadoSalvar,
-      "O código de verificação deve incluir o endereço do servidor. Copie o código completo em Monitoramento → Código de verificação.",
-      "erro",
-    );
+    const mensagem =
+      "O código de conexão deve incluir o endereço do servidor. Copie o código completo em Monitoramento → Código de conexão.";
+    if (!silencioso) marcarErroCampo(el.token, mensagem);
+    avisar(el.resultadoSalvar, mensagem, "erro");
     return false;
   }
   const servidor = endereco.origin;
 
   const codigo = dadosCodigo.apiToken;
   if (!codigo) {
-    avisar(
-      el.resultadoSalvar,
-      "Cole o código de verificação que aparece no painel, em Monitoramento.",
-      "erro",
-    );
+    const mensagem = "Cole o código de conexão que aparece no painel, em Monitoramento.";
+    if (!silencioso) marcarErroCampo(el.token, mensagem);
+    avisar(el.resultadoSalvar, mensagem, "erro");
     return false;
   }
 
   if (exigirIdentificacao && !departamento) {
-    avisar(
-      el.resultadoSalvar,
-      "Escolha o departamento. Ele é obrigatório para identificar a origem do alerta.",
-      "erro",
-    );
+    const mensagem = "Escolha o departamento. Ele é obrigatório para identificar a origem do alerta.";
+    if (!silencioso) marcarErroCampo(el.departamento, mensagem);
+    avisar(el.resultadoSalvar, mensagem, "erro");
     return false;
   }
 
   const colaborador = el.colaborador.value.trim();
   if (exigirIdentificacao && !colaborador) {
-    avisar(
-      el.resultadoSalvar,
-      "Informe o identificador do colaborador. Ele é obrigatório: os alertas não são anônimos.",
-      "erro",
-    );
+    const mensagem =
+      "Informe o identificador do colaborador. Ele é obrigatório: os alertas não são anônimos.";
+    if (!silencioso) marcarErroCampo(el.colaborador, mensagem);
+    avisar(el.resultadoSalvar, mensagem, "erro");
     return false;
   }
 
@@ -387,6 +506,8 @@ async function salvar(silencioso, completo) {
   };
 
   await chrome.storage.local.set({ configuracao: configuracao });
+  configuracaoSalva = configuracoesDaTela();
+  atualizarPendente();
 
   if (!silencioso) {
     // Sincroniza na hora: confirma o código e já carrega a lista de departamentos.
@@ -394,11 +515,10 @@ async function salvar(silencioso, completo) {
     if (avisoPermissao) {
       avisar(el.resultadoSalvar, "Configurações salvas. " + avisoPermissao, "erro");
     } else if (!sincronizado.ok) {
-      avisar(
-        el.resultadoSalvar,
-        "Configurações salvas, mas o servidor recusou o código. Copie o valor de Código de verificação e salve de novo.",
-        "erro",
-      );
+      const mensagem =
+        "Configurações salvas, mas o servidor recusou o código. Copie o valor de Código de conexão e salve de novo.";
+      marcarErroCampo(el.token, mensagem);
+      avisar(el.resultadoSalvar, mensagem, "erro");
     } else {
       avisar(el.resultadoSalvar, "Configurações salvas e código aceito.", "ok");
       setTimeout(function () {
@@ -433,11 +553,22 @@ async function testar() {
     const segundos = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(
       (resposta.latenciaMs || 0) / 1000,
     );
-    avisar(
-      el.resultadoConexao,
-      "Servidor online · " + segundos + " s · " + (resposta.mensagem || ""),
-      "ok",
-    );
+    el.resultadoConexao.replaceChildren();
+    el.resultadoConexao.className = "resultado resultado-conexao ok";
+    [
+      ["Situação da conexão", "Conectado"],
+      ["Tempo de resposta", segundos + " s"],
+      ["Regras carregadas", String(resposta.totalRegras ?? "—")],
+    ].forEach(function (par) {
+      const linha = document.createElement("div");
+      const rotulo = document.createElement("span");
+      rotulo.textContent = par[0];
+      const valor = document.createElement("strong");
+      valor.textContent = par[1];
+      linha.appendChild(rotulo);
+      linha.appendChild(valor);
+      el.resultadoConexao.appendChild(linha);
+    });
   } else {
     avisar(
       el.resultadoConexao,
@@ -453,6 +584,7 @@ document.addEventListener("DOMContentLoaded", function () {
   el.departamento = document.getElementById("departamento");
   el.colaborador = document.getElementById("colaborador");
   el.sincronizacao = document.getElementById("sincronizacao");
+  el.estadoSincronizacao = document.getElementById("estado-sincronizacao");
   el.politica = document.getElementById("politica-monitoramento");
   el.sitesStatus = document.getElementById("sites-status");
   el.permissaoSites = document.getElementById("permissao-sites");
@@ -464,6 +596,9 @@ document.addEventListener("DOMContentLoaded", function () {
   el.salvar = document.getElementById("salvar");
   el.versao = document.getElementById("versao-extensao");
   el.tema = document.getElementById("tema-escuro");
+  el.alternarToken = document.getElementById("alternar-token");
+  el.copiarToken = document.getElementById("copiar-token");
+  el.alteracoesPendentes = document.getElementById("alteracoes-pendentes");
 
   // O espelho local pode estar à frente do armazenamento por alguns
   // milissegundos logo após a troca de tema. O maior horário vence, para o
@@ -506,6 +641,21 @@ document.addEventListener("DOMContentLoaded", function () {
   el.testar.addEventListener("click", testar);
   el.salvar.addEventListener("click", function () {
     void salvar(false);
+  });
+  el.alternarToken.addEventListener("click", function () {
+    tokenVisivel = !tokenVisivel;
+    atualizarTokenVisivel();
+  });
+  el.copiarToken.addEventListener("click", function () { void copiarCodigo(); });
+  [el.token, el.colaborador, el.departamento].forEach(function (campo) {
+    campo.addEventListener("input", function () {
+      limparErroCampo(campo);
+      atualizarPendente();
+    });
+    campo.addEventListener("change", function () {
+      limparErroCampo(campo);
+      atualizarPendente();
+    });
   });
 
   // A lista de departamentos acompanha o código digitado, sem salvar antes.

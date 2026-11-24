@@ -10,8 +10,11 @@
   <body class="opcoes">
     <header class="cabecalho-pagina cabecalho-marca">
       <div class="marca-topo">
-        <img class="marca-olhos" src="olhos-sentinela.png?v=4.0.7" alt="" aria-hidden="true" />
-        <p class="marca">Sentinela</p>
+        <img class="marca-olhos" src="sentinela-logo.svg?v=5.0.1" alt="" aria-hidden="true" />
+        <div>
+          <p class="marca">Sentinela</p>
+          <p class="config-subtitulo">Configurações da extensão</p>
+        </div>
       </div>
     </header>
 
@@ -24,14 +27,18 @@
         </div>
         <div class="grade grade-unica">
           <label class="campo">
-            <span class="rotulo">Código de verificação <b class="obrigatorio">*</b></span>
-            <input id="token" type="text" autocomplete="off" spellcheck="false" required
-              placeholder="Cole o código completo exibido no painel" />
+            <span class="rotulo">Código de conexão <b class="obrigatorio">*</b></span>
+            <div class="campo-codigo">
+              <input id="token" type="password" autocomplete="off" spellcheck="false" required
+                placeholder="Cole o código completo exibido no painel" />
+              <button id="alternar-token" class="botao" type="button" aria-pressed="false">Mostrar</button>
+              <button id="copiar-token" class="botao" type="button">Copiar</button>
+            </div>
           </label>
         </div>
         <div class="acoes-teste">
           <button id="testar" class="botao marca" type="button">Testar conexão</button>
-          <p id="resultado-conexao" class="resultado" role="status"></p>
+          <div id="resultado-conexao" class="resultado resultado-conexao" role="status" aria-live="polite"></div>
         </div>
       </section>
 
@@ -62,7 +69,7 @@
           </div>
         </div>
 
-        <p class="dica">A lista acompanha o painel automaticamente. Novas IAs não exigem salvar esta página.</p>
+        <p class="dica">As IAs autorizadas são sincronizadas automaticamente com o painel administrativo. Não é necessário salvar esta lista manualmente.</p>
         <ul id="sites-status" class="sites-status" aria-busy="true">
           <li class="sites-carregando" aria-label="Carregando IAs autorizadas"><span class="esqueleto"></span></li>
         </ul>
@@ -73,13 +80,13 @@
         <div class="secao-titulo">
           <div>
             <h2>Aparência</h2>
-            <p>Preferência apenas deste navegador; não altera o painel administrativo.</p>
+            <p class="dica">Define a aparência da extensão, incluindo suas configurações e os alertas exibidos nas ferramentas de IA. Não altera o painel administrativo.</p>
           </div>
         </div>
         <div class="linha-opcao">
           <div>
             <strong>Modo escuro</strong>
-            <p class="dica">Aplica o tema nas opções, no popup e no aviso exibido no chat.</p>
+            <p class="dica">Aplica o tema nas opções, no popup e nos alertas exibidos nas ferramentas de IA.</p>
           </div>
           <label class="switch">
             <input id="tema-escuro" type="checkbox" aria-label="Ativar modo escuro na extensão" />
@@ -95,14 +102,15 @@
           </div>
         </div>
         <dl class="resumo" id="resumo">
-          <div><dt>Última sincronização</dt><dd id="sincronizacao">nunca</dd></div>
+          <div><dt>Última sincronização</dt><dd id="sincronizacao">nunca</dd><dd id="estado-sincronizacao" class="estado-sincronizacao">Aguardando</dd></div>
           <div><dt>IAs autorizadas</dt><dd id="politica-monitoramento">—</dd></div>
         </dl>
       </section>
 
       <div class="barra-salvar">
         <div>
-          <p id="resultado-salvar" class="resultado" role="status"></p>
+          <p id="resultado-salvar" class="resultado" role="status" aria-live="polite"></p>
+          <p id="alteracoes-pendentes" class="alteracoes-pendentes" hidden>Alterações não salvas</p>
           <p class="dica">Tema e IAs salvam automaticamente, sem este botão. Ele grava e valida apenas conexão e identificação.</p>
         </div>
         <button id="salvar" class="botao primario" type="button">Salvar conexão e identificação</button>

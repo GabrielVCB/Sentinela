@@ -5,7 +5,7 @@
 <div class="app">
   <aside class="menu">
     <a class="marca-bloco" href="/">
-      <img class="marca-olhos" src="{{ url_for('static', filename='olhos-sentinela.png') }}?v={{ versao_assets }}" alt="" aria-hidden="true" />
+      <img class="marca-olhos" src="{{ url_for('static', filename='sentinela-logo.svg') }}?v={{ versao_assets }}" alt="" aria-hidden="true" />
       <span class="marca-texto">
         <span class="marca">Sentinela</span>
         <span class="micro">governança de ia</span>
@@ -71,22 +71,22 @@
 
       <div class="metricas" id="metricas-resumo" aria-busy="true">
         <div>
-          <p class="rotulo">Alertas</p>
+          <p class="rotulo">Total de alertas</p>
           <p class="metrica" id="kpi-total">—</p>
           <p class="micro" id="kpi-total-detalhe">aguardando dados…</p>
         </div>
         <div>
-          <p class="rotulo">Risco alto</p>
+          <p class="rotulo">Alertas de alto risco</p>
           <p class="metrica" id="kpi-alto">—</p>
           <p class="micro" id="kpi-alto-detalhe">aguardando dados…</p>
         </div>
         <div>
-          <p class="rotulo">Envios após o aviso</p>
+          <p class="rotulo">Taxa de envios após alerta</p>
           <p class="metrica" id="kpi-envio">—</p>
           <p class="micro" id="kpi-envio-detalhe">aguardando dados…</p>
         </div>
         <div>
-          <p class="rotulo">Categorias identificadas</p>
+          <p class="rotulo">Categorias mais recorrentes</p>
           <p class="metrica" id="kpi-tipos">—</p>
           <p class="micro">categorias distintas</p>
         </div>
@@ -121,7 +121,7 @@
         </section>
         <section class="bloco-painel">
           <h2 class="titulo-centralizado">Comportamento após alerta</h2>
-          <div id="grafico-acao" class="grafico-donut"><p class="grafico-vazio">Carregando comportamento…</p></div>
+          <div id="grafico-acao" class="grafico-donut grafico-comportamento"><p class="grafico-vazio">Carregando comportamento…</p></div>
         </section>
         <section class="bloco-painel">
           <h2 class="titulo-centralizado">IAs com mais ocorrências</h2>
@@ -130,13 +130,13 @@
       </div>
 
       <section class="bloco-painel">
-        <h2>Categorias mais identificadas</h2>
+        <h2>Categorias mais recorrentes</h2>
         <ol id="lista-tipos" class="lista-tipos"><li class="carregando-esqueleto"><span></span></li></ol>
       </section>
 
       <section class="bloco-painel">
         <div class="linha-titulo">
-          <h2>Efetividade dos avisos por departamento</h2>
+          <h2>Comportamento após os alertas por departamento</h2>
           <form id="form-limiar" class="form-inline">
             <label class="campo-inline">
               <span class="rotulo">
@@ -153,8 +153,8 @@
             <thead>
               <tr>
                 <th>Departamento</th>
-                <th>Envios após o aviso</th>
-                <th class="centro">Risco alto / alertas</th>
+                <th>Taxa de envios após alerta</th>
+                <th class="centro">Alertas de alto risco / total</th>
                 <th>Situação</th>
               </tr>
             </thead>
@@ -162,12 +162,13 @@
           </table>
         </div>
 
+        <p class="nota-indicador">A taxa considera os alertas em que o colaborador escolheu enviar, divididos pelo total de alertas do departamento. A situação usa a tolerância de risco alto e só classifica departamentos com pelo menos 3 alertas.</p>
         <div id="gargalos"></div>
       </section>
 
       <section class="bloco-painel">
         <div class="linha-titulo">
-          <h2>Últimos alertas</h2>
+          <h2>Alertas recentes</h2>
           <button type="button" class="link" data-ir="alertas">Ver todos os alertas</button>
         </div>
         <ul id="ultimos" class="lista-simples"></ul>
@@ -184,7 +185,10 @@
       </header>
 
       <div class="barra-ferramentas">
-        <input type="search" id="busca-regras" placeholder="Buscar por nome, departamento ou palavra-chave…" aria-label="Buscar regras" />
+        <div class="campo-busca">
+          <input type="search" id="busca-regras" placeholder="Buscar por nome, departamento ou palavra-chave…" aria-label="Buscar regras" />
+          <svg class="campo-busca-icone" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5" /><path d="m16 16 4 4" /></svg>
+        </div>
         <select id="filtro-area-regras" class="filtro-regras" aria-label="Filtrar regras por departamento">
           <option value="">Todos os departamentos</option>
         </select>
@@ -243,9 +247,16 @@
           <button type="button" class="info-aba" data-info="alertas" aria-label="Sobre Alertas">i</button>
         </div>
         <div class="acoes-cabecalho">
-          <a class="botao marca" id="exportar" href="{{ url_for('api_exportar_csv') }}">Exportar CSV</a>
-          <a class="botao marca" id="exportar-pdf" href="{{ url_for('api_exportar_pdf') }}">Exportar PDF</a>
+          <details class="exportar-menu">
+            <summary class="botao marca">Exportar</summary>
+            <div class="exportar-opcoes">
+              <a id="exportar-csv" href="{{ url_for('api_exportar_csv') }}">Exportar CSV</a>
+              <a id="exportar-pdf" href="{{ url_for('api_exportar_pdf') }}">Exportar PDF</a>
+            </div>
+          </details>
+          {% if superadmin %}
           <button type="button" class="botao perigo" id="limpar-tudo">Excluir todos os alertas</button>
+          {% endif %}
         </div>
       </header>
 
@@ -274,12 +285,14 @@
           </select>
         </label>
         <div class="filtros-acoes">
-          <button type="submit" class="botao marca">Aplicar</button>
-          <button type="button" class="botao marca" id="limpar-filtros">Limpar filtros</button>
+          <button type="submit" class="botao marca">Aplicar filtros</button>
+          <button type="button" class="botao" id="limpar-filtros">Limpar</button>
         </div>
       </form>
 
-      <p class="rotulo" id="resumo-listagem"></p>
+      <div class="resumo-filtros">
+        <p class="rotulo" id="resumo-listagem"></p>
+      </div>
 
       <div class="tabela-rolagem">
         <table class="tabela tabela-alertas">
@@ -344,7 +357,6 @@
         <div class="linha-titulo">
           <div>
             <h2>Histórico de atividades</h2>
-            <p class="micro">Últimas alterações feitas pelos administradores.</p>
           </div>
           <div class="acoes-titulo">
             <button type="button" class="botao marca" id="atualizar-atividades">Atualizar dados</button>
@@ -372,18 +384,19 @@
           <button type="button" class="info-aba" data-info="monitoramento" aria-label="Sobre Monitoramento">i</button>
         </div>
         <div class="monitoramento-mestre">
-          <span class="rotulo">Ativação geral</span>
+          <span id="monitoramento-estado" class="badge estado-monitoramento" data-estado="carregando">Carregando</span>
+          <span class="rotulo">Monitoramento geral</span>
           <label class="interruptor-monitoramento">
             <input type="checkbox" id="monitoramento-ativo" />
             <span class="interruptor-trilho" aria-hidden="true"></span>
-            <span class="interruptor-texto" id="monitoramento-ativo-texto">Pausada</span>
+            <span class="interruptor-texto" id="monitoramento-ativo-texto">Desativado</span>
           </label>
         </div>
       </header>
 
       <div class="monitoramento-kpis">
         <div class="monitoramento-kpi">
-          <span class="rotulo">IAs ativas</span>
+          <span class="rotulo">IAs monitoradas ativas</span>
           <strong id="monitoramento-chats" class="monitoramento-valor">
             <span id="monitoramento-chats-ativas" class="monitoramento-numero">—</span>
             <span class="monitoramento-valor-de">de</span>
@@ -396,22 +409,25 @@
         </div>
       </div>
 
-      <section class="bloco-painel">
+      <section class="bloco-painel bloco-monitoramento">
         <div class="linha-titulo">
           <div class="secao-titulo-principal">
-            <h2>Código de verificação</h2>
-            <button type="button" class="info-aba" data-info="codigo" aria-label="Código de verificação">i</button>
+            <div>
+              <p class="rotulo-bloco">Conexão</p>
+              <h2>Código de conexão</h2>
+            </div>
+            <button type="button" class="info-aba" data-info="codigo" aria-label="Código de conexão">i</button>
           </div>
-          <button type="button" class="botao marca" id="renovar-token">Renovar código</button>
+          <button type="button" class="botao" id="renovar-token">Renovar código</button>
         </div>
 
         <div class="instalacao-entrega">
           <div class="codigo-bloco">
-            <code id="instalacao-token" class="codigo-valor">—</code>
+            <code id="instalacao-token" class="codigo-valor" aria-label="Código de conexão protegido">••••••••••••••••</code>
           </div>
           <div class="instalacao-entrega-acoes">
-            <button type="button" class="botao marca" id="copiar-token">Copiar código</button>
-            <a class="botao primario" href="{{ url_for('baixar_extensao_configurada') }}" download>
+            <button type="button" class="botao" id="copiar-token">Copiar código</button>
+            <a class="botao" href="{{ url_for('baixar_extensao_configurada') }}" download>
               Baixar extensão (.zip)
             </a>
           </div>
@@ -425,9 +441,12 @@
         </dl>
       </section>
 
-      <section class="bloco-painel">
+      <section class="bloco-painel bloco-monitoramento">
         <div class="linha-titulo">
-          <h2>IAs monitoradas</h2>
+          <div>
+            <p class="rotulo-bloco">Ferramentas</p>
+            <h2>IAs monitoradas</h2>
+          </div>
           <button type="button" class="botao primario" id="adicionar-chat">Adicionar IA</button>
         </div>
 
@@ -684,20 +703,7 @@
   </form>
 </dialog>
 
-<!-- Diálogo: informação da aba -->
-<dialog id="dialogo-info" class="dialogo dialogo-estreito">
-  <div class="formulario-dialogo">
-    <div class="dialogo-topo">
-      <div>
-        <p class="rotulo">Sobre esta tela</p>
-        <h2 id="titulo-info">Informação</h2>
-      </div>
-      <button type="button" class="fechar-dialogo" data-fecha="dialogo-info" aria-label="Fechar">×</button>
-    </div>
-    <p id="texto-info" class="subtitulo"></p>
-  </div>
-</dialog>
-
+<div id="popover-info" class="popover-info" role="dialog" aria-modal="false" hidden></div>
 <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 {% endblock %}
 

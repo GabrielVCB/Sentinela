@@ -3,7 +3,7 @@
  *
  * A matriz abaixo vem de `servidor/dados/regras-publicas.json` e contém apenas
  * nomes, áreas e níveis de risco. Os padrões completos ficam no servidor e só
- * são entregues pela API autenticada pelo código de verificação da extensão.
+ * são entregues pela API autenticada pelo código de conexão da extensão.
  */
 import matrizJson from "../../servidor/dados/regras-publicas.json";
 import mensagensJson from "../../servidor/dados/mensagens.json";

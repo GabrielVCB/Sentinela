@@ -154,7 +154,7 @@ const ETAPAS = [
     numero: "01",
     titulo: "Implantação em minutos",
     texto:
-      "A extensão é instalada no Chrome ou no Edge com o código de verificação fornecido pelo painel.",
+      "A extensão é instalada no Chrome ou no Edge com o código de conexão fornecido pelo painel.",
   },
   {
     numero: "02",
@@ -396,7 +396,7 @@ export default function Landing() {
       <header className="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur-md">
         <div className={`${CONTEUDO} flex items-center justify-between gap-6 py-4`}>
           <Link to="/" className="flex items-center gap-2.5" aria-label="Sentinela, página inicial">
-            <img src="/logo.png?v=4.0.7" alt="" aria-hidden="true" className="h-10 w-10 shrink-0 object-contain" />
+            <img src="/sentinela-logo.svg?v=5.0.1" alt="" aria-hidden="true" className="h-10 w-10 shrink-0 object-contain" />
             <span className="flex flex-col">
               <span className="font-serif text-2xl leading-none tracking-tight">Sentinela</span>
               <span className="rotulo mt-1 leading-none">governança de ia</span>
@@ -680,7 +680,7 @@ export default function Landing() {
             <div className="mt-6 grid gap-3 border border-border bg-card p-5 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start sm:gap-5">
               <p className="rotulo">Acesso controlado</p>
               <p className="text-justify text-sm leading-6 text-muted-foreground">
-                O código de verificação não dá acesso ao painel.
+                O código de conexão não dá acesso ao painel.
               </p>
             </div>
           </div>
@@ -931,7 +931,7 @@ export default function Landing() {
           <div>
             <Link to="/" className="flex items-center gap-2">
               <img
-                src="/logo.png?v=4.0.7"
+                src="/sentinela-logo.svg?v=5.0.1"
                 alt=""
                 aria-hidden="true"
                 className="h-7 w-7 shrink-0 object-contain"

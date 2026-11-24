@@ -29,7 +29,7 @@
   }
 
   // A prévia usa só as regras públicas embutidas na página. A matriz completa
-  // com todos os padrões exige o código de verificação e não é exposta aqui.
+  // com todos os padrões exige o código de conexão e não é exposta aqui.
   var ultimo = "";
 
   function renderizar(resultado) {

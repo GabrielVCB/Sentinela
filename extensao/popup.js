@@ -28,8 +28,23 @@ async function enviar(mensagem) {
   });
 }
 
-function pintarStatus(_conectado, texto) {
+function pintarStatus(conectado, texto, estado) {
   elementos.statusTexto.textContent = texto || "Desconectado";
+  const classe =
+    estado === "erro" ? "status-erro" : conectado ? "status-ok" : "status-neutro";
+  elementos.statusTexto.className = "badge " + classe;
+}
+
+function pintarMonitoramento(valor) {
+  const ativo = valor === true;
+  const definido = valor === true || valor === false;
+  elementos.monitoramento.textContent = !definido
+    ? "Aguardando"
+    : ativo
+      ? "Ativo"
+      : "Desativado";
+  elementos.monitoramento.className =
+    "badge " + (ativo ? "status-ok" : definido ? "status-neutro" : "status-observacao");
 }
 
 async function carregar() {
@@ -43,44 +58,64 @@ async function carregar() {
   }
 
   const configuracao = estado.configuracao || {};
-  elementos.monitoramento.textContent =
-    configuracao.monitoramentoAtivo === true
-      ? "Ativo"
-      : configuracao.monitoramentoAtivo === false
-        ? "Desativado"
-        : "Aguardando configuração";
+  pintarMonitoramento(configuracao.monitoramentoAtivo);
   elementos.departamento.textContent = configuracao.departamento || "não configurado";
   elementos.colaborador.textContent = configuracao.colaborador || "não configurado";
   elementos.regras.textContent = estado.cache ? estado.cache.totalRegras : 0;
+  const falhaSincronizacao = Boolean(
+    estado.cache && estado.status && !estado.status.conectado && estado.status.mensagem,
+  );
   elementos.sincronizacao.textContent = estado.cache
-    ? formatarQuando(estado.cache.atualizadoEm)
-    : "nunca";
+    ? formatarQuando(estado.cache.atualizadoEm) + (falhaSincronizacao ? " · falha" : "")
+    : falhaSincronizacao
+      ? "falha · nunca sincronizado"
+      : "nunca";
+  elementos.sincronizacao.title = estado.cache && estado.cache.atualizadoEm
+    ? "Última sincronização bem-sucedida: " +
+      new Date(estado.cache.atualizadoEm).toLocaleString("pt-BR") +
+      (falhaSincronizacao ? " · falha na tentativa mais recente" : "")
+    : "Nenhuma sincronização concluída.";
 
   if (!(configuracao.apiToken || "").trim()) {
-    pintarStatus(false, "Cole o código completo nas opções.");
+    pintarStatus(false, "Não configurado", "neutro");
   } else if (estado.status && estado.status.conectado) {
     pintarStatus(true, "Conectado");
   } else if (!(configuracao.departamento || "").trim() || !(configuracao.colaborador || "").trim()) {
-    pintarStatus(false, "Informe departamento e colaborador nas opções.");
+    pintarStatus(false, "Configuração incompleta", "neutro");
   } else if (estado.status && estado.status.mensagem) {
-    pintarStatus(false, "Sem conexão");
+    pintarStatus(false, "Sem conexão", "erro");
   } else {
-    pintarStatus(false, "Nenhuma sincronização ainda.");
+    pintarStatus(false, "Nunca sincronizado", "neutro");
+  }
+  if (elementos.resultadoTeste && !elementos.resultadoTeste.textContent) {
+    elementos.resultadoTeste.textContent = estado.status && estado.status.mensagem
+      ? estado.status.mensagem
+      : "";
   }
 }
 
 async function testarConexao() {
+  if (elementos.testar.disabled) return;
   elementos.testar.disabled = true;
   elementos.testar.textContent = "Testando…";
+  elementos.resultadoTeste.textContent = "Verificando servidor, código e regras…";
+  elementos.resultadoTeste.className = "resultado-popup";
   const resposta = await enviar({ tipo: "TESTAR_CONEXAO" });
   elementos.testar.disabled = false;
   elementos.testar.textContent = "Testar conexão";
-  pintarStatus(
-    Boolean(resposta.ok),
-    resposta.ok
-      ? "Online · " + (resposta.latenciaMs || 0) + " ms"
-      : "Falha: " + (resposta.mensagem || resposta.erro || "indisponível"),
+  const segundos = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(
+    (resposta.latenciaMs || 0) / 1000,
   );
+  if (resposta.ok) {
+    pintarStatus(true, "Conectado");
+    const detalhe = resposta.mensagem ? " · " + resposta.mensagem : "";
+    elementos.resultadoTeste.textContent = "Conexão validada · " + segundos + " s" + detalhe;
+    elementos.resultadoTeste.className = "resultado-popup ok";
+  } else {
+    pintarStatus(false, "Falha na conexão", "erro");
+    elementos.resultadoTeste.textContent = resposta.mensagem || resposta.erro || "Servidor indisponível.";
+    elementos.resultadoTeste.className = "resultado-popup erro";
+  }
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -92,6 +127,7 @@ document.addEventListener("DOMContentLoaded", function () {
   elementos.sincronizacao = document.getElementById("sincronizacao");
   elementos.testar = document.getElementById("testar");
   elementos.opcoes = document.getElementById("opcoes");
+  elementos.resultadoTeste = document.getElementById("resultado-teste");
 
   elementos.testar.addEventListener("click", testarConexao);
   elementos.opcoes.addEventListener("click", function () {

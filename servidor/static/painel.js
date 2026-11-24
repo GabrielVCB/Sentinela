@@ -36,7 +36,11 @@ const estado = {
   periodoGrafico: 14,
   resumoCarregado: false,
   resumoAssinatura: "",
+  ultimaAtualizacao: null,
+  ultimaFalhaAtualizacao: null,
 };
+
+const CHAVE_FILTROS_ALERTAS = "sentinela-filtros-alertas";
 
 const CHAVE_TEMA = "sentinela-tema";
 
@@ -62,7 +66,7 @@ const ROTULO_ATIVIDADE = {
   monitoramento: "Monitoramento",
   configuracao: "Configuração",
   ia: "IA monitorada",
-  codigo: "Código de verificação",
+  codigo: "Código de conexão",
   dispositivo: "Dispositivo",
 };
 
@@ -70,14 +74,29 @@ const ROTULO_ATIVIDADE = {
 // Utilidades
 // ---------------------------------------------------------------------------
 
+function marcarAtualizacaoOk() {
+  estado.ultimaAtualizacao = new Date();
+}
+
+function marcarAtualizacaoFalha() {
+  estado.ultimaFalhaAtualizacao = new Date();
+}
+
 async function api(caminho, opcoes) {
   const configuracao = opcoes || {};
-  const resposta = await fetch(caminho, {
-    credentials: "same-origin",
-    method: configuracao.method || "GET",
-    headers: Object.assign({ "Content-Type": "application/json" }, configuracao.headers || {}),
-    body: configuracao.body,
-  });
+  const metodo = configuracao.method || "GET";
+  let resposta;
+  try {
+    resposta = await fetch(caminho, {
+      credentials: "same-origin",
+      method: metodo,
+      headers: Object.assign({ "Content-Type": "application/json" }, configuracao.headers || {}),
+      body: configuracao.body,
+    });
+  } catch (erro) {
+    marcarAtualizacaoFalha();
+    throw erro;
+  }
 
   if (resposta.status === 401) {
     window.location.href = "/login";
@@ -92,8 +111,10 @@ async function api(caminho, opcoes) {
   }
 
   if (!resposta.ok) {
+    marcarAtualizacaoFalha();
     throw new Error((corpo && corpo.erro) || "Erro " + resposta.status + " ao chamar " + caminho);
   }
+  if (metodo === "GET") marcarAtualizacaoOk();
   return corpo;
 }
 
@@ -215,6 +236,7 @@ function badgeStatusDispositivo(status) {
 }
 
 let timerToast = null;
+let popoverGatilho = null;
 function avisar(texto, tipo) {
   const toast = $("toast");
   toast.textContent = texto;
@@ -228,7 +250,56 @@ function avisar(texto, tipo) {
 
 function tratarErro(erro) {
   console.error(erro);
+  marcarAtualizacaoFalha();
   avisar(erro instanceof Error ? erro.message : "Erro inesperado.", "erro");
+}
+
+function fecharPopoverInfo() {
+  const popover = $("popover-info");
+  if (!popover) return;
+  const devolverFoco = !popover.hidden && popover.contains(document.activeElement);
+  popover.hidden = true;
+  document.querySelectorAll(".info-aba[aria-expanded='true']").forEach(function (botao) {
+    botao.setAttribute("aria-expanded", "false");
+  });
+  if (devolverFoco && popoverGatilho) popoverGatilho.focus({ preventScroll: true });
+  popoverGatilho = null;
+}
+
+function abrirPopoverInfo(botao, titulo, texto) {
+  const popover = $("popover-info");
+  if (!popover) return;
+  if (!popover.hidden && botao.getAttribute("aria-expanded") === "true") {
+    fecharPopoverInfo();
+    return;
+  }
+  document.querySelectorAll(".info-aba").forEach(function (outro) {
+    outro.setAttribute("aria-expanded", "false");
+  });
+  popover.replaceChildren();
+  const cabecalho = criar("div", "popover-info-topo");
+  cabecalho.appendChild(criar("strong", "", titulo));
+  const fechar = criar("button", "popover-info-fechar", "×");
+  fechar.type = "button";
+  fechar.setAttribute("aria-label", "Fechar informação");
+  fechar.addEventListener("click", fecharPopoverInfo);
+  cabecalho.appendChild(fechar);
+  popover.appendChild(cabecalho);
+  popover.appendChild(criar("p", "", texto));
+  popover.hidden = false;
+  popoverGatilho = botao;
+  botao.setAttribute("aria-expanded", "true");
+
+  const area = botao.getBoundingClientRect();
+  const largura = Math.min(340, window.innerWidth - 24);
+  popover.style.width = largura + "px";
+  const esquerda = Math.max(12, Math.min(area.left, window.innerWidth - largura - 12));
+  const altura = popover.offsetHeight || 160;
+  const abaixo = area.bottom + 8;
+  const topo = abaixo + altura < window.innerHeight - 12 ? abaixo : Math.max(12, area.top - altura - 8);
+  popover.style.left = esquerda + "px";
+  popover.style.top = topo + "px";
+  fechar.focus({ preventScroll: true });
 }
 
 // Confirmação reutilizável (dialog nativo)
@@ -297,13 +368,14 @@ function carregarSecao(secao) {
   } else if (secao === "regras") {
     Promise.all([carregarAreas(), carregarRegras()]).catch(tratarErro);
   } else if (secao === "areas") {
-    carregarAreas().catch(tratarErro);
+    Promise.all([carregarAreas(), carregarRegras()]).catch(tratarErro);
   } else if (secao === "mensagens") {
     carregarMensagens().catch(tratarErro);
   } else if (secao === "alertas") {
     carregarAreas()
       .then(popularFiltroDepartamento)
       .then(function () {
+        restaurarFiltros();
         return carregarAlertas(1);
       })
       .catch(tratarErro);
@@ -374,11 +446,10 @@ async function carregarResumo() {
       cancelou: dados.total_cancelou,
     };
     const baseCores = $("grafico-risco");
-    const baixo = variavelCss(baseCores, "--baixo", "#16a34a");
-    const medio = variavelCss(baseCores, "--medio", "#f59e0b");
-    const alto = variavelCss(baseCores, "--alto", "#dc2626");
-    const marca = variavelCss(baseCores, "--marca", "#00c896");
-    const complemento = variavelCss(baseCores, "--grafico-complemento", "#111111");
+    const baixo = variavelCss(baseCores, "--baixo", "#01986d");
+    const medio = variavelCss(baseCores, "--medio", "#e5a13d");
+    const alto = variavelCss(baseCores, "--alto", "#d94b58");
+    const envio = variavelCss(baseCores, "--envio", "#55524d");
 
     desenharDonut(
       "grafico-risco",
@@ -389,11 +460,11 @@ async function carregarResumo() {
       ],
       "Distribuição dos alertas por nível de risco",
     );
-    desenharDonut(
+    desenharBarraComportamento(
       "grafico-acao",
       [
-        { rotulo: "Enviou", valor: porAcao.enviou, cor: marca },
-        { rotulo: "Cancelou", valor: porAcao.cancelou, cor: complemento },
+        { rotulo: "Cancelou", valor: porAcao.cancelou, cor: "#01986d" },
+        { rotulo: "Enviou", valor: porAcao.enviou, cor: envio },
       ],
       "Comportamento dos colaboradores após o alerta",
     );
@@ -445,9 +516,9 @@ function desenharGrafico(evolucao, periodo) {
   const ns = "http://www.w3.org/2000/svg";
   const linhaCor = variavelCss(container, "--linha", "#e0ded8");
   const textoCor = variavelCss(container, "--cinza-claro", "#8a8a84");
-  const baixoCor = variavelCss(container, "--baixo", "#16a34a");
-  const medioCor = variavelCss(container, "--medio", "#f59e0b");
-  const altoCor = variavelCss(container, "--alto", "#dc2626");
+  const baixoCor = variavelCss(container, "--baixo", "#01986d");
+  const medioCor = variavelCss(container, "--medio", "#e5a13d");
+  const altoCor = variavelCss(container, "--alto", "#d94b58");
   const baseY = margem.topo + areaAltura;
 
   const svg = document.createElementNS(ns, "svg");
@@ -685,6 +756,65 @@ function desenharDonut(id, itens, descricao) {
   container.appendChild(legenda);
 }
 
+function desenharBarraComportamento(id, itens, descricao) {
+  const container = $(id);
+  limpar(container);
+  const total = itens.reduce(function (soma, item) {
+    return soma + (Number(item.valor) || 0);
+  }, 0);
+
+  if (!total) {
+    container.appendChild(
+      criar(
+        "p",
+        "grafico-vazio",
+        "Ainda não existem dados suficientes para este comportamento. Os registros aparecerão após as primeiras detecções.",
+      ),
+    );
+    return;
+  }
+
+  const barra = criar("div", "comportamento-barra");
+  barra.setAttribute("role", "img");
+  barra.setAttribute(
+    "aria-label",
+    descricao +
+      ": " +
+      itens
+        .map(function (item) {
+          return item.rotulo + " " + percentual(((Number(item.valor) || 0) / total) * 100);
+        })
+        .join(", "),
+  );
+
+  const legenda = criar("div", "comportamento-legenda");
+  itens.forEach(function (item) {
+    const valor = Number(item.valor) || 0;
+    const fatia = (valor / total) * 100;
+
+    if (valor > 0) {
+      const segmento = criar("span", "comportamento-segmento");
+      segmento.style.width = fatia + "%";
+      segmento.style.background = item.cor;
+      barra.appendChild(segmento);
+    }
+
+    const linha = criar("div", "comportamento-item");
+    const topo = criar("div", "comportamento-item-topo");
+    const marcador = criar("i", "comportamento-marcador");
+    marcador.style.background = item.cor;
+    topo.appendChild(marcador);
+    topo.appendChild(criar("span", "comportamento-rotulo", item.rotulo));
+    topo.appendChild(criar("strong", "comportamento-percentual", percentual(fatia)));
+    linha.appendChild(topo);
+    linha.appendChild(criar("span", "comportamento-quantidade", plural(valor, "alerta", "alertas")));
+    legenda.appendChild(linha);
+  });
+
+  container.appendChild(barra);
+  container.appendChild(legenda);
+}
+
 function desenharSites(sites) {
   const container = $("barras-sites");
   limpar(container);
@@ -892,15 +1022,46 @@ function renderizarAreas() {
     const bloco = criar("div");
     bloco.appendChild(criar("h3", "", area.nome));
     bloco.appendChild(criar("p", "", area.descricao || "Sem descrição cadastrada."));
-    bloco.appendChild(
-      criar(
-        "p",
-        "rotulo contagem",
-        plural(area.total_regras, "regra", "regras") +
-          " · " +
-          plural(area.total_ativas, "ativa", "ativas"),
-      ),
+
+    const regrasDaArea = estado.regras.filter(function (regra) {
+      return Number(regra.area_id) === Number(area.id);
+    });
+    const alternar = criar(
+      "button",
+      "area-contagem",
+      plural(area.total_regras, "regra cadastrada", "regras cadastradas") +
+        " · " +
+        plural(area.total_ativas, "ativa", "ativas"),
     );
+    alternar.type = "button";
+    alternar.setAttribute("aria-expanded", "false");
+    alternar.setAttribute("aria-controls", "regras-area-" + area.id);
+    bloco.appendChild(alternar);
+
+    const detalhe = criar("div", "area-regras");
+    detalhe.id = "regras-area-" + area.id;
+    detalhe.hidden = true;
+    if (!regrasDaArea.length) {
+      detalhe.appendChild(criar("p", "micro", "Nenhuma regra neste departamento."));
+    } else {
+      const listaRegras = criar("ul", "area-regras-lista");
+      regrasDaArea.forEach(function (regra) {
+        const linha = criar("li");
+        linha.appendChild(criar("span", "area-regra-nome", regra.nome));
+        const situacao = criar("span", "badge " + (regra.ativo ? "status-ok" : "status-neutro"), regra.ativo ? "Ativa" : "Inativa");
+        linha.appendChild(situacao);
+        linha.appendChild(badge(regra.risco));
+        listaRegras.appendChild(linha);
+      });
+      detalhe.appendChild(listaRegras);
+    }
+    alternar.addEventListener("click", function () {
+      const aberto = !detalhe.hidden;
+      detalhe.hidden = aberto;
+      alternar.setAttribute("aria-expanded", String(!aberto));
+      alternar.classList.toggle("aberta", !aberto);
+    });
+    bloco.appendChild(detalhe);
     item.appendChild(bloco);
 
     const acoes = criar("div", "area-acoes");
@@ -1009,10 +1170,10 @@ function renderizarRegras() {
     const textoAtiva = criar(
       "span",
       "interruptor-site-texto",
-      checkbox.checked ? "Ativa" : "Pausada",
+      checkbox.checked ? "Ativa" : "Inativa",
     );
     checkbox.addEventListener("change", function () {
-      textoAtiva.textContent = checkbox.checked ? "Ativa" : "Pausada";
+      textoAtiva.textContent = checkbox.checked ? "Ativa" : "Inativa";
       atualizarAtivo(regra, checkbox.checked, checkbox);
     });
     alternativa.appendChild(checkbox);
@@ -1248,25 +1409,35 @@ async function carregarMensagens() {
 
     const rodape = criar("div", "rodape-editor");
     const contador = criar("span", "rotulo", mensagem.texto.length + "/600");
+    let textoOriginal = mensagem.texto;
+    const pendente = criar("span", "micro alteracao-pendente", "Alterações não salvas");
+    pendente.hidden = true;
     campo.addEventListener("input", function () {
       contador.textContent = campo.value.length + "/600";
+      pendente.hidden = campo.value === textoOriginal;
     });
 
     const salvar = criar("button", "botao pequeno primario", "Salvar");
     salvar.type = "button";
     salvar.addEventListener("click", async function () {
+      salvar.disabled = true;
       try {
         await api("/api/admin/mensagens/" + mensagem.nivel, {
           method: "PUT",
           body: JSON.stringify({ texto: campo.value }),
         });
+        textoOriginal = campo.value;
+        pendente.hidden = true;
         avisar("Mensagem de risco " + mensagem.nivel + " salva.");
       } catch (erro) {
         tratarErro(erro);
+      } finally {
+        salvar.disabled = false;
       }
     });
 
     rodape.appendChild(contador);
+    rodape.appendChild(pendente);
     rodape.appendChild(salvar);
     editor.appendChild(rodape);
 
@@ -1325,6 +1496,28 @@ function lerFiltros() {
     departamento: $("filtro-departamento").value,
     nivel: $("filtro-nivel").value,
   };
+  salvarFiltros();
+}
+
+function salvarFiltros() {
+  try {
+    sessionStorage.setItem(CHAVE_FILTROS_ALERTAS, JSON.stringify(estado.filtros));
+  } catch (erro) {
+    /* a filtragem continua válida nesta página */
+  }
+}
+
+function restaurarFiltros() {
+  try {
+    const salvo = JSON.parse(sessionStorage.getItem(CHAVE_FILTROS_ALERTAS) || "{}");
+    if (salvo.de) $("filtro-de").value = salvo.de;
+    if (salvo.ate) $("filtro-ate").value = salvo.ate;
+    if (salvo.departamento) $("filtro-departamento").value = salvo.departamento;
+    if (salvo.nivel) $("filtro-nivel").value = salvo.nivel;
+  } catch (erro) {
+    /* critérios padrão */
+  }
+  lerFiltros();
 }
 
 function parametrosFiltros() {
@@ -1351,8 +1544,8 @@ async function carregarAlertas(pagina) {
   estado.totalPaginas = dados.total_paginas;
 
   const filtrosExportacao = parametrosFiltros().toString();
-  $("exportar").href = "/api/admin/exportar.csv?" + filtrosExportacao;
-  $("exportar-pdf").href = "/api/admin/exportar.pdf?" + filtrosExportacao;
+  if ($("exportar-csv")) $("exportar-csv").href = "/api/admin/exportar.csv?" + filtrosExportacao;
+  if ($("exportar-pdf")) $("exportar-pdf").href = "/api/admin/exportar.pdf?" + filtrosExportacao;
   $("resumo-listagem").textContent =
     plural(dados.total, "alerta", "alertas") +
     " · página " +
@@ -1487,18 +1680,19 @@ async function exportarFiltrosAtuais() {
 }
 
 // ---------------------------------------------------------------------------
-// Código de verificação e administradores
+// Código de conexão e administradores
 // ---------------------------------------------------------------------------
 
 async function carregarInstalacao() {
   const dados = await api("/api/admin/instalacao");
   estado.euSuperadmin = Boolean(dados.superadmin);
   $("instalacao-url").textContent = dados.url_base;
-  // O código exibido inclui a URL do servidor e o token. Assim a extensão
-  // consegue conectar pelo ZIP público sem pedir endereço separado.
+  // O código de conexão permanece visível para o administrador autorizado.
   const codigo = dados.codigo || dados.token;
-  $("instalacao-token").textContent = codigo;
-  $("instalacao-token").dataset.valor = codigo;
+  const alvo = $("instalacao-token");
+  alvo.dataset.valor = codigo;
+  alvo.textContent = codigo;
+  alvo.setAttribute("aria-label", "Código de conexão");
 }
 
 async function carregarDispositivos() {
@@ -1615,7 +1809,7 @@ async function confirmarRenovacaoToken() {
     const dados = await api("/api/admin/instalacao");
     const total = Number(dados.dispositivos_vinculados) || 0;
     confirmar(
-      "Renovar o código de verificação?",
+      "Renovar o código de conexão?",
       total === 0
         ? "Nenhum dispositivo está vinculado ao código atual. As extensões existentes deixarão de registrar alertas até receber o novo valor."
         : "Há " +
@@ -1673,18 +1867,18 @@ async function carregarAdmins() {
     linha.appendChild(criar("td", "", quando(admin.criado_em)));
 
     const acoes = criar("td", "direita");
+    const grupoAcoes = criar("div", "acoes-tabela");
     const podeTrocarSenha = admin.atual || (estado.euSuperadmin && !admin.superadmin);
     if (podeTrocarSenha) {
-      const senha = criar("button", "botao pequeno marca", "Trocar senha");
+      const senha = criar("button", "botao pequeno", "Trocar senha");
       senha.type = "button";
       senha.addEventListener("click", function () { abrirAdmin(admin); });
-      acoes.appendChild(senha);
+      grupoAcoes.appendChild(senha);
     }
 
     if (estado.euSuperadmin && !admin.atual && !admin.superadmin) {
       const excluir = criar("button", "botao pequeno perigo botao-icone");
       excluir.type = "button";
-      excluir.style.marginLeft = "6px";
       aplicarLixeira(excluir, "Excluir administrador");
       excluir.addEventListener("click", function () {
         confirmar(
@@ -1705,12 +1899,13 @@ async function carregarAdmins() {
           },
         );
       });
-      acoes.appendChild(excluir);
+      grupoAcoes.appendChild(excluir);
     }
 
-    if (!acoes.childNodes.length) {
-      acoes.appendChild(criar("span", "micro", "Protegido"));
+    if (!grupoAcoes.childNodes.length) {
+      grupoAcoes.appendChild(criar("span", "micro", "Protegido"));
     }
+    acoes.appendChild(grupoAcoes);
     linha.appendChild(acoes);
     corpo.appendChild(linha);
   });
@@ -1727,11 +1922,7 @@ async function carregarAtividades(pagina) {
   estado.totalPaginasAtividades = dados.total_paginas || 1;
 
   $("atividades-resumo").textContent =
-    plural(dados.total, "atividade", "atividades") +
-    " · página " +
-    estado.paginaAtividades +
-    " de " +
-    estado.totalPaginasAtividades;
+    "Página " + estado.paginaAtividades + " de " + estado.totalPaginasAtividades;
   $("atividades-pagina-info").textContent =
     estado.paginaAtividades + " de " + estado.totalPaginasAtividades;
   $("atividades-pagina-anterior").disabled = estado.paginaAtividades <= 1;
@@ -1871,7 +2062,33 @@ function adicionarLinhaUrl(valor) {
 function atualizarInterruptorMonitoramento() {
   const ativo = Boolean(estado.monitoramento && estado.monitoramento.monitoramento_ativo);
   $("monitoramento-ativo").checked = ativo;
-  $("monitoramento-ativo-texto").textContent = ativo ? "Ativa" : "Pausada";
+  $("monitoramento-ativo-texto").textContent = ativo ? "Ativo" : "Desativado";
+  const estadoEl = $("monitoramento-estado");
+  if (!estadoEl) return;
+  const iasAtivas = ativo
+    ? document.querySelectorAll("#sites-monitorados .site-toggle:checked").length
+    : 0;
+  if (!ativo) {
+    estadoEl.dataset.estado = "inativo";
+    estadoEl.textContent = "Monitoramento desativado";
+    estadoEl.removeAttribute("title");
+  } else if (!iasAtivas) {
+    estadoEl.dataset.estado = "atencao";
+    estadoEl.textContent = "Ativo sem IAs selecionadas";
+    estadoEl.title = "O monitoramento está ativo, mas nenhuma IA está selecionada.";
+  } else {
+    estadoEl.dataset.estado = "ativo";
+    estadoEl.textContent = "Monitoramento ativo";
+    estadoEl.title = "Política de monitoramento ativa para " + iasAtivas + " IA(s).";
+  }
+}
+
+function marcarFalhaMonitoramento() {
+  const estadoEl = $("monitoramento-estado");
+  if (!estadoEl) return;
+  estadoEl.dataset.estado = "falha";
+  estadoEl.textContent = "Falha na comunicação";
+  estadoEl.title = "Não foi possível confirmar o estado do monitoramento com o servidor.";
 }
 
 function atualizarEstadoMonitoramento() {
@@ -1918,7 +2135,7 @@ function desenharSitesMonitorados(disponiveis, ativos) {
     const textoInterruptor = criar(
       "span",
       "interruptor-site-texto",
-      checkbox.checked ? "Ativa" : "Pausada",
+      checkbox.checked ? "Ativa" : "Inativa",
     );
     checkbox.addEventListener("change", function () {
       if (
@@ -1931,7 +2148,7 @@ function desenharSitesMonitorados(disponiveis, ativos) {
         return;
       }
       card.classList.toggle("site-card-ativo", checkbox.checked);
-      textoInterruptor.textContent = checkbox.checked ? "Ativa" : "Pausada";
+      textoInterruptor.textContent = checkbox.checked ? "Ativa" : "Inativa";
       atualizarEstadoMonitoramento();
       // Desativar precisa chegar à extensão sem o atraso do agrupamento de
       // cliques. Ativar continua usando o pequeno debounce para evitar uma
@@ -1966,10 +2183,15 @@ function desenharSitesMonitorados(disponiveis, ativos) {
 }
 
 async function carregarMonitoramento() {
-  const dados = await api("/api/admin/configuracoes");
-  estado.monitoramento = dados;
-  desenharSitesMonitorados(dados.sites_disponiveis, dados.sites_ativos);
-  atualizarEstadoMonitoramento();
+  try {
+    const dados = await api("/api/admin/configuracoes");
+    estado.monitoramento = dados;
+    desenharSitesMonitorados(dados.sites_disponiveis, dados.sites_ativos);
+    atualizarEstadoMonitoramento();
+  } catch (erro) {
+    marcarFalhaMonitoramento();
+    throw erro;
+  }
 }
 
 function abrirSite(site) {
@@ -2198,14 +2420,11 @@ function ligarEventos() {
     }
   });
 
-  $("exportar").addEventListener("click", function (evento) {
-    evento.preventDefault();
-    exportarFiltrosAtuais();
-  });
-
-  $("exportar-pdf").addEventListener("click", function (evento) {
-    evento.preventDefault();
-    exportarPdfFiltrosAtuais();
+  document.querySelectorAll(".exportar-opcoes a").forEach(function (link) {
+    link.addEventListener("click", function () {
+      const menu = link.closest("details");
+      if (menu) menu.open = false;
+    });
   });
 
   $("copiar-token").addEventListener("click", function () {
@@ -2295,7 +2514,8 @@ function ligarEventos() {
     }
   });
 
-  $("limpar-tudo").addEventListener("click", function () {
+  const limparTudo = $("limpar-tudo");
+  if (limparTudo) limparTudo.addEventListener("click", function () {
     confirmar(
       "Excluir todos os alertas?",
       "Toda a base de auditoria será apagada, inclusive os itens detectados. Esta ação não pode ser desfeita.",
@@ -2362,7 +2582,7 @@ function ligarEventos() {
     mensagens:
       "Define os textos que o colaborador lê no aviso exibido antes do envio, com uma mensagem para cada situação: risco baixo, quando há detecções de baixo risco; sem detecções, quando nada sensível é encontrado e o aviso exibe o selo de verificação; risco médio; e risco alto. Como o nível e as categorias identificadas já aparecem no próprio aviso, as mensagens trazem apenas a orientação, com limite de caracteres para manter o aviso curto. As alterações chegam às extensões automaticamente.",
     monitoramento:
-      "Define como as extensões se comportam em toda a empresa: se o monitoramento está ativo e quais IAs são acompanhadas. A ativação geral e os interruptores de cada IA são salvos automaticamente. A lista mostra colaborador, departamento, alertas emitidos e status: Ativo (contato recente e código atual), Desatualizada (contato recente, mas com código antigo), Sem sinal (sem contato há mais de 24 horas; inclui computador desligado, sem rede ou extensão desativada/removida sem aviso) e Removida (desconectada pelo painel; fica visível por 30 dias). Aqui ficam ainda o código de verificação e o download da extensão.",
+      "Define como as extensões se comportam em toda a empresa: se o monitoramento está ativo e quais IAs são acompanhadas. O estado exibido reflete a política real do servidor e o contato dos dispositivos; a ausência de alertas no período não é usada como prova de que o monitoramento esteja funcionando. O monitoramento geral e os interruptores de cada IA são salvos automaticamente. A lista mostra colaborador, departamento, alertas emitidos e status: Ativo (contato recente e código atual), Desatualizada (contato recente, mas com código antigo), Sem sinal (sem contato há mais de 24 horas; inclui computador desligado, sem rede ou extensão desativada/removida sem aviso) e Removida (desconectada pelo painel; fica visível por 30 dias). Aqui ficam ainda o código de conexão e o download da extensão.",
     administradores:
       "Gerencia as contas que acessam o painel. O superadmin, primeiro administrador criado, não pode ser excluído e é o único que cria e exclui outras contas. As demais contas usam o painel e podem trocar a própria senha. O histórico de atividades mostra quem fez cada alteração, com navegação por páginas; apenas o superadmin pode apagar todo esse histórico.",
     codigo:
@@ -2370,13 +2590,29 @@ function ligarEventos() {
   };
 
   document.querySelectorAll(".info-aba").forEach(function (botao) {
-    botao.addEventListener("click", function () {
-      const chave = botao.dataset.info;
-      $("titulo-info").textContent = botao.getAttribute("aria-label").replace("Sobre ", "");
-      $("texto-info").textContent = INFORMACOES_ABAS[chave] || "";
-      $("dialogo-info").showModal();
+    botao.setAttribute("aria-haspopup", "dialog");
+    botao.setAttribute("aria-controls", "popover-info");
+    botao.setAttribute("aria-expanded", "false");
+    botao.addEventListener("click", function (evento) {
+      evento.stopPropagation();
+      const titulo = botao.getAttribute("aria-label").replace("Sobre ", "");
+      abrirPopoverInfo(botao, titulo, INFORMACOES_ABAS[botao.dataset.info] || "");
     });
   });
+
+  document.addEventListener("click", function (evento) {
+    const popover = $("popover-info");
+    if (!popover || popover.hidden) return;
+    if (!popover.contains(evento.target) && !evento.target.closest(".info-aba")) {
+      fecharPopoverInfo();
+    }
+  });
+
+  document.addEventListener("keydown", function (evento) {
+    if (evento.key === "Escape") fecharPopoverInfo();
+  });
+
+  window.addEventListener("resize", fecharPopoverInfo);
 
   document.querySelectorAll("[data-fecha]").forEach(function (botao) {
     botao.addEventListener("click", function () {
