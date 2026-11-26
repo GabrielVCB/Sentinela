@@ -86,9 +86,9 @@
           <p class="micro" id="kpi-envio-detalhe">aguardando dados…</p>
         </div>
         <div>
-          <p class="rotulo">Categorias mais recorrentes</p>
-          <p class="metrica" id="kpi-tipos">—</p>
-          <p class="micro">categorias distintas</p>
+          <p class="rotulo">Departamentos críticos</p>
+          <p class="metrica" id="kpi-criticos">—</p>
+          <p class="micro" id="kpi-criticos-detalhe">acima da tolerância configurada</p>
         </div>
       </div>
 
@@ -114,29 +114,56 @@
         </div>
       </section>
 
-      <div class="grade-tres">
+      <div class="grade-graficos">
         <section class="bloco-painel">
-          <h2 class="titulo-centralizado">Distribuição por risco</h2>
-          <div id="grafico-risco" class="grafico-donut"><p class="grafico-vazio">Carregando distribuição…</p></div>
+          <div class="grafico-titulo">
+            <div class="grafico-titulo-linha">
+              <h2>Vazamentos evitados</h2>
+              <button type="button" class="info-aba" data-info="vazamentos" aria-label="Sobre Vazamentos evitados">i</button>
+            </div>
+          </div>
+          <div id="grafico-vazamentos" class="grafico-vazamentos">
+            <p class="grafico-vazio">Carregando os vazamentos evitados…</p>
+          </div>
         </section>
         <section class="bloco-painel">
-          <h2 class="titulo-centralizado">Comportamento após alerta</h2>
-          <div id="grafico-acao" class="grafico-donut grafico-comportamento"><p class="grafico-vazio">Carregando comportamento…</p></div>
+          <div class="grafico-titulo">
+            <div class="grafico-titulo-linha">
+              <h2>Departamento por nível</h2>
+              <button type="button" class="info-aba" data-info="mapa" aria-label="Sobre Departamento por nível">i</button>
+            </div>
+          </div>
+          <div id="mapa-departamentos" class="mapa-calor">
+            <p class="grafico-vazio">Carregando o mapa de risco…</p>
+          </div>
         </section>
         <section class="bloco-painel">
-          <h2 class="titulo-centralizado">IAs com mais ocorrências</h2>
-          <div id="barras-sites"><p class="grafico-vazio">Carregando ocorrências…</p></div>
+          <div class="grafico-titulo">
+            <div class="grafico-titulo-linha">
+              <h2>Envios após o aviso, por semana</h2>
+              <button type="button" class="info-aba" data-info="tendencia" aria-label="Sobre Envios por semana">i</button>
+            </div>
+          </div>
+          <div id="grafico-envio-semana" class="grafico-linha">
+            <p class="grafico-vazio">Carregando as semanas…</p>
+          </div>
+        </section>
+        <section class="bloco-painel">
+          <div class="grafico-titulo">
+            <h2>Origem do conteúdo</h2>
+          </div>
+          <div id="grafico-origem" class="grafico-origem">
+            <p class="grafico-vazio">Carregando as origens…</p>
+          </div>
         </section>
       </div>
 
       <section class="bloco-painel">
-        <h2>Categorias mais recorrentes</h2>
-        <ol id="lista-tipos" class="lista-tipos"><li class="carregando-esqueleto"><span></span></li></ol>
-      </section>
-
-      <section class="bloco-painel">
         <div class="linha-titulo">
-          <h2>Comportamento após os alertas por departamento</h2>
+          <div class="secao-titulo-principal">
+            <h2>Comportamento após os alertas por departamento</h2>
+            <button type="button" class="info-aba" data-info="efetividade" aria-label="Sobre Comportamento por departamento">i</button>
+          </div>
           <form id="form-limiar" class="form-inline">
             <label class="campo-inline">
               <span class="rotulo">
@@ -162,8 +189,6 @@
           </table>
         </div>
 
-        <p class="nota-indicador">A taxa considera os alertas em que o colaborador escolheu enviar, divididos pelo total de alertas do departamento. A situação usa a tolerância de risco alto e só classifica departamentos com pelo menos 3 alertas.</p>
-        <div id="gargalos"></div>
       </section>
 
       <section class="bloco-painel">
@@ -337,7 +362,7 @@
         </div>
 
         <div class="tabela-rolagem">
-          <table class="tabela">
+          <table class="tabela tabela-admins">
             <thead>
               <tr>
                 <th>Usuário</th>
@@ -359,9 +384,9 @@
             <h2>Histórico de atividades</h2>
           </div>
           <div class="acoes-titulo">
-            <button type="button" class="botao marca" id="atualizar-atividades">Atualizar dados</button>
+            <button type="button" class="botao" id="atualizar-atividades">Atualizar dados</button>
             {% if superadmin %}
-            <button type="button" class="botao perigo botao-icone" id="limpar-atividades" aria-label="Excluir histórico" title="Excluir histórico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16" /><path d="M9 7V5h6v2" /><path d="m6 7 1 13h10l1-13" /><path d="M10 11v5M14 11v5" /></svg></button>
+            <button type="button" class="botao perigo" id="limpar-atividades">Excluir histórico</button>
             {% endif %}
           </div>
         </div>
@@ -384,7 +409,6 @@
           <button type="button" class="info-aba" data-info="monitoramento" aria-label="Sobre Monitoramento">i</button>
         </div>
         <div class="monitoramento-mestre">
-          <span id="monitoramento-estado" class="badge estado-monitoramento" data-estado="carregando">Carregando</span>
           <span class="rotulo">Monitoramento geral</span>
           <label class="interruptor-monitoramento">
             <input type="checkbox" id="monitoramento-ativo" />
@@ -413,7 +437,6 @@
         <div class="linha-titulo">
           <div class="secao-titulo-principal">
             <div>
-              <p class="rotulo-bloco">Conexão</p>
               <h2>Código de conexão</h2>
             </div>
             <button type="button" class="info-aba" data-info="codigo" aria-label="Código de conexão">i</button>
@@ -444,7 +467,6 @@
       <section class="bloco-painel bloco-monitoramento">
         <div class="linha-titulo">
           <div>
-            <p class="rotulo-bloco">Ferramentas</p>
             <h2>IAs monitoradas</h2>
           </div>
           <button type="button" class="botao primario" id="adicionar-chat">Adicionar IA</button>
@@ -563,10 +585,7 @@
     <input type="hidden" id="area-id" />
 
     <label class="campo">
-      <span class="rotulo">
-        Nome
-        <span class="dica-icone" role="img" aria-label="Departamento é a categoria da regra e o local que o colaborador escolhe na extensão." title="Departamento é a categoria da regra e o local que o colaborador escolhe na extensão.">i</span>
-      </span>
+      <span class="rotulo">Nome</span>
       <input type="text" id="area-nome" maxlength="60" placeholder="Ex.: Operações" required />
     </label>
     <label class="campo">

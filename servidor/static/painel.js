@@ -38,6 +38,7 @@ const estado = {
   resumoAssinatura: "",
   ultimaAtualizacao: null,
   ultimaFalhaAtualizacao: null,
+  gargalos: 0,
 };
 
 const CHAVE_FILTROS_ALERTAS = "sentinela-filtros-alertas";
@@ -53,7 +54,7 @@ const ROTULO_NIVEL = {
 const ROTULO_ORIGEM = {
   texto: "Texto digitado",
   colagem: "Colagem de texto longo",
-  imagem: "Print ou imagem",
+  imagem: "Imagem ou captura de tela",
   pdf: "Arquivo PDF",
   anexo: "Imagem e PDF",
 };
@@ -127,6 +128,50 @@ function criar(tag, classe, texto) {
 
 function limpar(elemento) {
   elemento.replaceChildren();
+}
+
+function esqueletoLinhas(corpo, quantidade, colunas) {
+  limpar(corpo);
+  corpo.setAttribute("aria-busy", "true");
+  for (let indice = 0; indice < quantidade; indice += 1) {
+    const linha = criar("tr", "carregando-esqueleto");
+    const celula = document.createElement("td");
+    celula.colSpan = colunas;
+    celula.appendChild(criar("span"));
+    linha.appendChild(celula);
+    corpo.appendChild(linha);
+  }
+}
+
+function esqueletoItens(container, quantidade, tag) {
+  limpar(container);
+  container.setAttribute("aria-busy", "true");
+  for (let indice = 0; indice < quantidade; indice += 1) {
+    container.appendChild(criar(tag || "div", "esqueleto-cartao"));
+  }
+}
+
+function estadoVazio(container, titulo, texto, tag) {
+  limpar(container);
+  container.setAttribute("aria-busy", "false");
+  const bloco = criar(tag || "div", "estado-vazio");
+  bloco.appendChild(criar("strong", null, titulo));
+  if (texto) bloco.appendChild(criar("p", null, texto));
+  container.appendChild(bloco);
+}
+
+function estadoVazioTabela(corpo, colunas, titulo, texto) {
+  const linha = criar("tr");
+  const celula = document.createElement("td");
+  celula.colSpan = colunas;
+  const bloco = criar("div", "estado-vazio");
+  bloco.appendChild(criar("strong", null, titulo));
+  if (texto) bloco.appendChild(criar("p", null, texto));
+  celula.appendChild(bloco);
+  linha.appendChild(celula);
+  limpar(corpo);
+  corpo.setAttribute("aria-busy", "false");
+  corpo.appendChild(linha);
 }
 
 /**
@@ -309,12 +354,11 @@ function confirmar(titulo, texto, rotulo, aoConfirmar) {
   $("confirmar-texto").textContent = texto;
   const botao = $("confirmar-ok");
   const rotuloBotao = rotulo || "Excluir";
-  // Em Alertas, a exclusão volta a ser textual. Nas demais áreas, mantém o ícone.
-  if (/alerta/i.test(titulo) || /alerta/i.test(rotuloBotao)) {
-    botao.textContent = rotuloBotao;
-  } else {
-    aplicarLixeira(botao, rotuloBotao);
-  }
+  // A confirmação é sempre textual: só com o ícone de lixeira o botão ficava
+  // sem rótulo e parecia vazio.
+  botao.textContent = rotuloBotao;
+  botao.removeAttribute("aria-label");
+  botao.removeAttribute("title");
   acaoConfirmada = aoConfirmar;
   $("dialogo-confirmar").showModal();
 }
@@ -394,6 +438,32 @@ function carregarSecao(secao) {
 // Visão geral
 // ---------------------------------------------------------------------------
 
+function variacaoTexto(valor, sufixo) {
+  if (typeof valor !== "number" || Number.isNaN(valor)) return "";
+  const sinal = valor > 0 ? "+" : valor < 0 ? "−" : "";
+  return sinal + percentual(Math.abs(valor)) + (sufixo || "");
+}
+
+function detalheDoTotal(dados) {
+  const base = plural(
+    dados.departamentos_ativos,
+    "departamento com alertas",
+    "departamentos com alertas",
+  );
+  const tendencia = dados.tendencia || {};
+  const variacao = variacaoTexto(tendencia.variacao, " vs. período anterior");
+  if (variacao) return base + " · " + variacao;
+  return base;
+}
+
+function detalheDaTaxaEnvio(dados) {
+  const base =
+    numero(dados.total_enviou) + " envios · " + numero(dados.total_cancelou) + " cancelamentos";
+  const tendencia = dados.tendencia || {};
+  const variacao = variacaoTexto(tendencia.variacao_envio, " p.p. vs. período anterior");
+  return variacao ? base + " · " + variacao : base;
+}
+
 async function carregarResumo() {
   const limiar = Number($("limiar").value) || 30;
   const metricas = $("metricas-resumo");
@@ -416,62 +486,30 @@ async function carregarResumo() {
     animarMetrica($("kpi-total"), dados.total, function (valor) {
       return numero(Math.round(valor));
     });
-    $("kpi-total-detalhe").textContent = plural(
-      dados.departamentos_ativos,
-      "departamento com alertas",
-      "departamentos com alertas",
-    );
+    $("kpi-total-detalhe").textContent = detalheDoTotal(dados);
     animarMetrica($("kpi-alto"), dados.total_alto, function (valor) {
       return numero(Math.round(valor));
     });
     $("kpi-alto-detalhe").textContent = percentual(dados.taxa_alto) + " do total de alertas";
     animarMetrica($("kpi-envio"), dados.taxa_envio, percentual);
-    $("kpi-envio-detalhe").textContent =
-      numero(dados.total_enviou) + " envios · " + numero(dados.total_cancelou) + " cancelamentos";
-    animarMetrica($("kpi-tipos"), dados.tipos_distintos, function (valor) {
+    $("kpi-envio-detalhe").textContent = detalheDaTaxaEnvio(dados);
+    const criticos = (dados.gargalos || []).length;
+    estado.gargalos = criticos;
+    animarMetrica($("kpi-criticos"), criticos, function (valor) {
       return numero(Math.round(valor));
     });
+    $("kpi-criticos-detalhe").textContent =
+      "acima da tolerância de " + percentual(dados.limiar);
 
     const periodo = dados.periodo || estado.periodoGrafico;
     $("grafico-periodo").textContent = "Alertas por dia · últimos " + periodo + " dias";
     desenharGrafico(dados.evolucao, periodo);
 
-    const porNivel = dados.por_nivel || {
-      baixo: 0,
-      medio: 0,
-      alto: dados.total_alto,
-    };
-    const porAcao = dados.por_acao || {
-      enviou: dados.total_enviou,
-      cancelou: dados.total_cancelou,
-    };
-    const baseCores = $("grafico-risco");
-    const baixo = variavelCss(baseCores, "--baixo", "#01986d");
-    const medio = variavelCss(baseCores, "--medio", "#e5a13d");
-    const alto = variavelCss(baseCores, "--alto", "#d94b58");
-    const envio = variavelCss(baseCores, "--envio", "#55524d");
-
-    desenharDonut(
-      "grafico-risco",
-      [
-        { rotulo: "Alto", valor: porNivel.alto, cor: alto },
-        { rotulo: "Médio", valor: porNivel.medio, cor: medio },
-        { rotulo: "Baixo", valor: porNivel.baixo, cor: baixo },
-      ],
-      "Distribuição dos alertas por nível de risco",
-    );
-    desenharBarraComportamento(
-      "grafico-acao",
-      [
-        { rotulo: "Cancelou", valor: porAcao.cancelou, cor: "#01986d" },
-        { rotulo: "Enviou", valor: porAcao.enviou, cor: envio },
-      ],
-      "Comportamento dos colaboradores após o alerta",
-    );
-    desenharSites(dados.por_site || []);
-    desenharTipos(dados.tipos);
+    desenharVazamentos(dados.vazamentos || {});
+    desenharMapaCalor(dados.por_departamento || []);
+    desenharEnvioSemana(dados.por_semana || [], dados.limiar);
+    desenharOrigem(dados.por_origem || {});
     desenharLetramento(dados);
-    desenharGargalos(dados.gargalos);
     desenharUltimos(dados.ultimos);
     estado.resumoAssinatura = assinatura;
   } finally {
@@ -502,7 +540,7 @@ function desenharGrafico(evolucao, periodo) {
 
   const largura = 780;
   const altura = 254;
-  const margem = { topo: 22, direita: 10, baixo: 34, esquerda: 42 };
+  const margem = { topo: 26, direita: 10, baixo: 40, esquerda: 42 };
   const areaLargura = largura - margem.esquerda - margem.direita;
   const areaAltura = altura - margem.topo - margem.baixo;
   const maximoBruto = Math.max.apply(
@@ -544,7 +582,7 @@ function desenharGrafico(evolucao, periodo) {
     linha.setAttribute("y1", y);
     linha.setAttribute("y2", y);
     linha.style.stroke = linhaCor;
-    if (indice !== 0) linha.setAttribute("stroke-dasharray", "2 5");
+    linha.style.opacity = indice === 0 ? "0.9" : "0.45";
     svg.appendChild(linha);
 
     const rotulo = document.createElementNS(ns, "text");
@@ -591,9 +629,23 @@ function desenharGrafico(evolucao, periodo) {
       barra.setAttribute("height", Math.max(alturaSegmento, 1.5));
       barra.style.fill = segmento.cor;
       barra.setAttribute("rx", "1");
+      barra.setAttribute("shape-rendering", "crispEdges");
       grupo.appendChild(barra);
       acumulado += segmento.valor;
     });
+
+    // O total do dia fica escrito acima da barra quando há espaço para isso.
+    if ((Number(dia.total) || 0) > 0 && passo >= 22) {
+      const rotuloTotal = document.createElementNS(ns, "text");
+      rotuloTotal.setAttribute("x", centro);
+      rotuloTotal.setAttribute("y", baseY - (Number(dia.total) / topoValor) * areaAltura - 6);
+      rotuloTotal.setAttribute("text-anchor", "middle");
+      rotuloTotal.setAttribute("font-size", "10");
+      rotuloTotal.style.fill = textoCor;
+      rotuloTotal.setAttribute("font-family", "Consolas, monospace");
+      rotuloTotal.textContent = String(dia.total);
+      grupo.appendChild(rotuloTotal);
+    }
 
     const areaClique = document.createElementNS(ns, "rect");
     areaClique.setAttribute("x", centro - passo / 2);
@@ -626,10 +678,10 @@ function desenharGrafico(evolucao, periodo) {
     if (indice % intervaloRotulos === 0 || indice === dias.length - 1) {
       const rotulo = document.createElementNS(ns, "text");
       rotulo.setAttribute("x", centro);
-      rotulo.setAttribute("y", altura - 10);
+      rotulo.setAttribute("y", altura - 14);
       rotulo.setAttribute("text-anchor", "middle");
-      rotulo.setAttribute("font-size", "9");
-      rotulo.style.fill = textoCor;
+      rotulo.setAttribute("font-size", "9.5");
+      rotulo.style.fill = variavelCss(container, "--cinza", "#6b6b66");
       rotulo.setAttribute("font-family", "Consolas, monospace");
       rotulo.textContent = diaCurto(dia.data);
       grupo.appendChild(rotulo);
@@ -660,107 +712,327 @@ function desenharGrafico(evolucao, periodo) {
   container.appendChild(legenda);
 }
 
-function desenharDonut(id, itens, descricao) {
-  const container = $(id);
+function desenharVazamentos(dados) {
+  const container = $("grafico-vazamentos");
   limpar(container);
-  const total = itens.reduce(function (soma, item) {
-    return soma + (Number(item.valor) || 0);
-  }, 0);
+
+  const niveis = Array.isArray(dados.por_nivel) ? dados.por_nivel : [];
+  const total = Number(dados.total) || 0;
+  const cancelados = Number(dados.cancelados) || 0;
 
   if (!total) {
     container.appendChild(
       criar(
         "p",
         "grafico-vazio",
-        "Ainda não existem dados suficientes para esta distribuição. Os registros aparecerão após as primeiras detecções.",
+        "Nenhum alerta de risco alto ou médio no período. Os vazamentos evitados aparecem aqui após as primeiras detecções.",
+      ),
+    );
+    return;
+  }
+
+  const destaque = criar("div", "vazamento-destaque");
+  destaque.appendChild(criar("strong", "vazamento-numero", numero(cancelados)));
+  const taxa = criar("span", "vazamento-porcentagem", percentual(dados.taxa_cancelamento));
+  taxa.title =
+    "Percentual dos " +
+    plural(total, "alerta de risco alto ou médio", "alertas de risco alto ou médio") +
+    " cancelados no período";
+  destaque.appendChild(taxa);
+  destaque.setAttribute("aria-label", "Vazamentos evitados: " + numero(cancelados) + ", " + percentual(dados.taxa_cancelamento));
+  container.appendChild(destaque);
+
+  const corEvitado = variavelCss(container, "--marca", "#01986d");
+  const corEnviado = variavelCss(container, "--alto", "#d94b58");
+
+  niveis.forEach(function (item) {
+    const linha = criar("div", "vazamento-item");
+    const topo = criar("div", "vazamento-topo");
+    topo.appendChild(criar("span", "vazamento-rotulo", ROTULO_NIVEL[item.nivel] || item.nivel));
+    topo.appendChild(
+      criar(
+        "strong",
+        "vazamento-valor",
+        numero(item.cancelou) +
+          " de " +
+          numero(item.total) +
+          " · " +
+          percentual(item.taxa_cancelamento),
+      ),
+    );
+    linha.appendChild(topo);
+
+    const trilho = criar("div", "vazamento-trilho");
+    trilho.setAttribute("role", "img");
+    trilho.setAttribute(
+      "aria-label",
+      (ROTULO_NIVEL[item.nivel] || item.nivel) +
+        ": " +
+        plural(item.cancelou, "cancelamento", "cancelamentos") +
+        " de " +
+        plural(item.total, "alerta", "alertas"),
+    );
+    if (item.cancelou) {
+      const evitado = criar("span", "vazamento-segmento");
+      evitado.style.width = ((item.cancelou / item.total) * 100).toFixed(1) + "%";
+      evitado.style.background = corEvitado;
+      trilho.appendChild(evitado);
+    }
+    if (item.enviou) {
+      const enviado = criar("span", "vazamento-segmento");
+      enviado.style.width = ((item.enviou / item.total) * 100).toFixed(1) + "%";
+      enviado.style.background = corEnviado;
+      trilho.appendChild(enviado);
+    }
+    linha.appendChild(trilho);
+    container.appendChild(linha);
+  });
+
+  const legenda = criar("div", "legenda-grafico");
+  [
+    { rotulo: "Cancelado (evitado)", cor: corEvitado },
+    { rotulo: "Enviado", cor: corEnviado },
+  ].forEach(function (item) {
+    const marca = criar("span");
+    const quadrado = criar("i");
+    quadrado.style.background = item.cor;
+    marca.appendChild(quadrado);
+    marca.appendChild(document.createTextNode(item.rotulo));
+    legenda.appendChild(marca);
+  });
+  container.appendChild(legenda);
+}
+
+function desenharMapaCalor(departamentos) {
+  const container = $("mapa-departamentos");
+  limpar(container);
+
+  const linhas = (departamentos || []).slice(0, 6);
+  if (!linhas.length) {
+    container.appendChild(
+      criar(
+        "p",
+        "grafico-vazio",
+        "Ainda não há alertas por departamento. O mapa aparece após as primeiras detecções.",
+      ),
+    );
+    return;
+  }
+
+  const niveis = [
+    { chave: "baixo", rotulo: "Baixo", cor: "--baixo" },
+    { chave: "medio", rotulo: "Médio", cor: "--medio" },
+    { chave: "alto", rotulo: "Alto", cor: "--alto" },
+  ];
+  const valores = [];
+  linhas.forEach(function (item) {
+    niveis.forEach(function (nivel) {
+      valores.push(Number(item[nivel.chave]) || 0);
+    });
+  });
+  const maximo = Math.max(1, Math.max.apply(null, valores));
+
+  const tabela = criar("table", "mapa-calor-tabela");
+  const cabecalho = criar("thead");
+  const linhaCabecalho = criar("tr");
+  linhaCabecalho.appendChild(criar("th", null, "Departamento"));
+  niveis.forEach(function (nivel) {
+    linhaCabecalho.appendChild(criar("th", "centro", nivel.rotulo));
+  });
+  linhaCabecalho.appendChild(criar("th", "centro", "Total"));
+  cabecalho.appendChild(linhaCabecalho);
+  tabela.appendChild(cabecalho);
+
+  const corpo = criar("tbody");
+  linhas.forEach(function (item) {
+    const linha = criar("tr");
+    linha.appendChild(criar("td", "mapa-calor-nome", item.departamento));
+    niveis.forEach(function (nivel) {
+      const valor = Number(item[nivel.chave]) || 0;
+      const celula = criar("td", "celula-mapa");
+      const bloco = criar("span", "celula-mapa-valor", String(valor));
+      const intensidade = valor ? 24 + (valor / maximo) * 69 : 0;
+      bloco.style.background = valor
+        ? "color-mix(in srgb, var(" +
+          nivel.cor +
+          ") " +
+          Math.round(intensidade) +
+          "%, var(--superficie-2))"
+        : "var(--superficie-2)";
+      if (intensidade >= 60) bloco.style.color = "#fff";
+      bloco.title =
+        item.departamento + " · " + nivel.rotulo + ": " + plural(valor, "alerta", "alertas");
+      celula.appendChild(bloco);
+      linha.appendChild(celula);
+    });
+    const total = criar("td", "mapa-calor-total");
+    total.appendChild(
+      criar("span", "mapa-calor-total-valor", numero(item.total)),
+    );
+    total.title = item.departamento + ": " + plural(item.total, "alerta", "alertas");
+    linha.appendChild(total);
+    corpo.appendChild(linha);
+  });
+  tabela.appendChild(corpo);
+  container.appendChild(tabela);
+}
+
+function desenharEnvioSemana(semanas, limiar) {
+  const container = $("grafico-envio-semana");
+  limpar(container);
+
+  const limite = Number(limiar) || 0;
+
+  const dados = Array.isArray(semanas) ? semanas : [];
+  const temDados = dados.some(function (semana) {
+    return Number(semana.total) > 0;
+  });
+  if (!dados.length || !temDados) {
+    container.appendChild(
+      criar(
+        "p",
+        "grafico-vazio",
+        "Ainda não há semanas com alertas suficientes para mostrar esta evolução.",
       ),
     );
     return;
   }
 
   const ns = "http://www.w3.org/2000/svg";
+  const largura = 460;
+  const altura = 208;
+  const margem = { topo: 16, direita: 48, baixo: 28, esquerda: 38 };
+  const areaLargura = largura - margem.esquerda - margem.direita;
+  const areaAltura = altura - margem.topo - margem.baixo;
+  const baseY = margem.topo + areaAltura;
+  const passo = areaLargura / Math.max(dados.length - 1, 1);
+  const corLinha = variavelCss(container, "--marca", "#01986d");
+  const corTexto = variavelCss(container, "--cinza-claro", "#8a8a84");
+  const corGrade = variavelCss(container, "--linha", "#e0ded8");
+  const corAlto = variavelCss(container, "--alto", "#d94b58");
+
   const svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", "0 0 42 42");
+  svg.setAttribute("viewBox", "0 0 " + largura + " " + altura);
   svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", descricao);
+  svg.setAttribute(
+    "aria-label",
+    "Taxa de envios depois do aviso, por semana, com limite de " + percentual(limite),
+  );
 
-  const fundo = document.createElementNS(ns, "circle");
-  fundo.setAttribute("cx", "21");
-  fundo.setAttribute("cy", "21");
-  fundo.setAttribute("r", "15.9155");
-  fundo.setAttribute("fill", "none");
-  fundo.style.stroke = variavelCss(container, "--superficie-2", "#f3f2ed");
-  fundo.setAttribute("stroke-width", "5");
-  svg.appendChild(fundo);
+  [0, 25, 50, 75, 100].forEach(function (valor) {
+    const y = baseY - (valor / 100) * areaAltura;
+    const linha = document.createElementNS(ns, "line");
+    linha.setAttribute("x1", margem.esquerda);
+    linha.setAttribute("x2", largura - margem.direita);
+    linha.setAttribute("y1", y);
+    linha.setAttribute("y2", y);
+    linha.style.stroke = corGrade;
+    linha.style.opacity = valor === 0 ? "0.9" : "0.4";
+    svg.appendChild(linha);
 
-  const totalTexto = document.createElementNS(ns, "text");
-  totalTexto.setAttribute("x", "21");
-  totalTexto.setAttribute("y", "20.5");
-  totalTexto.setAttribute("text-anchor", "middle");
-  totalTexto.setAttribute("font-size", "4.6");
-  totalTexto.style.fill = variavelCss(container, "--tinta", "#1b1b1a");
-  totalTexto.setAttribute("font-family", "Georgia, serif");
-  totalTexto.textContent = numero(total);
-  svg.appendChild(totalTexto);
+    const rotulo = document.createElementNS(ns, "text");
+    rotulo.setAttribute("x", margem.esquerda - 8);
+    rotulo.setAttribute("y", y + 3);
+    rotulo.setAttribute("text-anchor", "end");
+    rotulo.setAttribute("font-size", "9");
+    rotulo.setAttribute("font-family", "Consolas, monospace");
+    rotulo.style.fill = corTexto;
+    rotulo.textContent = valor + "%";
+    svg.appendChild(rotulo);
+  });
 
-  const legendaTotal = document.createElementNS(ns, "text");
-  legendaTotal.setAttribute("x", "21");
-  legendaTotal.setAttribute("y", "24.5");
-  legendaTotal.setAttribute("text-anchor", "middle");
-  legendaTotal.setAttribute("font-size", "2.4");
-  legendaTotal.setAttribute("letter-spacing", "0.12");
-  legendaTotal.style.fill = variavelCss(container, "--cinza-claro", "#8a8a84");
-  legendaTotal.setAttribute("font-family", "Consolas, monospace");
-  legendaTotal.textContent = "ALERTAS";
-  svg.appendChild(legendaTotal);
+  const yLimite = baseY - (Math.min(Math.max(limite, 0), 100) / 100) * areaAltura;
+  const linhaLimite = document.createElementNS(ns, "line");
+  linhaLimite.setAttribute("x1", margem.esquerda);
+  linhaLimite.setAttribute("x2", largura - margem.direita);
+  linhaLimite.setAttribute("y1", yLimite);
+  linhaLimite.setAttribute("y2", yLimite);
+  linhaLimite.setAttribute("stroke-dasharray", "4 4");
+  linhaLimite.style.stroke = corAlto;
+  linhaLimite.style.opacity = "0.55";
+  svg.appendChild(linhaLimite);
 
-  let deslocamento = 0;
-  itens.forEach(function (item, indice) {
-    const valor = Number(item.valor) || 0;
-    if (!valor) return;
-    const fatia = (valor / total) * 100;
+  const pontos = dados.map(function (semana, indice) {
+    return {
+      x: margem.esquerda + passo * indice,
+      y: baseY - ((Number(semana.taxa_envio) || 0) / 100) * areaAltura,
+      semana: semana,
+    };
+  });
+
+  const caminho = document.createElementNS(ns, "polyline");
+  caminho.setAttribute(
+    "points",
+    pontos
+      .map(function (ponto) {
+        return ponto.x.toFixed(1) + "," + ponto.y.toFixed(1);
+      })
+      .join(" "),
+  );
+  caminho.setAttribute("fill", "none");
+  caminho.setAttribute("stroke-width", "2");
+  caminho.setAttribute("stroke-linecap", "round");
+  caminho.setAttribute("stroke-linejoin", "round");
+  caminho.style.stroke = corLinha;
+  svg.appendChild(caminho);
+
+  const corSuperficie = variavelCss(container, "--superficie", "#ffffff");
+  pontos.forEach(function (ponto) {
     const circulo = document.createElementNS(ns, "circle");
-    circulo.setAttribute("cx", "21");
-    circulo.setAttribute("cy", "21");
-    circulo.setAttribute("r", "15.9155");
-    circulo.setAttribute("fill", "none");
-    circulo.style.stroke = item.cor;
-    circulo.setAttribute("stroke-width", "5");
-    circulo.setAttribute("stroke-dasharray", "0 100");
-    circulo.setAttribute("stroke-dashoffset", String(25 - deslocamento));
-    circulo.style.transition = respeitaMovimentoReduzido()
-      ? "none"
-      : "stroke-dasharray 0.55s cubic-bezier(0.22, 1, 0.36, 1)";
-    circulo.style.transitionDelay = indice * 55 + "ms";
+    circulo.setAttribute("cx", ponto.x);
+    circulo.setAttribute("cy", ponto.y);
+    circulo.setAttribute("r", "3.2");
+    circulo.setAttribute("stroke-width", "1.5");
+    circulo.style.fill = corLinha;
+    circulo.style.stroke = corSuperficie;
     const titulo = document.createElementNS(ns, "title");
-    titulo.textContent = item.rotulo + ": " + valor + " (" + percentual(fatia) + ")";
+    titulo.textContent =
+      ponto.semana.rotulo +
+      ": " +
+      percentual(ponto.semana.taxa_envio) +
+      " · " +
+      plural(ponto.semana.total, "alerta", "alertas");
     circulo.appendChild(titulo);
     svg.appendChild(circulo);
-    requestAnimationFrame(function () {
-      circulo.style.strokeDasharray = fatia + " " + (100 - fatia);
-    });
-    deslocamento += fatia;
-  });
-  container.appendChild(svg);
 
-  const legenda = criar("div", "donut-legenda");
-  itens.forEach(function (item) {
-    const linha = criar("p");
-    const marca = criar("i");
-    marca.style.background = item.cor;
-    linha.appendChild(marca);
-    linha.appendChild(document.createTextNode(item.rotulo));
-    linha.appendChild(criar("strong", null, numero(item.valor)));
-    legenda.appendChild(linha);
+    const rotulo = document.createElementNS(ns, "text");
+    rotulo.setAttribute("x", ponto.x);
+    rotulo.setAttribute("y", altura - 10);
+    rotulo.setAttribute("text-anchor", "middle");
+    rotulo.setAttribute("font-size", "9");
+    rotulo.setAttribute("font-family", "Consolas, monospace");
+    rotulo.style.fill = corTexto;
+    rotulo.textContent = ponto.semana.rotulo;
+    svg.appendChild(rotulo);
   });
-  container.appendChild(legenda);
+
+  const ultimo = pontos[pontos.length - 1];
+  const rotuloUltimo = document.createElementNS(ns, "text");
+  rotuloUltimo.setAttribute("x", Math.min(ultimo.x + 8, largura - 4));
+  rotuloUltimo.setAttribute("y", ultimo.y + 3);
+  rotuloUltimo.setAttribute("font-size", "10");
+  rotuloUltimo.setAttribute("font-family", "Consolas, monospace");
+  rotuloUltimo.style.fill = variavelCss(container, "--tinta", "#1b1b1a");
+  rotuloUltimo.textContent = percentual(ultimo.semana.taxa_envio);
+  svg.appendChild(rotuloUltimo);
+
+  container.appendChild(svg);
 }
 
-function desenharBarraComportamento(id, itens, descricao) {
-  const container = $(id);
+function desenharOrigem(porOrigem) {
+  const container = $("grafico-origem");
   limpar(container);
+
+  const ordem = ["texto", "colagem", "imagem", "pdf"];
+  const itens = ordem.map(function (chave) {
+    return {
+      chave: chave,
+      rotulo: ROTULO_ORIGEM[chave] || chave,
+      valor: Number(porOrigem[chave]) || 0,
+    };
+  });
   const total = itens.reduce(function (soma, item) {
-    return soma + (Number(item.valor) || 0);
+    return soma + item.valor;
   }, 0);
 
   if (!total) {
@@ -768,115 +1040,41 @@ function desenharBarraComportamento(id, itens, descricao) {
       criar(
         "p",
         "grafico-vazio",
-        "Ainda não existem dados suficientes para este comportamento. Os registros aparecerão após as primeiras detecções.",
+        "Ainda não há alertas por origem. O gráfico aparece após as primeiras detecções.",
       ),
     );
     return;
   }
 
-  const barra = criar("div", "comportamento-barra");
-  barra.setAttribute("role", "img");
-  barra.setAttribute(
-    "aria-label",
-    descricao +
-      ": " +
-      itens
-        .map(function (item) {
-          return item.rotulo + " " + percentual(((Number(item.valor) || 0) / total) * 100);
-        })
-        .join(", "),
-  );
-
-  const legenda = criar("div", "comportamento-legenda");
-  itens.forEach(function (item) {
-    const valor = Number(item.valor) || 0;
-    const fatia = (valor / total) * 100;
-
-    if (valor > 0) {
-      const segmento = criar("span", "comportamento-segmento");
-      segmento.style.width = fatia + "%";
-      segmento.style.background = item.cor;
-      barra.appendChild(segmento);
-    }
-
-    const linha = criar("div", "comportamento-item");
-    const topo = criar("div", "comportamento-item-topo");
-    const marcador = criar("i", "comportamento-marcador");
-    marcador.style.background = item.cor;
-    topo.appendChild(marcador);
-    topo.appendChild(criar("span", "comportamento-rotulo", item.rotulo));
-    topo.appendChild(criar("strong", "comportamento-percentual", percentual(fatia)));
-    linha.appendChild(topo);
-    linha.appendChild(criar("span", "comportamento-quantidade", plural(valor, "alerta", "alertas")));
-    legenda.appendChild(linha);
-  });
-
-  container.appendChild(barra);
-  container.appendChild(legenda);
-}
-
-function desenharSites(sites) {
-  const container = $("barras-sites");
-  limpar(container);
-
-  if (!sites || !sites.length) {
-    container.appendChild(
-      criar(
-        "p",
-        "grafico-vazio",
-        "Ainda não há ocorrências por IA. Elas aparecerão aqui após as primeiras detecções.",
-      ),
-    );
-    return;
-  }
-
+  const base = variavelCss(container, "--marca", "#01986d");
   const maximo = Math.max.apply(
     null,
-    [1].concat(sites.map(function (item) { return item.total; })),
+    [1].concat(itens.map(function (item) { return item.valor; })),
   );
-  const bloco = criar("div", "barra-site");
-  sites.forEach(function (item) {
-    const linha = criar("div", "barra-item");
-    linha.appendChild(criar("span", "nome", item.site));
-    const trilho = criar("span", "barra-trilho");
-    const preenchimento = criar("span", "barra-preenchimento");
-    preenchimento.style.width = Math.max((item.total / maximo) * 100, item.total > 0 ? 2 : 0) + "%";
+
+  itens.forEach(function (item) {
+    const linha = criar("div", "origem-item");
+    const topo = criar("div", "origem-topo");
+    topo.appendChild(criar("span", "origem-rotulo", item.rotulo));
+    topo.appendChild(criar("strong", "origem-valor", numero(item.valor)));
+    linha.appendChild(topo);
+
+    const trilho = criar("div", "origem-trilho");
+    const preenchimento = criar("span", "origem-preenchimento");
+    preenchimento.style.width = ((item.valor / maximo) * 100).toFixed(1) + "%";
+    preenchimento.style.background =
+      "color-mix(in srgb, " +
+      base +
+      " " +
+      Math.round(28 + (item.valor / maximo) * 67) +
+      "%, var(--superficie-2))";
     trilho.appendChild(preenchimento);
     linha.appendChild(trilho);
-    linha.appendChild(criar("span", "barra-valor", numero(item.total)));
-    bloco.appendChild(linha);
-  });
-  container.appendChild(bloco);
-}
 
-function desenharTipos(tipos) {
-  const lista = $("lista-tipos");
-  limpar(lista);
-
-  if (!tipos.length) {
-    const vazio = criar("li");
-    vazio.appendChild(
-      criar(
-        "span",
-        "grafico-vazio",
-        "Ainda não há categorias identificadas. Elas aparecerão aqui após as primeiras detecções.",
-      ),
+    linha.appendChild(
+      criar("span", "origem-percentual", percentual((item.valor / total) * 100)),
     );
-    lista.appendChild(vazio);
-    return;
-  }
-
-  tipos.forEach(function (tipo) {
-    const item = criar("li");
-
-    const bloco = criar("span");
-    bloco.appendChild(criar("span", "tipo", tipo.tipo));
-    bloco.appendChild(criar("span", "area", tipo.area));
-    item.appendChild(bloco);
-
-    item.appendChild(badge(tipo.risco));
-    item.appendChild(criar("span", "total", tipo.total));
-    lista.appendChild(item);
+    container.appendChild(linha);
   });
 }
 
@@ -885,11 +1083,12 @@ function desenharLetramento(dados) {
   limpar(corpo);
 
   if (!dados.por_departamento.length) {
-    const linha = criar("tr");
-    const celula = criar("td", "", "Nenhum alerta registrado.");
-    celula.colSpan = 4;
-    linha.appendChild(celula);
-    corpo.appendChild(linha);
+    estadoVazioTabela(
+      corpo,
+      4,
+      "Nenhum alerta por departamento",
+      "A taxa de envio após alerta aparece depois das primeiras detecções.",
+    );
     return;
   }
 
@@ -934,20 +1133,17 @@ function desenharLetramento(dados) {
   });
 }
 
-function desenharGargalos(gargalos) {
-  const container = $("gargalos");
-  limpar(container);
-  container.appendChild(
-    criar("p", "nota", plural(gargalos.length, "departamento crítico", "departamentos críticos") + "."),
-  );
-}
-
 function desenharUltimos(ultimos) {
   const lista = $("ultimos");
   limpar(lista);
 
   if (!ultimos.length) {
-    lista.appendChild(criar("li", "micro", "Nada registrado ainda."));
+    estadoVazio(
+      lista,
+      "Nenhum alerta registrado ainda",
+      "Os alertas mais recentes aparecem aqui assim que a extensão detectar conteúdo sensível.",
+      "li",
+    );
     return;
   }
 
@@ -974,6 +1170,9 @@ function desenharUltimos(ultimos) {
 // ---------------------------------------------------------------------------
 
 async function carregarAreas() {
+  if (!$("lista-areas").children.length) {
+    esqueletoItens($("lista-areas"), 4, "li");
+  }
   estado.areas = await api("/api/admin/areas");
   renderizarAreas();
   preencherSelectAreas();
@@ -1012,7 +1211,12 @@ function renderizarAreas() {
   limpar(lista);
 
   if (!estado.areas.length) {
-    lista.appendChild(criar("li", "nota", "Nenhum departamento cadastrado."));
+    estadoVazio(
+      lista,
+      "Nenhum departamento cadastrado",
+      "Crie um departamento para organizar as regras e comparar o risco entre as áreas.",
+      "li",
+    );
     return;
   }
 
@@ -1103,6 +1307,10 @@ function renderizarAreas() {
 }
 
 async function carregarRegras() {
+  if (!$("tabela-regras").children.length) {
+    esqueletoLinhas($("tabela-regras"), 5, 6);
+    $("contador-regras").textContent = "Carregando…";
+  }
   estado.regras = await api("/api/admin/regras");
   renderizarRegras();
 }
@@ -1138,11 +1346,15 @@ function renderizarRegras() {
     );
 
   if (!filtradas.length) {
-    const linha = criar("tr");
-    const celula = criar("td", "nota", "Nenhuma regra encontrada.");
-    celula.colSpan = 6;
-    linha.appendChild(celula);
-    corpo.appendChild(linha);
+    const filtrando = Boolean(termo || areaFiltro || statusFiltro);
+    estadoVazioTabela(
+      corpo,
+      6,
+      filtrando ? "Nenhuma regra encontrada" : "Nenhuma regra de detecção",
+      filtrando
+        ? "Ajuste a busca ou os filtros de departamento e situação."
+        : "Crie a primeira regra para que a extensão identifique dados sensíveis antes do envio.",
+    );
     return;
   }
 
@@ -1387,9 +1599,19 @@ async function salvarArea(evento) {
 // ---------------------------------------------------------------------------
 
 async function carregarMensagens() {
-  const mensagens = await api("/api/admin/mensagens");
   const container = $("mensagens");
+  if (!container.children.length) esqueletoItens(container, 4);
+  const mensagens = await api("/api/admin/mensagens");
   limpar(container);
+
+  if (!mensagens.length) {
+    estadoVazio(
+      container,
+      "Nenhuma mensagem configurada",
+      "As mensagens educativas exibidas no aviso antes do envio aparecem aqui.",
+    );
+    return;
+  }
 
   mensagens.forEach(function (mensagem) {
     const editor = criar("section", "mensagem-editor");
@@ -1539,6 +1761,12 @@ async function carregarAlertas(pagina) {
   parametros.set("pagina", String(pagina));
   parametros.set("por_pagina", "12");
 
+  if (!$("tabela-alertas").children.length) {
+    esqueletoLinhas($("tabela-alertas"), 6, 9);
+    $("resumo-listagem").textContent = "Carregando alertas…";
+    $("pagina-info").textContent = "—";
+  }
+
   const dados = await api("/api/admin/alertas?" + parametros.toString());
   estado.pagina = dados.pagina;
   estado.totalPaginas = dados.total_paginas;
@@ -1560,11 +1788,20 @@ async function carregarAlertas(pagina) {
   limpar(corpo);
 
   if (!dados.registros.length) {
-    const linha = criar("tr");
-    const celula = criar("td", "nota", "Nenhum alerta com estes filtros.");
-    celula.colSpan = 9;
-    linha.appendChild(celula);
-    corpo.appendChild(linha);
+    const filtrando = Boolean(
+      estado.filtros.de ||
+        estado.filtros.ate ||
+        (estado.filtros.departamento && estado.filtros.departamento !== "todos") ||
+        (estado.filtros.nivel && estado.filtros.nivel !== "todos"),
+    );
+    estadoVazioTabela(
+      corpo,
+      9,
+      filtrando ? "Nenhum alerta com estes filtros" : "Nenhum alerta registrado",
+      filtrando
+        ? "Ajuste o período, o departamento ou o nível para ver outros registros."
+        : "Os alertas aparecem aqui assim que a extensão detectar conteúdo sensível.",
+    );
     return;
   }
 
@@ -1586,13 +1823,28 @@ async function carregarAlertas(pagina) {
     const acao = criar("td", "", alerta.acao === "enviou" ? "Enviou" : "Cancelou");
     linha.appendChild(acao);
 
-    const tipos = criar("td", "", alerta.itens.map(function (item) {
-      return item.tipo_detectado;
-    }).join(" · ") || "—");
-    tipos.style.maxWidth = "220px";
-    tipos.style.overflow = "hidden";
-    tipos.style.textOverflow = "ellipsis";
-    tipos.style.whiteSpace = "nowrap";
+    const tipos = criar("td", "celula-selos");
+    if (!alerta.itens.length) {
+      tipos.textContent = "—";
+    } else {
+      const selos = criar("div", "selos-categorias");
+      alerta.itens.slice(0, 2).forEach(function (item) {
+        selos.appendChild(criar("span", "selo-categoria", item.tipo_detectado));
+      });
+      if (alerta.itens.length > 2) {
+        const restante = criar(
+          "span",
+          "selo-categoria selo-mais",
+          "+" + (alerta.itens.length - 2),
+        );
+        restante.title = alerta.itens
+          .slice(2)
+          .map(function (item) { return item.tipo_detectado; })
+          .join(" · ");
+        selos.appendChild(restante);
+      }
+      tipos.appendChild(selos);
+    }
     linha.appendChild(tipos);
 
     const acoes = criar("td", "direita");
@@ -1684,12 +1936,14 @@ async function exportarFiltrosAtuais() {
 // ---------------------------------------------------------------------------
 
 async function carregarInstalacao() {
+  const alvo = $("instalacao-token");
+  alvo.textContent = "Carregando…";
+  $("instalacao-url").textContent = "Carregando…";
   const dados = await api("/api/admin/instalacao");
   estado.euSuperadmin = Boolean(dados.superadmin);
   $("instalacao-url").textContent = dados.url_base;
   // O código de conexão permanece visível para o administrador autorizado.
   const codigo = dados.codigo || dados.token;
-  const alvo = $("instalacao-token");
   alvo.dataset.valor = codigo;
   alvo.textContent = codigo;
   alvo.setAttribute("aria-label", "Código de conexão");
@@ -1697,7 +1951,10 @@ async function carregarInstalacao() {
 
 async function carregarDispositivos() {
   const corpo = $("tabela-dispositivos");
-  corpo.setAttribute("aria-busy", "true");
+  if (!corpo.children.length) {
+    esqueletoLinhas(corpo, 4, 6);
+    $("resumo-dispositivos").textContent = "Carregando dispositivos…";
+  }
   const dados = await api("/api/admin/dispositivos");
   estado.dispositivos = dados.dispositivos || [];
   limpar(corpo);
@@ -1720,11 +1977,12 @@ async function carregarDispositivos() {
 
   corpo.setAttribute("aria-busy", "false");
   if (!estado.dispositivos.length) {
-    const linha = criar("tr");
-    const celula = criar("td", "micro", "Nenhum dispositivo conectado ainda.");
-    celula.colSpan = 6;
-    linha.appendChild(celula);
-    corpo.appendChild(linha);
+    estadoVazioTabela(
+      corpo,
+      6,
+      "Nenhum dispositivo conectado",
+      "Instale a extensão e informe o código de conexão para começar a receber alertas.",
+    );
     return;
   }
 
@@ -1824,6 +2082,9 @@ async function confirmarRenovacaoToken() {
 }
 
 async function carregarAdmins() {
+  if (!$("tabela-admins").children.length) {
+    esqueletoLinhas($("tabela-admins"), 3, 4);
+  }
   const dados = await api("/api/admin/usuarios");
   estado.euSuperadmin = Boolean(dados.superadmin);
   const botaoLimparAtividades = $("limpar-atividades");
@@ -1838,11 +2099,12 @@ async function carregarAdmins() {
   $("novo-admin").hidden = !estado.euSuperadmin;
 
   if (!admins.length) {
-    const linha = criar("tr");
-    const celula = criar("td", "micro", "Nenhum administrador cadastrado.");
-    celula.colSpan = 4;
-    linha.appendChild(celula);
-    corpo.appendChild(linha);
+    estadoVazioTabela(
+      corpo,
+      4,
+      "Nenhum administrador cadastrado",
+      "Crie a primeira conta de acesso ao painel.",
+    );
   }
 
   admins.forEach(function (admin) {
@@ -1914,7 +2176,10 @@ async function carregarAdmins() {
 
 async function carregarAtividades(pagina) {
   const alvo = Math.max(1, Number(pagina) || 1);
-  $("lista-atividades").setAttribute("aria-busy", "true");
+  if (!$("lista-atividades").children.length) {
+    esqueletoItens($("lista-atividades"), 4, "li");
+    $("atividades-resumo").textContent = "Carregando histórico…";
+  }
   const dados = await api(
     "/api/admin/atividades?pagina=" + alvo + "&por_pagina=8",
   );
@@ -1935,8 +2200,11 @@ async function carregarAtividades(pagina) {
   lista.setAttribute("aria-busy", "false");
 
   if (!atividades.length) {
-    lista.appendChild(
-      criar("li", "atividade-vazia", "Nenhuma alteração administrativa registrada ainda."),
+    estadoVazio(
+      lista,
+      "Nenhuma atividade registrada",
+      "Criações, edições e exclusões feitas no painel aparecem aqui.",
+      "li",
     );
     return;
   }
@@ -2063,32 +2331,6 @@ function atualizarInterruptorMonitoramento() {
   const ativo = Boolean(estado.monitoramento && estado.monitoramento.monitoramento_ativo);
   $("monitoramento-ativo").checked = ativo;
   $("monitoramento-ativo-texto").textContent = ativo ? "Ativo" : "Desativado";
-  const estadoEl = $("monitoramento-estado");
-  if (!estadoEl) return;
-  const iasAtivas = ativo
-    ? document.querySelectorAll("#sites-monitorados .site-toggle:checked").length
-    : 0;
-  if (!ativo) {
-    estadoEl.dataset.estado = "inativo";
-    estadoEl.textContent = "Monitoramento desativado";
-    estadoEl.removeAttribute("title");
-  } else if (!iasAtivas) {
-    estadoEl.dataset.estado = "atencao";
-    estadoEl.textContent = "Ativo sem IAs selecionadas";
-    estadoEl.title = "O monitoramento está ativo, mas nenhuma IA está selecionada.";
-  } else {
-    estadoEl.dataset.estado = "ativo";
-    estadoEl.textContent = "Monitoramento ativo";
-    estadoEl.title = "Política de monitoramento ativa para " + iasAtivas + " IA(s).";
-  }
-}
-
-function marcarFalhaMonitoramento() {
-  const estadoEl = $("monitoramento-estado");
-  if (!estadoEl) return;
-  estadoEl.dataset.estado = "falha";
-  estadoEl.textContent = "Falha na comunicação";
-  estadoEl.title = "Não foi possível confirmar o estado do monitoramento com o servidor.";
 }
 
 function atualizarEstadoMonitoramento() {
@@ -2110,7 +2352,11 @@ function desenharSitesMonitorados(disponiveis, ativos) {
   estado.sites = Array.isArray(disponiveis) ? disponiveis.slice() : [];
 
   if (!estado.sites.length) {
-    container.appendChild(criar("p", "vazio-painel", "Nenhuma IA cadastrada."));
+    estadoVazio(
+      container,
+      "Nenhuma IA cadastrada",
+      "Adicione uma IA para que a extensão analise o conteúdo antes do envio.",
+    );
     return;
   }
 
@@ -2183,15 +2429,13 @@ function desenharSitesMonitorados(disponiveis, ativos) {
 }
 
 async function carregarMonitoramento() {
-  try {
-    const dados = await api("/api/admin/configuracoes");
-    estado.monitoramento = dados;
-    desenharSitesMonitorados(dados.sites_disponiveis, dados.sites_ativos);
-    atualizarEstadoMonitoramento();
-  } catch (erro) {
-    marcarFalhaMonitoramento();
-    throw erro;
+  if (!$("sites-monitorados").children.length) {
+    esqueletoItens($("sites-monitorados"), 3);
   }
+  const dados = await api("/api/admin/configuracoes");
+  estado.monitoramento = dados;
+  desenharSitesMonitorados(dados.sites_disponiveis, dados.sites_ativos);
+  atualizarEstadoMonitoramento();
 }
 
 function abrirSite(site) {
@@ -2427,6 +2671,14 @@ function ligarEventos() {
     });
   });
 
+  // O menu de exportação é um <details>: fecha ao clicar em qualquer outra
+  // parte da tela, e não só ao escolher uma das opções.
+  document.addEventListener("click", function (evento) {
+    document.querySelectorAll(".exportar-menu[open]").forEach(function (menu) {
+      if (!menu.contains(evento.target)) menu.open = false;
+    });
+  });
+
   $("copiar-token").addEventListener("click", function () {
     void copiarToken();
   });
@@ -2570,7 +2822,13 @@ function ligarEventos() {
 
   const INFORMACOES_ABAS = {
     visao:
-      "Resume o que os alertas do período mostram: quantos foram gerados e como evoluíram, em quais níveis de risco, quais IAs e departamentos aparecem mais, quais categorias foram identificadas e se o colaborador enviou ou cancelou depois do alerta. É também nesta tela que se define a tolerância, usada para marcar um departamento como crítico.",
+      "Resume o que os alertas do período mostram: quantos foram gerados, como variaram em relação ao período anterior, em quais níveis de risco, quais departamentos concentram o risco, quais categorias foram identificadas e quantos vazamentos foram evitados. É também nesta tela que se define a tolerância, usada para marcar um departamento como crítico.",
+    vazamentos:
+      "Alertas de risco alto e médio em que o colaborador cancelou o envio depois do aviso. Cada cancelamento é um vazamento que não aconteceu, e é o indicador que mostra à diretoria se o risco está caindo e se o produto entrega o que promete.",
+    mapa:
+      "Cada célula conta os alertas do departamento naquele nível de risco. A cor identifica o nível e a intensidade cresce com a quantidade, para comparar as células de relance. A coluna Total soma os alertas do departamento.",
+    tendencia:
+      "Envios após o aviso, por semana: mostra se o aviso muda o comportamento ao longo do tempo, com o limite tracejado na tolerância configurada. Tendência da taxa de envio: comparação entre o período atual e o anterior.",
     tolerancia:
       "Percentual de alertas de risco alto a partir do qual um departamento é marcado como crítico. Vale para departamentos com ao menos 3 alertas; abaixo disso, ficam em observação.",
     alertas:
@@ -2583,6 +2841,13 @@ function ligarEventos() {
       "Define os textos que o colaborador lê no aviso exibido antes do envio, com uma mensagem para cada situação: risco baixo, quando há detecções de baixo risco; sem detecções, quando nada sensível é encontrado e o aviso exibe o selo de verificação; risco médio; e risco alto. Como o nível e as categorias identificadas já aparecem no próprio aviso, as mensagens trazem apenas a orientação, com limite de caracteres para manter o aviso curto. As alterações chegam às extensões automaticamente.",
     monitoramento:
       "Define como as extensões se comportam em toda a empresa: se o monitoramento está ativo e quais IAs são acompanhadas. O estado exibido reflete a política real do servidor e o contato dos dispositivos; a ausência de alertas no período não é usada como prova de que o monitoramento esteja funcionando. O monitoramento geral e os interruptores de cada IA são salvos automaticamente. A lista mostra colaborador, departamento, alertas emitidos e status: Ativo (contato recente e código atual), Desatualizada (contato recente, mas com código antigo), Sem sinal (sem contato há mais de 24 horas; inclui computador desligado, sem rede ou extensão desativada/removida sem aviso) e Removida (desconectada pelo painel; fica visível por 30 dias). Aqui ficam ainda o código de conexão e o download da extensão.",
+    efetividade: function () {
+      return (
+        "A taxa considera os alertas em que o colaborador escolheu enviar, divididos pelo total de alertas do departamento. A situação usa a tolerância de risco alto e só classifica departamentos com pelo menos 3 alertas. Departamentos que ultrapassaram a tolerância permitem identificar rapidamente onde a taxa de envio após alerta supera o limite estabelecido. " +
+        plural(estado.gargalos || 0, "departamento crítico", "departamentos críticos") +
+        " nesta seleção."
+      );
+    },
     administradores:
       "Gerencia as contas que acessam o painel. O superadmin, primeiro administrador criado, não pode ser excluído e é o único que cria e exclui outras contas. As demais contas usam o painel e podem trocar a própria senha. O histórico de atividades mostra quem fez cada alteração, com navegação por páginas; apenas o superadmin pode apagar todo esse histórico.",
     codigo:
@@ -2596,7 +2861,12 @@ function ligarEventos() {
     botao.addEventListener("click", function (evento) {
       evento.stopPropagation();
       const titulo = botao.getAttribute("aria-label").replace("Sobre ", "");
-      abrirPopoverInfo(botao, titulo, INFORMACOES_ABAS[botao.dataset.info] || "");
+      const conteudo = INFORMACOES_ABAS[botao.dataset.info];
+      abrirPopoverInfo(
+        botao,
+        titulo,
+        typeof conteudo === "function" ? conteudo() : conteudo || "",
+      );
     });
   });
 

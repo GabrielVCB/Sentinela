@@ -623,9 +623,9 @@ body.opcoes {
 html[data-tema="escuro"] .esqueleto {
   background-image: linear-gradient(
     90deg,
-    #232220 0%,
-    #3b3935 50%,
-    #232220 100%
+    #141918 0%,
+    #1f2725 50%,
+    #141918 100%
   );
 }
 
@@ -747,28 +747,30 @@ html[data-tema="escuro"] .esqueleto {
   --alto-bg: #fbeef0;
 }
 
+/* Mesmo modo escuro do painel: verde profundo quase preto, sem cinzas
+   esverdeados claros que destoam das telas administrativas. */
 html[data-tema="escuro"] {
-  --papel: #1c2422;
-  --papel-2: #202b27;
-  --superficie: #232f2b;
-  --superficie-2: #2a3833;
-  --tinta: #f0f5f2;
-  --tinta-suave: #cfd8d3;
-  --cinza: #b4afa6;
-  --cinza-claro: #9eaaa4;
-  --linha: #34423d;
-  --linha-forte: #46564f;
+  --papel: #070908;
+  --papel-2: #0a0d0c;
+  --superficie: #0e1211;
+  --superficie-2: #141918;
+  --tinta: #eef2f0;
+  --tinta-suave: #c2cac6;
+  --cinza: #98a29e;
+  --cinza-claro: #7f8a86;
+  --linha: #1c2321;
+  --linha-forte: #29322f;
   --marca: #20c99d;
   --marca-acao: #20c99d;
   --marca-claro: #20c99d;
   --marca-escuro: #20c99d;
   --texto-marca: #10201b;
   --baixo: #20c99d;
-  --baixo-bg: #183a30;
+  --baixo-bg: #0c231d;
   --medio: #e5a13d;
-  --medio-bg: #33291a;
-  --alto: #f07a84;
-  --alto-bg: #3a2024;
+  --medio-bg: #241c10;
+  --alto: #f4646f;
+  --alto-bg: #261317;
 }
 
 body {
@@ -884,6 +886,86 @@ input::placeholder {
 .switch input:checked + .trilho .bolinha {
   transform: translateX(18px);
   background: #fff;
+}
+
+/* Alternador de aparência: apenas sol e lua, sem textos auxiliares. */
+.tema-alternador {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.tema-alternador input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tema-trilho {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 62px;
+  height: 30px;
+  padding: 0 7px;
+  border: 1px solid var(--linha-forte);
+  border-radius: 999px;
+  background: var(--superficie-2);
+  color: var(--cinza-claro);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.tema-icone {
+  position: relative;
+  z-index: 1;
+  width: 13px;
+  height: 13px;
+  transition: color 0.18s ease, opacity 0.18s ease;
+}
+
+.tema-lua {
+  opacity: 0.65;
+}
+
+.tema-bolinha {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--superficie);
+  box-shadow: 0 1px 3px rgba(16, 32, 27, 0.24);
+  transition: transform 0.18s ease;
+}
+
+.tema-alternador input:checked + .tema-trilho .tema-bolinha {
+  transform: translateX(32px);
+}
+
+.tema-alternador input:checked + .tema-trilho .tema-sol {
+  opacity: 0.55;
+}
+
+.tema-alternador input:checked + .tema-trilho .tema-lua {
+  opacity: 1;
+  color: var(--marca);
+}
+
+.tema-alternador input:focus-visible + .tema-trilho {
+  outline: 2px solid var(--marca);
+  outline-offset: 2px;
+}
+
+html[data-tema="escuro"] .tema-trilho {
+  background: var(--superficie);
+}
+
+html[data-tema="escuro"] .tema-bolinha {
+  background: var(--superficie-2);
 }
 
 body.popup {
@@ -1067,12 +1149,27 @@ body.popup {
 
 .resumo {
   margin-left: 0;
+  gap: 20px 16px;
+}
+
+.resumo > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
 }
 
 .resumo dd {
+  margin-top: 0;
   font-family: var(--sans);
   font-size: 14px;
   font-weight: 600;
+  line-height: 1.4;
+}
+
+.resumo .estado-sincronizacao {
+  margin-top: 0;
 }
 
 .estado-sincronizacao {
@@ -1223,4 +1320,8 @@ html[data-tema="escuro"] .botao.marca:hover {
   .barra-salvar .botao {
     width: 100%;
   }
+}
+/* O alternador de aparência fica alinhado à direita, sozinho na linha. */
+.linha-opcao .tema-alternador {
+  margin-left: auto;
 }

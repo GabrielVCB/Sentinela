@@ -1,16 +1,25 @@
 {% extends "base.html" %}
 {% block titulo %}Painel administrativo · Sentinela{% endblock %}
 
+{# O login é sempre claro: o tema do painel só vale depois de entrar. #}
+{% block tema %}{% endblock %}
+
+{% block estilos %}
+<link rel="stylesheet" href="{{ url_for('static', filename='login.css') }}?v={{ versao_assets }}" />
+{% endblock %}
+
 {% block corpo %}
 <main class="login-pagina">
   <header class="login-topo">
-    <a class="marca-bloco" href="{{ url_for('landing') }}">
-      <img class="marca-olhos" src="{{ url_for('static', filename='sentinela-logo.svg') }}?v={{ versao_assets }}" alt="" aria-hidden="true" />
-      <span class="marca-texto">
-        <span class="marca">Sentinela</span>
-        <span class="micro">governança de ia</span>
-      </span>
-    </a>
+    <div class="login-topo-linha">
+      <a class="marca-bloco" href="{{ url_for('landing') }}" aria-label="Sentinela, página inicial">
+        <img class="marca-olhos" src="{{ url_for('static', filename='sentinela-logo.svg') }}?v={{ versao_assets }}" alt="" aria-hidden="true" />
+        <span class="marca-texto">
+          <span class="marca">Sentinela</span>
+          <span class="micro">governança de ia</span>
+        </span>
+      </a>
+    </div>
   </header>
 
   <div class="login-conteudo">
@@ -36,7 +45,7 @@
         </form>
 
         <a class="login-voltar" href="{{ url_for('landing') }}">
-          <span aria-hidden="true">←</span> Voltar
+          <span aria-hidden="true">←</span> Voltar para a página inicial
         </a>
       </div>
     </section>

@@ -8,7 +8,7 @@
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='sentinela-logo.svg') }}?v={{ versao_assets }}" />
     <link rel="icon" type="image/png" sizes="64x64" href="{{ url_for('static', filename='favicon.png') }}?v={{ versao_assets }}" />
     <title>{% block titulo %}Sentinela · Governança de IA{% endblock %}</title>
-    <script src="{{ url_for('static', filename='tema.js') }}?v={{ versao_assets }}"></script>
+    {% block tema %}<script src="{{ url_for('static', filename='tema.js') }}?v={{ versao_assets }}"></script>{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='painel.css') }}?v={{ versao_assets }}" />
     {% block estilos %}{% endblock %}
   </head>

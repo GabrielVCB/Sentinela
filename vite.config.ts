@@ -13,14 +13,19 @@ const destinosPainel = [
   "/api",
   "/static",
   "/downloads",
+  "/detectores.js",
   "/favicon.ico",
 ];
-const proxyPainel = Object.fromEntries(
+const proxyPainel: Record<string, { target: string }> = Object.fromEntries(
   destinosPainel.map((destino) => [
     destino,
     { target: `http://127.0.0.1:${portaPainelPreview}` },
   ]),
 );
+
+// Na prévia, a raiz serve a landing oficial do Flask. Assim o que aparece no
+// navegador é exatamente o que será publicado, sem duas versões da página.
+proxyPainel["^/$"] = { target: `http://127.0.0.1:${portaPainelPreview}` };
 
 // https://vite.dev/config/
 export default defineConfig({

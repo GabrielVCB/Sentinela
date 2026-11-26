@@ -886,7 +886,15 @@
       var retangulo = elemento.getBoundingClientRect();
       var area = Math.max(0, retangulo.width) * Math.max(0, retangulo.height);
       var temTexto = textoDoElemento(elemento).trim().length > 0;
-      var pontuacao = (temTexto ? 1e12 : 0) + Math.min(area, 1e9) + retangulo.top;
+      // Um campo fora da janela (oculto em outra área da página) não pode
+      // vencer o compositor visível: era o que fazia o aviso aparecer solto
+      // no rodapé, longe da caixa de prompt.
+      var naJanela = retangulo.bottom > 0 && retangulo.top < window.innerHeight;
+      var pontuacao =
+        (naJanela ? 1e13 : 0) +
+        (temTexto ? 1e12 : 0) +
+        Math.min(area, 1e9) +
+        retangulo.top;
       if (pontuacao > melhor) {
         melhor = pontuacao;
         escolhido = elemento;
@@ -1302,17 +1310,17 @@
     "@keyframes sentinela-modal{from{opacity:0;transform:translateY(10px) scale(.975);}",
     "to{opacity:1;transform:none;}}",
     // 5.0 — superfícies, semântica de risco e acessibilidade.
-    ".painel{background:rgba(255,255,252,.97);border-color:#d8e2de;border-radius:12px;",
+    ".painel{background:rgba(255,255,252,.97);border-color:#dce4e0;border-radius:12px;",
     "backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);",
     "box-shadow:0 14px 36px rgba(10,25,20,.14),0 2px 8px rgba(10,25,20,.05);}",
     ".painel::before{width:4px;background:#8a9691;}",
-    ".painel.sem-deteccao{background:color-mix(in srgb,#01986d 5%,#fffefa);border-color:#cfe6dd;}",
+    ".painel.sem-deteccao{background:color-mix(in srgb,#01986d 5%,#ffffff);border-color:#cfe6dd;}",
     ".painel.sem-deteccao::before{background:#01986d;}",
-    ".painel.risco-baixo{background:color-mix(in srgb,#01986d 6%,#fffefa);border-color:#cfe6dd;}",
+    ".painel.risco-baixo{background:color-mix(in srgb,#01986d 6%,#ffffff);border-color:#cfe6dd;}",
     ".painel.risco-baixo::before{background:#01986d;}",
-    ".painel.risco-medio{background:color-mix(in srgb,#e5a13d 7%,#fffefa);border-color:#ead7b7;}",
+    ".painel.risco-medio{background:color-mix(in srgb,#e5a13d 7%,#ffffff);border-color:#ead7b7;}",
     ".painel.risco-medio::before{background:#e5a13d;}",
-    ".painel.risco-alto{background:color-mix(in srgb,#d94b58 6%,#fffefa);border-color:#eccbd0;}",
+    ".painel.risco-alto{background:color-mix(in srgb,#d94b58 6%,#ffffff);border-color:#eccbd0;}",
     ".painel.risco-alto::before{background:#d94b58;}",
     ".conteudo{padding:13px 44px 12px 17px;gap:9px;}",
     ".nivel{font-size:10px;letter-spacing:.13em;gap:7px;}",
@@ -1320,9 +1328,9 @@
     ".risco-medio .nivel{color:#8a5a12;}",
     ".risco-alto .nivel{color:#c33d4b;}",
     ".marca-aviso{width:18px;height:18px;}",
-    ".contagem{font-size:10px;color:#5f6d67;}",
+    ".contagem{font-size:10px;color:#6e7b76;}",
     ".tipos{gap:6px;}",
-    ".tipos li{border-color:#d8e2de;border-radius:6px;background:rgba(255,255,255,.72);color:#26332e;}",
+    ".tipos li{border-color:#dce4e0;border-radius:6px;background:rgba(255,255,255,.72);color:#16201d;}",
     ".tipos .area{color:#6e7b76;}",
     ".mais-deteccoes{align-self:flex-start;appearance:none;border:0;background:transparent;",
     "color:#086b55;font:inherit;font-size:10.5px;font-weight:600;padding:2px 0;cursor:pointer;",
@@ -1338,29 +1346,29 @@
     "button.acao{border-radius:7px;min-height:34px;}",
     "button.acao.primario{background:#017f5b;border-color:#017f5b;color:#fff;}",
     "button.acao.primario:hover{background:#016a4c;border-color:#016a4c;}",
-    ":host([data-tema=\"escuro\"]) .painel{background:rgba(35,47,43,.98);border-color:#344238;",
+    ":host([data-tema=\"escuro\"]) .painel{background:rgba(14,18,17,.98);border-color:#1c2321;",
     "box-shadow:0 18px 44px rgba(0,0,0,.5),0 2px 8px rgba(0,0,0,.24);}",
-    ":host([data-tema=\"escuro\"]) .painel.sem-deteccao{background:color-mix(in srgb,#20c99d 8%,#18241d);border-color:#31584a;}",
-    ":host([data-tema=\"escuro\"]) .painel.risco-baixo{background:color-mix(in srgb,#20c99d 8%,#18241d);border-color:#31584a;}",
-    ":host([data-tema=\"escuro\"]) .painel.risco-medio{background:color-mix(in srgb,#e5a13d 9%,#18241d);border-color:#59482e;}",
-    ":host([data-tema=\"escuro\"]) .painel.risco-alto{background:color-mix(in srgb,#d94b58 9%,#18241d);border-color:#5b3339;}",
+    ":host([data-tema=\"escuro\"]) .painel.sem-deteccao{background:color-mix(in srgb,#20c99d 8%,#0e1211);border-color:#1f4437;}",
+    ":host([data-tema=\"escuro\"]) .painel.risco-baixo{background:color-mix(in srgb,#20c99d 8%,#0e1211);border-color:#1f4437;}",
+    ":host([data-tema=\"escuro\"]) .painel.risco-medio{background:color-mix(in srgb,#e5a13d 9%,#0e1211);border-color:#40331f;}",
+    ":host([data-tema=\"escuro\"]) .painel.risco-alto{background:color-mix(in srgb,#d94b58 9%,#0e1211);border-color:#4a2429;}",
     ":host([data-tema=\"escuro\"]) .nivel{filter:none;}",
     ":host([data-tema=\"escuro\"]) .risco-baixo .nivel,",
     ":host([data-tema=\"escuro\"]) .sem-deteccao .nivel{color:#20c99d;}",
-    ":host([data-tema=\"escuro\"]) .risco-medio .nivel{color:#f0bd6a;}",
-    ":host([data-tema=\"escuro\"]) .risco-alto .nivel{color:#f08a94;}",
+    ":host([data-tema=\"escuro\"]) .risco-medio .nivel{color:#f0c07a;}",
+    ":host([data-tema=\"escuro\"]) .risco-alto .nivel{color:#f4646f;}",
     ":host([data-tema=\"escuro\"]) .contagem{color:#b4afa6;}",
     ":host([data-tema=\"escuro\"]) .mensagem{color:#cfd8d3;}",
-    ":host([data-tema=\"escuro\"]) .tipos li{background:rgba(255,255,255,.055);border-color:#344238;color:#f0f5f2;}",
+    ":host([data-tema=\"escuro\"]) .tipos li{background:rgba(255,255,255,.055);border-color:#1c2321;color:#f0f5f2;}",
     ":host([data-tema=\"escuro\"]) .tipos .area{color:#b4afa6;}",
     ":host([data-tema=\"escuro\"]) .mais-deteccoes{color:#20c99d;}",
     ":host([data-tema=\"escuro\"]) .fechar{color:#b4afa6;}",
     ":host([data-tema=\"escuro\"]) button.acao.primario{background:#20c99d;border-color:#20c99d;color:#10201b;}",
     ":host([data-tema=\"escuro\"]) button.acao.primario:hover{background:#4bd6b2;border-color:#4bd6b2;color:#10201b;}",
-    ".modal{background:rgba(255,255,252,.98);border-color:#d8e2de;border-radius:12px;}",
+    ".modal{background:rgba(255,255,252,.98);border-color:#dce4e0;border-radius:12px;}",
     ".modal h2{color:#16201d;}",
     ".modal p{color:#4d5a55;}",
-    ":host([data-tema=\"escuro\"]) .modal{background:#18241d;border-color:#344238;color:#f0f5f2;}",
+    ":host([data-tema=\"escuro\"]) .modal{background:#0e1211;border-color:#1c2321;color:#f0f5f2;}",
     ":host([data-tema=\"escuro\"]) .modal h2{color:#f0f5f2;}",
     ":host([data-tema=\"escuro\"]) .modal p,",
     ":host([data-tema=\"escuro\"]) .modal li{color:#cfd8d3;}",
@@ -1693,12 +1701,24 @@
       return;
     }
 
+    // A caixa de prompt precisa estar na janela. Sem esta checagem, um campo
+    // oculto ou fora da tela fazia o aviso ser empurrado para o rodapé.
+    var retangulo = estado.campo.getBoundingClientRect();
+    if (
+      retangulo.width < 40 ||
+      retangulo.height < 12 ||
+      retangulo.bottom <= 8 ||
+      retangulo.top >= window.innerHeight - 8
+    ) {
+      ocultarHost(true);
+      return;
+    }
+
     estado.host.style.display = "block";
 
-    // Define a largura antes de medir: a altura depende da quebra de linha.
-    // O aviso acompanha a caixa de prompt de cada IA, sem o limite fixo que
-    // fazia campos largos (Gemini/Claude) receberem um painel estreito.
-    var retangulo = estado.campo.getBoundingClientRect();
+    // Define a largura antes de medir: o aviso acompanha a caixa de prompt de
+    // cada IA, sem o limite fixo que fazia campos largos receberem um painel
+    // estreito.
     var largura = Math.min(Math.max(retangulo.width, 240), window.innerWidth - 16);
     var esquerda = Math.min(
       Math.max(retangulo.left, 8),
@@ -1707,16 +1727,20 @@
     estado.host.style.width = largura + "px";
     estado.host.style.left = esquerda + "px";
 
+    // Ancora pela base, sempre acima da caixa de prompt. Assim o aviso cresce
+    // para cima quando as detecções mudam e não desliza a cada análise. Nunca
+    // inverte para baixo do campo: em chats com compositor no rodapé, isso
+    // colocava o painel sobre a própria caixa de digitação.
+    var espacoAcima = Math.max(120, retangulo.top - 18);
     var painel = estado.raizBanner.firstElementChild;
-    var alturaPainel = painel ? painel.getBoundingClientRect().height : 0;
-    if (!alturaPainel) alturaPainel = 148;
-
-    var topo = retangulo.top - alturaPainel - 10;
-    if (topo < 8) topo = retangulo.bottom + 10;
-    if (topo + alturaPainel > window.innerHeight - 8) {
-      topo = Math.max(8, window.innerHeight - alturaPainel - 8);
+    if (painel) {
+      painel.style.maxHeight = espacoAcima + "px";
+      painel.style.overflowY = "auto";
     }
-    estado.host.style.top = topo + "px";
+    estado.host.style.maxHeight = espacoAcima + "px";
+    estado.host.style.bottom =
+      Math.max(8, window.innerHeight - retangulo.top + 10) + "px";
+    estado.host.style.top = "";
   }
 
   // -------------------------------------------------------------------------

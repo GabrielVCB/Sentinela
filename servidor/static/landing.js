@@ -156,8 +156,13 @@
   analisar();
   agendarRotacao();
 
-  // Entrada discreta das seções, sem esconder conteúdo quando o JS falhar.
-  var secoes = document.querySelectorAll(".lp-secao, .lp-letramento, .lp-cta");
+  // Aparição fluida dos blocos ao descer a tela, sem esconder conteúdo quando
+  // o JS falhar. Blocos irmãos entram em sequência curta, como uma leitura.
+  var grupos = [
+    ".lp-secao",
+    ".lp-escuro-conteudo",
+    ".lp-cta-grade",
+  ];
   if (!reduzirMovimento && "IntersectionObserver" in window) {
     var observador = new IntersectionObserver(
       function (entradas) {
@@ -167,11 +172,90 @@
           observador.unobserve(entrada.target);
         });
       },
-      { threshold: 0.08, rootMargin: "0px 0px -40px 0px" },
+      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
     );
-    secoes.forEach(function (secao) {
-      secao.classList.add("revelar");
-      observador.observe(secao);
+    grupos.forEach(function (seletor) {
+      document.querySelectorAll(seletor).forEach(function (pai) {
+        Array.prototype.forEach.call(pai.children, function (filho, indice) {
+          if (filho.classList.contains("lp-marca-dagua")) return;
+          filho.classList.add("aparecer");
+          filho.style.setProperty("--atraso", Math.min(indice, 4) * 90 + "ms");
+          observador.observe(filho);
+        });
+      });
     });
+  }
+})();
+
+/**
+ * Sentinela — interações da landing: header ao rolar e matriz por departamento.
+ * Funciona sem dependências e mantém a seção visível quando o JS falha.
+ */
+(function () {
+  "use strict";
+
+  var topo = document.getElementById("lp-topo");
+  if (topo) {
+    var atualizarTopo = function () {
+      topo.classList.toggle("rolou", window.scrollY > 12);
+    };
+    atualizarTopo();
+    window.addEventListener("scroll", atualizarTopo, { passive: true });
+  }
+
+  var abas = Array.prototype.slice.call(document.querySelectorAll(".lp-aba"));
+  if (!abas.length) return;
+
+  function ativar(indice, focar) {
+    abas.forEach(function (aba, posicao) {
+      var selecionada = posicao === indice;
+      aba.setAttribute("aria-selected", selecionada ? "true" : "false");
+      aba.tabIndex = selecionada ? 0 : -1;
+      var painel = document.getElementById(aba.getAttribute("aria-controls"));
+      if (painel) painel.hidden = !selecionada;
+    });
+    if (focar) abas[indice].focus();
+  }
+
+  abas.forEach(function (aba, indice) {
+    aba.addEventListener("click", function () {
+      ativar(indice, false);
+    });
+
+    aba.addEventListener("keydown", function (evento) {
+      var proximo = null;
+      if (evento.key === "ArrowRight") proximo = (indice + 1) % abas.length;
+      else if (evento.key === "ArrowLeft") proximo = (indice - 1 + abas.length) % abas.length;
+      else if (evento.key === "Home") proximo = 0;
+      else if (evento.key === "End") proximo = abas.length - 1;
+      if (proximo === null) return;
+      evento.preventDefault();
+      ativar(proximo, true);
+    });
+  });
+
+  // Estabiliza a altura da matriz no maior conjunto de regras: trocar de
+  // departamento não desloca o restante da página. No mobile a altura é natural.
+  var paineis = Array.prototype.slice.call(document.querySelectorAll(".lp-painel-area"));
+  var areaResultados = document.querySelector(".lp-paineis");
+  if (paineis.length && areaResultados) {
+    var medirMatriz = function () {
+      // Mede sempre a partir da altura natural, sem acumular medições anteriores.
+      areaResultados.style.removeProperty("--matriz-altura");
+      if (window.matchMedia("(max-width: 900px)").matches) return;
+      var maior = 0;
+      paineis.forEach(function (painel) {
+        var oculto = painel.hidden;
+        painel.hidden = false;
+        maior = Math.max(maior, painel.offsetHeight);
+        painel.hidden = oculto;
+      });
+      if (maior > 0) {
+        areaResultados.style.setProperty("--matriz-altura", Math.ceil(maior) + "px");
+      }
+    };
+    medirMatriz();
+    window.addEventListener("resize", medirMatriz, { passive: true });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(medirMatriz);
   }
 })();

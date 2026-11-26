@@ -2,10 +2,17 @@
   "manifest_version": 3,
   "name": "Sentinela · Governança de IA",
   "short_name": "Sentinela",
-  "version": "5.0.0",
+  "version": "4.5.1",
   "description": "O Sentinela ajuda a identificar possíveis dados sensíveis durante o uso de ferramentas de inteligência artificial, emitindo alertas antes do envio das informações.",
-  "permissions": ["storage", "offscreen", "alarms", "scripting"],
-  "host_permissions": ["https://*/*"],
+  "permissions": [
+    "storage",
+    "offscreen",
+    "alarms",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*/*"
+  ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
@@ -31,8 +38,12 @@
   "options_page": "options.html",
   "web_accessible_resources": [
     {
-      "resources": ["sentinela-logo.svg"],
-      "matches": ["https://*/*"]
+      "resources": [
+        "sentinela-logo.svg"
+      ],
+      "matches": [
+        "https://*/*"
+      ]
     }
   ],
   "content_scripts": [
@@ -48,7 +59,10 @@
         "https://copilot.com/*",
         "https://www.copilot.com/*"
       ],
-      "js": ["detectores.js", "content.js"],
+      "js": [
+        "detectores.js",
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ]

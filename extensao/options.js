@@ -48,7 +48,6 @@ let sitesConhecidos = [];
 let sitesTotais = [];
 let sitesPendentes = [];
 let configuracaoSalva = null;
-let tokenVisivel = false;
 
 /**
  * Servidor na internet exige permissão do navegador para ser acessado.
@@ -371,26 +370,6 @@ function limparErroCampo(campo) {
   if (erro) erro.remove();
 }
 
-function atualizarTokenVisivel() {
-  if (!el.token || !el.alternarToken) return;
-  el.token.type = tokenVisivel ? "text" : "password";
-  el.alternarToken.textContent = tokenVisivel ? "Ocultar" : "Mostrar";
-  el.alternarToken.setAttribute("aria-pressed", String(tokenVisivel));
-}
-
-async function copiarCodigo() {
-  const valor = el.token.value.trim();
-  if (!valor) return;
-  try {
-    await navigator.clipboard.writeText(valor);
-    avisar(el.resultadoConexao, "Código copiado.", "ok");
-  } catch (erro) {
-    el.token.focus();
-    el.token.select();
-    avisar(el.resultadoConexao, "Selecione e copie o código manualmente.", "erro");
-  }
-}
-
 async function carregar() {
   // Atualiza a versão da política antes de desenhar a lista. Assim uma IA
   // desativada no painel some sem exigir "Testar conexão".
@@ -596,8 +575,6 @@ document.addEventListener("DOMContentLoaded", function () {
   el.salvar = document.getElementById("salvar");
   el.versao = document.getElementById("versao-extensao");
   el.tema = document.getElementById("tema-escuro");
-  el.alternarToken = document.getElementById("alternar-token");
-  el.copiarToken = document.getElementById("copiar-token");
   el.alteracoesPendentes = document.getElementById("alteracoes-pendentes");
 
   // O espelho local pode estar à frente do armazenamento por alguns
@@ -642,11 +619,6 @@ document.addEventListener("DOMContentLoaded", function () {
   el.salvar.addEventListener("click", function () {
     void salvar(false);
   });
-  el.alternarToken.addEventListener("click", function () {
-    tokenVisivel = !tokenVisivel;
-    atualizarTokenVisivel();
-  });
-  el.copiarToken.addEventListener("click", function () { void copiarCodigo(); });
   [el.token, el.colaborador, el.departamento].forEach(function (campo) {
     campo.addEventListener("input", function () {
       limparErroCampo(campo);

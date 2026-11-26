@@ -62,7 +62,7 @@ import pdf
 VERSAO = "5.0.0"
 # Este sufixo invalida o cache dos arquivos estáticos quando a interface muda
 # sem alterar a versão exibida do produto.
-VERSAO_ASSETS = "5.0.1"
+VERSAO_ASSETS = "5.4.10"
 LIMITE_SEM_SINAL_MINUTOS = 24 * 60
 RAIZ_PROJETO = Path(__file__).resolve().parent.parent
 
@@ -83,13 +83,21 @@ if AMBIENTE == "producao":
     if len(ADMIN_SENHA) < 8:
         raise RuntimeError("SENTINELA_ADMIN_SENHA deve ter pelo menos 8 caracteres.")
 
+# No preview do Freebuff o painel é aberto dentro do iframe do host de
+# preview, ou seja, em contexto de terceiros. Um cookie Lax não acompanha as
+# requisições nesse iframe e a sessão cairia de volta no login. Fora do
+# preview o cookie continua Lax e Secure conforme a configuração normal.
+PREVIEW_LOCAL = os.environ.get("SENTINELA_PREVIEW") == "1"
+
 app = Flask(__name__)
 app.config.update(
     SECRET_KEY=SECRET_KEY,
-    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SAMESITE="None" if PREVIEW_LOCAL else "Lax",
     SESSION_COOKIE_HTTPONLY=True,
     # Na nuvem o painel é servido por https; o cookie só trafega por https.
-    SESSION_COOKIE_SECURE=os.environ.get("SENTINELA_COOKIE_SEGURO", "1") == "1",
+    SESSION_COOKIE_SECURE=True
+    if PREVIEW_LOCAL
+    else os.environ.get("SENTINELA_COOKIE_SEGURO", "1") == "1",
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
     MAX_CONTENT_LENGTH=256 * 1024,
     PREFERRED_URL_SCHEME="https",
@@ -652,13 +660,19 @@ def tratar_413(erro):
 
 @app.after_request
 def cabecalhos_de_seguranca(resposta):
+    # O preview local do Freebuff mostra o painel dentro do iframe do host de
+    # preview. Só nesse ambiente o enquadramento é liberado; em produção o
+    # cabeçalho e o frame-ancestors continuam bloqueando qualquer iframe.
+    preview = PREVIEW_LOCAL
     resposta.headers.setdefault("X-Content-Type-Options", "nosniff")
-    resposta.headers.setdefault("X-Frame-Options", "DENY")
+    if not preview:
+        resposta.headers.setdefault("X-Frame-Options", "DENY")
     resposta.headers.setdefault("Referrer-Policy", "no-referrer")
     resposta.headers.setdefault(
         "Content-Security-Policy",
         "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; "
-        "script-src 'self'; connect-src 'self'; frame-ancestors 'none'",
+        "script-src 'self'; connect-src 'self'; "
+        + ("frame-ancestors *" if preview else "frame-ancestors 'none'"),
     )
     resposta.headers.setdefault(
         "Permissions-Policy", "camera=(), microphone=(), geolocation=()"
@@ -1080,12 +1094,28 @@ def api_criar_alerta():
 # Autenticação do painel
 # ---------------------------------------------------------------------------
 
+# A landing mostra os nomes por extenso e numa ordem editorial fixa. O banco
+# mantém as chaves curtas (RH, TI), usadas pela extensão e pelo próprio painel.
+NOMES_LANDING = {
+    "RH": "Recursos Humanos",
+    "TI": "Tecnologia da Informação",
+}
+ORDEM_LANDING = [
+    "RH",
+    "Financeiro",
+    "Jurídico",
+    "Projetos e Estratégias",
+    "TI",
+    "Segurança da Informação",
+]
+
+
 def areas_para_landing() -> list:
     """Matriz de risco exibida na página inicial, direto do banco."""
     conexao_aberta = conexao()
     try:
         areas = conexao_aberta.execute(
-            "SELECT id, nome, descricao FROM areas ORDER BY LOWER(nome), id"
+            "SELECT id, nome, descricao FROM areas"
         ).fetchall()
         regras = conexao_aberta.execute(
             "SELECT area_id, nome, risco FROM regras WHERE ativo = 1 ORDER BY id"
@@ -1099,13 +1129,19 @@ def areas_para_landing() -> list:
             {"nome": regra["nome"], "risco": regra["risco"]}
         )
 
+    def ordem(area):
+        try:
+            return ORDEM_LANDING.index(area["nome"])
+        except ValueError:
+            return len(ORDEM_LANDING)
+
     return [
         {
-            "nome": area["nome"],
+            "nome": NOMES_LANDING.get(area["nome"], area["nome"]),
             "descricao": area["descricao"],
             "regras": por_area.get(area["id"], []),
         }
-        for area in areas
+        for area in sorted(areas, key=lambda item: (ordem(item), (item["nome"] or "").lower()))
     ]
 
 
@@ -1290,10 +1326,13 @@ def api_resumo():
     total_cancelou = total - total_enviou
 
     por_nivel = {nivel: 0 for nivel in db.NIVEIS}
+    por_origem = {origem: 0 for origem in db.ORIGENS}
     por_site = {}
     for alerta in alertas:
         if alerta["nivel_risco"] in por_nivel:
             por_nivel[alerta["nivel_risco"]] += 1
+        if alerta["origem"] in por_origem:
+            por_origem[alerta["origem"]] += 1
         por_site[alerta["site"]] = por_site.get(alerta["site"], 0) + 1
 
     sites = [
@@ -1303,15 +1342,37 @@ def api_resumo():
         )
     ][:8]
 
+    # Vazamentos evitados: alertas de risco alto/médio em que o colaborador
+    # cancelou o envio. É o indicador de valor do produto para a diretoria.
+    acao_por_nivel = {
+        "alto": {"total": 0, "cancelou": 0, "enviou": 0},
+        "medio": {"total": 0, "cancelou": 0, "enviou": 0},
+    }
+    ids_alto = {alerta["id"] for alerta in alertas if alerta["nivel_risco"] == "alto"}
+
     departamentos = {}
     for alerta in alertas:
         dados = departamentos.setdefault(
             alerta["departamento"],
-            {"total": 0, "alto": 0, "enviou": 0, "cancelou": 0},
+            {
+                "total": 0,
+                "alto": 0,
+                "medio": 0,
+                "baixo": 0,
+                "enviou": 0,
+                "cancelou": 0,
+            },
         )
         dados["total"] += 1
-        if alerta["nivel_risco"] == "alto":
-            dados["alto"] += 1
+        if alerta["nivel_risco"] in ("alto", "medio", "baixo"):
+            dados[alerta["nivel_risco"]] += 1
+        if alerta["nivel_risco"] in acao_por_nivel:
+            registro = acao_por_nivel[alerta["nivel_risco"]]
+            registro["total"] += 1
+            if alerta["acao"] == "enviou":
+                registro["enviou"] += 1
+            else:
+                registro["cancelou"] += 1
         if alerta["acao"] == "enviou":
             dados["enviou"] += 1
         else:
@@ -1349,6 +1410,24 @@ def api_resumo():
         registro["total"] += 1
     tipos = sorted(contagem_tipos.values(), key=lambda item: item["total"], reverse=True)[:7]
 
+    # Tipos de informação envolvidos apenas nos alertas de alto risco.
+    contagem_tipos_alto = {}
+    for item in itens:
+        if item["alerta_id"] not in ids_alto:
+            continue
+        registro = contagem_tipos_alto.setdefault(
+            item["tipo_detectado"],
+            {
+                "tipo": item["tipo_detectado"],
+                "area": item["area"] or "Geral",
+                "total": 0,
+            },
+        )
+        registro["total"] += 1
+    tipos_alto = sorted(
+        contagem_tipos_alto.values(), key=lambda item: item["total"], reverse=True
+    )[:6]
+
     dias = []
     hoje = datetime.now(FUSO).date()
     for indice in range(periodo - 1, -1, -1):
@@ -1368,12 +1447,22 @@ def api_resumo():
     inicio_anterior = inicio_atual - timedelta(days=periodo)
     total_periodo = 0
     total_anterior = 0
+    enviou_periodo = 0
+    enviou_anterior = 0
+    alto_anterior = 0
     for alerta in alertas:
         chave = dia_local(alerta["data_hora"])
+        enviou = alerta["acao"] == "enviou"
         if chave >= inicio_atual.isoformat():
             total_periodo += 1
+            if enviou:
+                enviou_periodo += 1
         elif chave >= inicio_anterior.isoformat():
             total_anterior += 1
+            if enviou:
+                enviou_anterior += 1
+            if alerta["nivel_risco"] == "alto":
+                alto_anterior += 1
 
         posicao = indice_por_dia.get(chave)
         if posicao is None:
@@ -1389,12 +1478,92 @@ def api_resumo():
     else:
         variacao = None
         direcao = "sem_base" if total_periodo else "sem_dados"
+    taxa_envio_atual = percentual(enviou_periodo, total_periodo)
+    taxa_envio_anterior = percentual(enviou_anterior, total_anterior) if total_anterior else None
+    taxa_alto_atual = percentual(
+        sum(1 for alerta in alertas if alerta["nivel_risco"] == "alto"), total
+    )
+    taxa_alto_anterior = percentual(alto_anterior, total_anterior) if total_anterior else None
     tendencia = {
         "periodo": periodo,
         "atual": total_periodo,
         "anterior": total_anterior,
         "variacao": variacao,
         "direcao": direcao,
+        "taxa_envio_atual": taxa_envio_atual,
+        "taxa_envio_anterior": taxa_envio_anterior,
+        "variacao_envio": (
+            round(taxa_envio_atual - taxa_envio_anterior, 1)
+            if taxa_envio_anterior is not None
+            else None
+        ),
+        "variacao_risco": (
+            round(taxa_alto_atual - taxa_alto_anterior, 1)
+            if taxa_alto_anterior is not None
+            else None
+        ),
+    }
+
+    # Envios após o aviso, por semana: mostra se o aviso está funcionando ao
+    # longo do tempo. As seis últimas semanas entram em ordem cronológica,
+    # incluindo a semana corrente (ainda incompleta).
+    hoje_local = datetime.now(FUSO).date()
+    inicio_semana_atual = hoje_local - timedelta(days=hoje_local.weekday())
+    por_semana = []
+    for indice in range(5, -1, -1):
+        inicio = inicio_semana_atual - timedelta(weeks=indice)
+        por_semana.append(
+            {
+                "rotulo": f"S{6 - indice}",
+                "inicio": inicio.isoformat(),
+                "fim": (inicio + timedelta(days=6)).isoformat(),
+                "total": 0,
+                "enviou": 0,
+            }
+        )
+    for alerta in alertas:
+        chave = dia_local(alerta["data_hora"])
+        for semana in por_semana:
+            if semana["inicio"] <= chave <= semana["fim"]:
+                semana["total"] += 1
+                if alerta["acao"] == "enviou":
+                    semana["enviou"] += 1
+                break
+    for semana in por_semana:
+        semana["taxa_envio"] = percentual(semana["enviou"], semana["total"])
+
+    vazamentos_por_nivel = []
+    for nivel in ("alto", "medio"):
+        registro = acao_por_nivel[nivel]
+        vazamentos_por_nivel.append(
+            {
+                "nivel": nivel,
+                "total": registro["total"],
+                "cancelou": registro["cancelou"],
+                "enviou": registro["enviou"],
+                "taxa_cancelamento": percentual(
+                    registro["cancelou"], registro["total"]
+                ),
+            }
+        )
+    total_risco = sum(item["total"] for item in vazamentos_por_nivel)
+    cancelados_risco = sum(item["cancelou"] for item in vazamentos_por_nivel)
+    vazamentos = {
+        "total": total_risco,
+        "cancelados": cancelados_risco,
+        "enviados": total_risco - cancelados_risco,
+        "taxa_cancelamento": percentual(cancelados_risco, total_risco),
+        "por_nivel": vazamentos_por_nivel,
+    }
+
+    # Cobertura do monitoramento: sem ela, ausência de alertas pode ser lida
+    # como ausência de risco.
+    politica_monitoramento = obter_politica_monitoramento()
+    cobertura = {
+        "monitoramento_ativo": politica_monitoramento["monitoramento_ativo"],
+        "ias_total": len(catalogo_de_sites()),
+        "ias_ativas": len(politica_monitoramento["sites_ativos"]),
+        "dispositivos_ativos": db.contar_dispositivos(),
     }
 
     ultimos = []
@@ -1423,7 +1592,12 @@ def api_resumo():
             "taxa_alto": percentual(total_alto, total),
             "por_nivel": por_nivel,
             "por_acao": {"enviou": total_enviou, "cancelou": total_cancelou},
+            "por_origem": por_origem,
+            "por_semana": por_semana,
             "por_site": sites,
+            "vazamentos": vazamentos,
+            "tipos_alto": tipos_alto,
+            "cobertura": cobertura,
             "tipos_distintos": len(contagem_tipos),
             "departamentos_ativos": len(departamentos),
             "limiar": limiar,

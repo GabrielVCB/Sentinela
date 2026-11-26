@@ -1,0 +1,248 @@
+/* Sentinela — página de entrada.
+   Mesma paleta, tipografia e escala da landing: cabeçalho na largura do
+   container editorial, marca com as mesmas proporções e formulário contido. */
+
+.login-pagina {
+  background: #f4f5f1;
+  color: #131a17;
+}
+
+.login-topo {
+  padding: 0;
+  border-bottom: 1px solid #dde0d7;
+  background: rgba(244, 245, 241, 0.92);
+}
+
+.login-topo-linha {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 1240px;
+  min-height: 79px;
+  margin: 0 auto;
+  padding: 18px 32px;
+}
+
+.login-topo .marca-bloco {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0;
+  border: 0;
+}
+
+.login-topo .marca-olhos {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+}
+
+.login-topo .marca-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.login-topo .marca {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 25px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #131a17;
+}
+
+.login-topo .micro {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8b958f;
+}
+
+/* ------------------------------- Conteúdo -------------------------------- */
+
+.login-pagina .login-conteudo {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(40px, 7vh, 88px) 32px clamp(56px, 9vh, 104px);
+}
+
+.login-pagina .login-caixa {
+  width: 100%;
+  max-width: 414px;
+  padding: 38px 38px 30px;
+  border: 1px solid #dde0d7;
+  border-radius: 16px;
+  background: #fafbf7;
+  box-shadow: 0 28px 64px -52px rgba(13, 22, 18, 0.45);
+}
+
+.login-pagina .login-caixa h1.login-titulo {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(27px, 2.4vw, 31px);
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.024em;
+  text-align: center;
+  color: #131a17;
+}
+
+/* ------------------------------- Formulário ------------------------------ */
+
+.login-pagina .formulario-login {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.login-pagina .campo {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.login-pagina .campo .rotulo {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: #3d4a44;
+}
+
+.login-pagina .formulario-login input[type="text"],
+.login-pagina .formulario-login input[type="password"] {
+  width: 100%;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid #dde0d7;
+  border-radius: 10px;
+  background: #fff;
+  color: #131a17;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.login-pagina .formulario-login input[type="text"]:hover,
+.login-pagina .formulario-login input[type="password"]:hover {
+  border-color: #c6cbc0;
+}
+
+.login-pagina .formulario-login input[type="text"]:focus,
+.login-pagina .formulario-login input[type="password"]:focus {
+  border-color: #01986d;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(1, 152, 109, 0.12);
+}
+
+.login-pagina .mensagem-erro {
+  padding: 10px 12px;
+  border: 1px solid rgba(201, 59, 73, 0.24);
+  border-left: 2px solid #c93b49;
+  border-radius: 8px;
+  background: rgba(201, 59, 73, 0.06);
+  color: #a52d3a;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.login-pagina .formulario-login .botao {
+  width: 100%;
+  min-height: 46px;
+  margin-top: 4px;
+  padding: 0 20px;
+  border: 1px solid #01986d;
+  border-radius: 12px;
+  background: #01986d;
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1;
+  transition: background 0.18s ease, border-color 0.18s ease,
+    color 0.18s ease, transform 0.12s ease;
+}
+
+.login-pagina .formulario-login .botao:hover {
+  border-color: #007a58;
+  background: #007a58;
+  color: #fff;
+}
+
+.login-pagina .formulario-login .botao:active {
+  border-color: #006a4d;
+  background: #006a4d;
+  transform: translateY(1px);
+}
+
+.login-pagina .formulario-login .botao:focus-visible {
+  outline: 2px solid #01986d;
+  outline-offset: 3px;
+}
+
+.login-pagina .login-voltar {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 20px;
+  color: #65716b;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+  transition: color 0.16s ease;
+}
+
+.login-pagina .login-voltar:hover,
+.login-pagina .login-voltar:focus-visible {
+  color: #007a58;
+}
+
+.login-pagina .login-voltar:focus-visible {
+  outline: 2px solid #01986d;
+  outline-offset: 3px;
+}
+
+/* ------------------------------ Responsivo ------------------------------- */
+
+@media (max-width: 620px) {
+  .login-topo-linha {
+    min-height: 67px;
+    padding: 14px 20px;
+  }
+
+  .login-topo .marca-olhos {
+    width: 32px;
+    height: 32px;
+  }
+
+  .login-topo .marca {
+    font-size: 21px;
+  }
+
+  .login-pagina .login-conteudo {
+    padding: 32px 20px 44px;
+  }
+
+  .login-pagina .login-caixa {
+    padding: 28px 22px 24px;
+    border-radius: 14px;
+  }
+
+  .login-pagina .formulario-login {
+    margin-top: 24px;
+  }
+}

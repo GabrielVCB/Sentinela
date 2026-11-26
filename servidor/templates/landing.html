@@ -1,5 +1,9 @@
 {% extends "base.html" %}
-{% block titulo %}Sentinela{% endblock %}
+{% block titulo %}Sentinela — Governança de IA{% endblock %}
+
+{# A landing tem identidade própria e permanece sempre clara, independente do
+   tema escolhido no painel administrativo. #}
+{% block tema %}{% endblock %}
 
 {% block estilos %}
 <link rel="stylesheet" href="{{ url_for('static', filename='landing.css') }}?v={{ versao_assets }}" />
@@ -8,7 +12,7 @@
 {% block corpo %}
 <div id="dados-sentinela" data-mensagens="{{ mensagens|tojson|forceescape }}" data-regras="{{ regras_demo|tojson|forceescape }}" hidden></div>
 <div class="landing">
-  <header class="lp-topo">
+  <header class="lp-topo" id="lp-topo">
     <div class="lp-limite lp-topo-linha">
       <a class="marca-bloco" href="{{ url_for('landing') }}" aria-label="Sentinela, página inicial">
         <img class="lp-logo" src="{{ url_for('static', filename='sentinela-logo.svg') }}?v={{ versao_assets }}" alt="" aria-hidden="true" />
@@ -19,40 +23,28 @@
       </a>
 
       <nav class="lp-nav" aria-label="Navegação principal">
-        <a href="#problema">Problema</a>
-        <a href="#privacidade">Privacidade</a>
-        <a href="#matriz">Matriz de risco</a>
         <a href="#funciona">Como funciona</a>
-        <a href="#letramento">Letramento</a>
+        <a href="#privacidade">Privacidade</a>
+        <a href="#departamentos">Departamentos</a>
       </nav>
 
-      <a class="botao" href="{{ url_for('login') }}">Entrar</a>
+      <a class="botao lp-topo-cta" href="{{ url_for('login') }}">Entrar no painel</a>
     </div>
   </header>
 
   <main>
-    <section class="lp-hero lp-limite">
+    <section class="lp-hero lp-limite" id="inicio">
       <div class="lp-hero-texto">
         <h1>O que é confidencial não deveria virar <em>prompt</em>.</h1>
         <p class="lp-entrada">
-          Painel de governança e letramento em IA para reduzir o vazamento de informações
-          corporativas. A extensão analisa localmente o que é digitado no ChatGPT, Gemini, Claude e
-          Copilot e avisa antes do envio. O texto é analisado no navegador e não é armazenado; o
-          painel recebe apenas o registro do alerta.
+          A extensão identifica possíveis informações sensíveis enquanto o
+          colaborador usa ferramentas de IA e apresenta um alerta antes do envio.
+          A análise acontece no navegador, e o painel acompanha as decisões
+          registradas.
         </p>
-        <p class="lp-hero-nota">
-          Você define as regras, os departamentos e a tolerância. O Sentinela cuida do
-          resto.
-        </p>
-
-        <div class="lp-acoes">
-          <a class="botao primario" href="{{ url_for('login') }}">Entrar no painel</a>
-          <a class="botao" href="#matriz">Explorar a matriz</a>
-        </div>
-
       </div>
 
-      <div class="lp-demo">
+      <div class="lp-demo" id="previa">
         <div class="lp-demo-caixa" id="demo-caixa">
           <div class="lp-demo-topo">
             <span class="lp-demo-site">IAexemplo.com</span>
@@ -83,321 +75,529 @@
             </div>
           </div>
         </div>
-
       </div>
     </section>
 
-    <div class="lp-faixa">
-      <div class="lp-limite lp-faixa-linha">
-        <span class="rotulo">IAs monitoradas</span>
-        <div class="lp-faixa-sites">
-          <span>ChatGPT</span><i>/</i>
-          <span>Gemini</span><i>/</i>
-          <span>Claude</span><i>/</i>
-          <span>Copilot</span>
-        </div>
-      </div>
-    </div>
+    <section class="lp-secao lp-limite" id="problema">
+      <header class="lp-cabecalho">
+        <h2>A política existe. O hábito não acompanha.</h2>
+        <p class="lp-intro-secao">
+          O uso corporativo de IA já faz parte da rotina. O que ainda falta é um
+          mecanismo que acompanhe esse uso, registre o que acontece e permita
+          orientar as equipes com base em dados.
+        </p>
+      </header>
 
-    <section class="lp-secao lp-limite lp-problema" id="problema">
-      <div class="lp-problema-texto">
-        <p class="rotulo">O problema</p>
-        <h2>A política existe.<br />O hábito não acompanha.</h2>
-        <p class="lp-entrada">
-          As pessoas querem automatizar tarefas simples, e a IA virou o caminho mais rápido. O
-          problema é que uma tarefa simples pode custar caro quando leva dados confidenciais junto.
+      <div class="lp-dados">
+        <article class="lp-dado">
+          <span class="lp-dado-valor">100%</span>
+          <p class="lp-dado-texto">
+            Das organizações brasileiras analisadas utilizavam IA generativa.
+          </p>
+        </article>
+        <article class="lp-dado">
+          <span class="lp-dado-valor">64%</span>
+          <p class="lp-dado-texto">
+            Das violações de políticas de dados analisadas envolviam dados regulamentados.
+          </p>
+        </article>
+        <article class="lp-dado">
+          <span class="lp-dado-valor">52%</span>
+          <p class="lp-dado-texto">
+            Dos usuários ainda utilizavam aplicações pessoais de IA generativa.
+          </p>
+        </article>
+      </div>
+
+      <div class="lp-dados-nota">
+        <p class="lp-dados-contexto">
+          A ferramenta já está no dia a dia, mas o uso fora de um acordo comum
+          segue invisível para a gestão. Sem registro, não há como saber onde
+          orientar, nem como revisar a política com base no que realmente acontece.
         </p>
       </div>
-
-      <div class="lp-lista-problema">
-        <div>
-          <h3>A IA pública virou atalho</h3>
-          <p>Reescrever e-mails, depurar código, resumir contratos: tarefas legítimas que, com frequência, envolvem dados sensíveis.</p>
-        </div>
-        <div>
-          <h3>O vazamento não parece vazamento</h3>
-          <p>Um CPF no meio de uma frase, um token colado para pedir ajuda. Nenhum antivírus reage a isso, e o jurídico só descobre depois.</p>
-        </div>
-        <div>
-          <h3>Sem registro, não há gestão</h3>
-          <p>Quem enviou, com que risco, em qual departamento? Sem auditoria, a política de uso de IA fica só no papel.</p>
-        </div>
-      </div>
     </section>
 
-    <section class="lp-secao lp-limite lp-solucao" id="solucao">
-      <div class="lp-cabecalho-duplo">
-        <div>
-          <p class="rotulo">A solução</p>
-          <h2>O risco fica visível antes de virar vazamento.</h2>
-        </div>
-      </div>
+    <section class="lp-secao lp-limite lp-como-funciona" id="funciona">
+      <header class="lp-cabecalho">
+        <h2>Do prompt ao registro.</h2>
+      </header>
 
-      <div class="lp-solucao-grade">
-        <div>
-          <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3 4 6v5c0 5 3.4 8.3 8 10 4.6-1.7 8-5 8-10V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
-          <h3>Avisa antes do envio</h3>
-          <p>O alerta aparece no campo de texto, antes de o conteúdo sair da empresa.</p>
-        </div>
-        <div>
-          <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 5.5h16v11H9l-5 4v-15Z"/><path d="M8 9h8M8 12.5h5"/></svg></span>
-          <h3>Ensina no momento certo</h3>
-          <p>Uma mensagem curta explica o risco e o que fazer com o conteúdo.</p>
-        </div>
-        <div>
-          <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19V5M4 19h16"/><path d="m7 15 4-4 3 2 5-6"/></svg></span>
-          <h3>Registra a decisão</h3>
-          <p>O painel acompanha envios e cancelamentos por IA e departamento.</p>
-        </div>
-        <div>
-          <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="10" width="16" height="10" rx="1"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v2"/></svg></span>
-          <h3>Controla o risco, não a conversa</h3>
-          <p>O conteúdo não é guardado. O que chega ao painel é apenas o registro do alerta.</p>
-        </div>
-      </div>
+      <ol class="lp-etapas">
+        <li>
+          <span class="lp-etapa-num">01</span>
+          <h3>Detecta</h3>
+          <p>
+            A extensão analisa localmente o conteúdo utilizado em ferramentas de
+            IA monitoradas, conforme as regras ativas.
+          </p>
+        </li>
+        <li>
+          <span class="lp-etapa-num">02</span>
+          <h3>Avisa</h3>
+          <p>
+            Quando identifica conteúdo potencialmente sensível, apresenta um alerta
+            com a classificação de risco e a orientação correspondente. Nos níveis
+            médio e alto, o envio exige confirmação.
+          </p>
+        </li>
+        <li>
+          <span class="lp-etapa-num">03</span>
+          <h3>Registra</h3>
+          <p>
+            O painel recebe os dados do alerta, incluindo departamento, nível de
+            risco, categorias identificadas e decisão do colaborador, sem armazenar
+            o texto analisado.
+          </p>
+        </li>
+      </ol>
     </section>
 
-    <section class="lp-faixa-principio" id="privacidade">
-      <div class="lp-limite lp-secao">
-        <div class="lp-cabecalho-duplo">
-          <div>
-            <p class="rotulo">Privacidade</p>
-            <h2>Controle do risco, não da conversa.</h2>
-          </div>
+    <section class="lp-escuro lp-privacidade" id="privacidade">
+      <span class="lp-marca-dagua lp-marca-privacidade" aria-hidden="true"></span>
+      <div class="lp-limite lp-escuro-conteudo">
+        <header class="lp-cabecalho lp-cabecalho-escuro">
+          <p class="rotulo">Privacidade e governança</p>
+          <h2>Controle do risco, <em>não da conversa.</em></h2>
+        </header>
 
-          <div class="lp-fluxo-local" aria-hidden="true">
-            <div class="lp-fluxo-topo">
-              <span class="rotulo">Fluxo do conteúdo</span>
+        <div class="lp-privacidade-caixa">
+          <ol class="lp-privacidade-fluxo">
+            <li>
+              <span class="lp-fluxo-etapa">Texto</span>
+              <span class="lp-fluxo-desc">analisado no navegador</span>
+            </li>
+            <li>
+              <span class="lp-fluxo-etapa">Alerta</span>
+              <span class="lp-fluxo-desc">exibido pela extensão</span>
+            </li>
+            <li>
+              <span class="lp-fluxo-etapa">Registro</span>
+              <span class="lp-fluxo-desc">dados do alerta no painel</span>
+            </li>
+          </ol>
+
+          <div class="lp-privacidade-grade">
+            <div class="lp-privacidade-bloco lp-chega">
+              <p class="rotulo"><span class="lp-ponto-chega" aria-hidden="true"></span>Chega ao painel</p>
+              <ul>
+                <li>Ferramenta de IA e origem do conteúdo</li>
+                <li>Departamento e identificador do colaborador</li>
+                <li>Nível de risco e categorias identificadas</li>
+                <li>Decisão de enviar ou cancelar</li>
+              </ul>
             </div>
-            <div class="lp-fluxo-trilha">
-              <div class="lp-fluxo-grade">
-                <div class="lp-fluxo-node"><strong>Texto</strong><span>chat</span></div>
-                <span class="lp-fluxo-seta" aria-hidden="true">→</span>
-                <div class="lp-fluxo-node"><strong>Alerta</strong><span>extensão</span></div>
-                <span class="lp-fluxo-seta" aria-hidden="true">→</span>
-                <div class="lp-fluxo-node"><strong>Registro</strong><span>painel</span></div>
-              </div>
+            <div class="lp-privacidade-bloco lp-nao-chega">
+              <p class="rotulo"><span class="lp-ponto-nao-chega" aria-hidden="true"></span>Não é armazenado no painel</p>
+              <ul>
+                <li>Texto digitado ou colado</li>
+                <li>Imagens e conteúdo extraído delas</li>
+                <li>PDFs e conteúdo extraído deles</li>
+                <li>Histórico integral da conversa</li>
+              </ul>
             </div>
           </div>
-        </div>
-
-        <div class="lp-privacidade-grade">
-          <div class="lp-privacidade-bloco">
-            <p class="rotulo">Chega ao painel</p>
-            <p>IA, departamento, colaborador, origem, nível, categorias e decisão.</p>
-          </div>
-          <div class="lp-privacidade-bloco">
-            <p class="rotulo">Nunca chega</p>
-            <p>Texto, imagens, PDFs.</p>
-          </div>
-        </div>
-
-        <div class="lp-acesso-controlado">
-          <p class="rotulo">Acesso controlado</p>
-          <p>O código de conexão não dá acesso ao painel.</p>
         </div>
       </div>
     </section>
 
-    <section class="lp-secao lp-limite" id="matriz">
-      <div class="lp-cabecalho-duplo">
-        <div>
-          <p class="rotulo">Matriz de risco</p>
-          <h2>{{ areas|length }} departamentos, uma escala de risco.</h2>
-        </div>
-        <p>
-          O maior nível encontrado define o alerta. As regras funcionam em português e inglês.
-        </p>
-      </div>
+    <section class="lp-secao lp-limite lp-matriz" id="departamentos">
+      <header class="lp-cabecalho">
+        <p class="rotulo">Matriz de risco</p>
+        <h2>Já vem pronto. Adapte à sua empresa.</h2>
+      </header>
 
-      <div class="lp-matriz-rolagem">
-        <table class="lp-matriz">
-          <thead>
-            <tr>
-              <th class="rotulo">Departamento</th>
-              <th class="rotulo"><span class="lp-risco-dot baixo"></span> Baixo</th>
-              <th class="rotulo"><span class="lp-risco-dot medio"></span> Médio</th>
-              <th class="rotulo"><span class="lp-risco-dot alto"></span> Alto</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for area in areas %}
-            <tr>
-              <td>
-                <span class="lp-area-nome">{{ area.nome }}</span>
-                <span class="lp-area-desc">{{ area.descricao }}</span>
-              </td>
-              {% for nivel in ["baixo", "medio", "alto"] %}
-              <td>
-                <ul>
-                  {% for regra in area.regras if regra.risco == nivel %}
+      <div class="lp-matriz-corpo">
+        <div class="lp-abas" role="tablist" aria-label="Departamentos" aria-orientation="vertical">
+          {% for area in areas %}
+          <button class="lp-aba" type="button" role="tab" id="aba-area-{{ loop.index0 }}"
+            aria-controls="painel-area-{{ loop.index0 }}" aria-selected="{{ 'true' if loop.first else 'false' }}"
+            tabindex="{{ '0' if loop.first else '-1' }}">
+            <span class="lp-aba-nome">{{ area.nome }}</span>
+          </button>
+          {% endfor %}
+        </div>
+
+        <div class="lp-paineis">
+          {% for area in areas %}
+          <div class="lp-painel-area" id="painel-area-{{ loop.index0 }}" role="tabpanel"
+            aria-labelledby="aba-area-{{ loop.index0 }}" {{ 'hidden' if not loop.first else '' }}>
+            <div class="lp-painel-topo">
+              <h3>{{ area.nome }}</h3>
+              <span class="lp-painel-total">{{ area.regras|length }} regras na <span class="lp-junto">configuração-base</span></span>
+            </div>
+            {% if area.descricao %}
+            <p class="lp-painel-descricao">{{ area.descricao }}</p>
+            {% endif %}
+
+            <div class="lp-risco-linhas">
+              {% for nivel, titulo in [("baixo", "Risco baixo"), ("medio", "Risco médio"), ("alto", "Risco alto")] %}
+              {% set regras_nivel = area.regras | selectattr("risco", "equalto", nivel) | list %}
+              <div class="lp-risco-linha lp-risco-{{ nivel }}">
+                <div class="lp-risco-rotulo">
+                  <h3><span class="lp-risco-ponto" aria-hidden="true"></span>{{ titulo }}</h3>
+                  <span class="lp-risco-contagem">{{ regras_nivel|length }} {{ 'regra' if regras_nivel|length == 1 else 'regras' }}</span>
+                </div>
+                <ul class="lp-risco-itens">
+                  {% for regra in regras_nivel %}
                   <li>{{ regra.nome }}</li>
                   {% endfor %}
+                  {% if not regras_nivel %}
+                  <li class="lp-risco-vazio">Nenhuma regra ativa neste nível.</li>
+                  {% endif %}
                 </ul>
-              </td>
+              </div>
               {% endfor %}
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      <div class="lp-matriz-profundidade">
-        <div>
-          <h3>Mais de 40 regras iniciais</h3>
-          <p>Cobertura pronta para os principais departamentos da empresa.</p>
-        </div>
-        <div>
-          <h3>Validações técnicas</h3>
-          <p>CPF, CNPJ, cartões, tokens, senhas e código-fonte.</p>
-        </div>
-        <div>
-          <h3>Palavra-chave ou regex</h3>
-          <p>Crie regras próprias no painel, sem depender de uma nova versão.</p>
-        </div>
-      </div>
-
-      <p class="lp-nota-matriz">
-        Regras editáveis no painel; as extensões recebem as alterações automaticamente.
-      </p>
-    </section>
-
-    <section class="lp-faixa-principio" id="funciona">
-      <div class="lp-limite lp-secao">
-        <div class="lp-cabecalho-duplo">
-          <div>
-            <p class="rotulo">Como funciona</p>
-            <h2>Do campo de texto à auditoria.</h2>
-          </div>
-        </div>
-
-        <div class="lp-etapas">
-          <div>
-            <p class="lp-num">01</p>
-            <h3>Implantação em minutos</h3>
-            <p>A extensão é instalada no Chrome ou no Edge com o código de conexão fornecido pelo painel.</p>
-          </div>
-          <div>
-            <p class="lp-num">02</p>
-            <h3>Detecção no campo de texto</h3>
-            <p>A extensão localiza a caixa de texto de cada IA. Texto, colagens e anexos entram na análise.</p>
-          </div>
-          <div>
-            <p class="lp-num">03</p>
-            <h3>Aviso antes do envio</h3>
-            <p>Orienta o colaborador e pede confirmação em risco médio ou alto. Não bloqueia o envio: a decisão continua com ele.</p>
-          </div>
-          <div>
-            <p class="lp-num">04</p>
-            <h3>Auditoria sem conteúdo</h3>
-            <p>O painel recebe só metadados do alerta (colaborador, departamento, nível e decisão), nunca o conteúdo.</p>
-          </div>
-        </div>
-
-        <div class="lp-recursos-grupos">
-          <div class="lp-recursos-grupo">
-            <p class="rotulo">Análise</p>
-            <div class="lp-recursos">
-              <div class="lp-recurso">
-                <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3.5" y="4.5" width="17" height="15" rx="1"/><circle cx="9" cy="10" r="1.5"/><path d="m5 17 5-4 3 2 3-3 3 3"/></svg></span>
-                <h3>Imagens</h3>
-                <p>O texto é extraído por OCR no próprio computador, classificado e descartado. A imagem nunca é enviada.</p>
-              </div>
-              <div class="lp-recurso">
-                <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 3.5h7l4 4V20H7V3.5Z"/><path d="M14 3.5v4h4M9.5 12h5M9.5 15h5"/></svg></span>
-                <h3>PDFs</h3>
-                <p>O texto é extraído localmente e passa pela mesma análise.</p>
-              </div>
-              <div class="lp-recurso">
-                <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="4.5" width="14" height="16" rx="1"/><path d="M9 4.5v-2h6v2M8.5 10h7M8.5 13.5h7M8.5 17h4"/></svg></span>
-                <h3>Colagens grandes</h3>
-                <p>A colagem é analisada antes de chegar ao site. Blocos longos, listas e código têm classificação própria.</p>
-              </div>
             </div>
           </div>
-
-          <div class="lp-recursos-grupo">
-            <p class="rotulo">Administração</p>
-            <div class="lp-recursos">
-              <div class="lp-recurso">
-                <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></span>
-                <h3>Gestão centralizada</h3>
-                <p>IAs autorizadas, ativação e departamentos são definidos no painel e valem para todas as extensões.</p>
-              </div>
-              <div class="lp-recurso">
-                <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19V5M4 19h16"/><path d="M7 15h3v4H7zM12 10h3v9h-3zM17 6h3v13h-3z"/></svg></span>
-                <h3>Relatórios</h3>
-                <p>Os alertas filtrados por data, departamento e nível podem ser exportados em CSV ou PDF.</p>
-              </div>
-              <div class="lp-recurso">
-                <span class="lp-icone" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 12a8 8 0 1 0 2.3-5.6L4 8.7"/><path d="M4 4v4.7h4.7M12 7.5V12l3 2"/></svg></span>
-                <h3>Histórico de atividades</h3>
-                <p>Cada alteração administrativa fica registrada com autor, ação e horário para auditoria.</p>
-              </div>
-            </div>
-          </div>
+          {% endfor %}
         </div>
       </div>
     </section>
 
-    <section class="lp-letramento" id="letramento">
-      <div class="lp-limite lp-letramento-grade">
-        <div>
-          <p class="rotulo lp-rotulo-claro">Letramento</p>
-          <h2>“Enviou mesmo assim” é o número que importa.</h2>
-          <p class="lp-entrada">
-            O painel compara envios e cancelamentos por departamento. Não para punir, mas para
-            mostrar onde o aviso ainda não está funcionando e onde o letramento precisa ser
-            reforçado.
+    <section class="lp-secao lp-limite lp-ajuste" id="classificacao">
+      <div class="lp-ajuste-corpo">
+        <article class="lp-ajuste-parte" aria-labelledby="ajuste-risco">
+          <h2 class="lp-ajuste-titulo" id="ajuste-risco">Classificação do risco</h2>
+          <p class="lp-ajuste-exemplo">
+            A regra de maior gravidade identificada determina o nível geral do
+            alerta. Se uma solicitação contém uma informação de risco alto e
+            outras de risco baixo, o alerta será classificado como alto.
           </p>
-        </div>
-        <div class="lp-letramento-numero">
-          <p class="lp-big lp-big-texto">Tolerância (%)</p>
+
+          <div class="lp-gravidade">
+            <p class="lp-gravidade-rotulo">Exemplo ilustrativo</p>
+            <ul class="lp-gravidade-niveis">
+              <li class="lp-nivel-baixo">
+                <span class="lp-nivel-ponto" aria-hidden="true"></span>Risco baixo
+                <span class="lp-nivel-obs">identificado</span>
+              </li>
+              <li class="lp-nivel-medio">
+                <span class="lp-nivel-ponto" aria-hidden="true"></span>Risco médio
+                <span class="lp-nivel-obs">identificado</span>
+              </li>
+              <li class="lp-nivel-alto">
+                <span class="lp-nivel-ponto" aria-hidden="true"></span>Risco alto
+                <span class="lp-nivel-obs">prevalece</span>
+              </li>
+            </ul>
+            <p class="lp-gravidade-resultado">
+              <span class="lp-gravidade-resultado-rotulo">Resultado</span>
+              <b>Alerta classificado como <span class="lp-gravidade-destaque">alto</span></b>
+            </p>
+          </div>
+        </article>
+
+        <article class="lp-ajuste-parte" aria-labelledby="ajuste-personalizacao">
+          <h2 class="lp-ajuste-titulo" id="ajuste-personalizacao">Personalização</h2>
           <p>
-            Quando a proporção de alertas de risco alto de um departamento atinge ou passa do
-            limite definido no painel, com no mínimo três registros, ele é marcado como crítico.
+            O Sentinela traz uma configuração inicial: regras, departamentos,
+            mensagens educativas e critérios podem ser ajustados conforme as
+            necessidades da organização. A mesma estrutura atende de equipes
+            menores a organizações com vários departamentos.
           </p>
-          <div class="lp-estados">
-            <span class="normal">Normal</span>
-            <span class="observacao">Em observação</span>
-            <span class="critico">Crítico</span>
+
+          <ul class="lp-ajuste-lista">
+            <li>
+              <b>Regras de detecção</b>
+              Categorias monitoradas e nível de risco de cada uma.
+            </li>
+            <li>
+              <b>Departamentos</b>
+              Estrutura usada para organizar os registros.
+            </li>
+            <li>
+              <b>Mensagens educativas</b>
+              Orientação exibida junto ao alerta.
+            </li>
+            <li>
+              <b>Critérios e limites</b>
+              Tolerância ao risco alto e volume mínimo de alertas no painel.
+            </li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <section class="lp-capitulo-painel" id="painel">
+      <div class="lp-secao lp-limite lp-painel">
+        <header class="lp-painel-cabecalho">
+          <h2>Painel administrativo</h2>
+        </header>
+
+        <div class="lp-painel-composicao">
+          <div class="lp-perspectivas">
+            <article>
+              <div>
+                <h3>Evolução</h3>
+                <p>O volume de alertas está aumentando ou diminuindo?</p>
+              </div>
+            </article>
+            <article>
+              <div>
+                <h3>Gravidade</h3>
+                <p>Quais níveis de risco são mais frequentes?</p>
+              </div>
+            </article>
+            <article>
+              <div>
+                <h3>Comportamento</h3>
+                <p>Os colaboradores cancelam ou continuam o envio após o alerta?</p>
+              </div>
+            </article>
+            <article>
+              <div>
+                <h3>Monitoramento</h3>
+                <p>Em quais ferramentas e departamentos se concentram as ocorrências?</p>
+              </div>
+            </article>
           </div>
-          <div class="lp-como-ler">
-            <p class="rotulo lp-rotulo-claro">Como ler</p>
-            <p>
-              Muitos cancelamentos indicam que o aviso está funcionando. Muitos envios em risco
-              alto indicam que o aviso precisa de contexto, treinamento ou uma ferramenta
-              corporativa autorizada.
-            </p>
-            <p>
-              Use esse indicador para decidir onde investir em treinamento: comece pelos
-              departamentos críticos e acompanhe a evolução dos que estão em observação.
-            </p>
+
+          <div class="lp-painel-mock" aria-hidden="true">
+            <div class="lp-mock-topo">
+              <span class="lp-mock-marca">
+                <img class="lp-mock-logo" src="{{ url_for('static', filename='sentinela-logo.svg') }}?v={{ versao_assets }}" alt="" />
+                Painel Sentinela
+              </span>
+              <span class="lp-mock-selo">dados ilustrativos</span>
+            </div>
+
+            <div class="lp-mock-corpo">
+              <div class="lp-mock-bloco lp-mock-largo">
+                <div class="lp-mock-bloco-topo">
+                  <span class="lp-mock-rotulo">Evolução</span>
+                  <span class="lp-mock-escala">alertas por mês</span>
+                </div>
+                <div class="lp-mock-grafico">
+                  <div class="lp-mock-eixo"><span>80</span><span>40</span><span>0</span></div>
+                  <div class="lp-mock-barras">
+                    <span><i style="height: 26px"></i><b>Jul</b></span>
+                    <span><i style="height: 38px"></i><b>Ago</b></span>
+                    <span><i style="height: 31px"></i><b>Set</b></span>
+                    <span><i style="height: 46px"></i><b>Out</b></span>
+                    <span><i style="height: 41px"></i><b>Nov</b></span>
+                    <span><i style="height: 58px"></i><b>Dez</b></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="lp-mock-bloco">
+                <span class="lp-mock-rotulo">Gravidade</span>
+                <div class="lp-mock-gravidade">
+                  <i class="n1" style="width: 58%"></i><i class="n2" style="width: 26%"></i><i class="n3" style="width: 16%"></i>
+                </div>
+                <div class="lp-mock-gravidade-rotulos">
+                  <span>Baixo 58%</span><span>Médio 26%</span><span>Alto 16%</span>
+                </div>
+              </div>
+
+              <div class="lp-mock-bloco">
+                <span class="lp-mock-rotulo">Monitoramento</span>
+                <ul class="lp-mock-ias">
+                  <li><i></i>ChatGPT <b>41</b></li>
+                  <li><i></i>Gemini <b>26</b></li>
+                  <li><i></i>Claude <b>18</b></li>
+                  <li><i></i>Copilot <b>15</b></li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="lp-mock-rodape">
+              <span class="lp-mock-rotulo">Relatórios</span>
+              <span class="lp-mock-exportar">Exportar CSV · PDF</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lp-escuro lp-letramento" id="letramento">
+        <div class="lp-limite lp-escuro-conteudo">
+          <header class="lp-cabecalho lp-cabecalho-escuro">
+            <p class="rotulo">Letramento e comportamento</p>
+            <h2>“Enviou mesmo assim” é o número que importa.</h2>
+          </header>
+
+          <div class="lp-letramento-caixa">
+            <div class="lp-leitura-topo">
+              <span class="rotulo">Comportamento após os alertas</span>
+              <span class="lp-leitura-limite">dados ilustrativos</span>
+            </div>
+            <div class="lp-leitura-barra">
+              <span class="lp-leitura-cancelado" style="width: 64%"><b>64%</b></span>
+              <span class="lp-leitura-enviado" style="width: 36%"><b>36%</b></span>
+            </div>
+            <div class="lp-leitura-legenda">
+              <div>
+                <span class="lp-legenda-titulo"><i class="lp-ponto-cancelado" aria-hidden="true"></i>Cancelou após o alerta</span>
+                <small>O colaborador cancelou o envio após o alerta.</small>
+              </div>
+              <div>
+                <span class="lp-legenda-titulo"><i class="lp-ponto-enviado" aria-hidden="true"></i>Enviou mesmo assim</span>
+                <small>Sinal para reforçar a orientação.</small>
+              </div>
+            </div>
+          </div>
+
+          <div class="lp-situacao">
+            <div class="lp-situacao-texto">
+              <span class="rotulo">Situação departamental</span>
+              <p>
+                A classificação da situação é calculada com os critérios definidos
+                no painel, como a tolerância de risco alto e o volume mínimo de
+                alertas. Ela não é consequência automática da proporção acima.
+              </p>
+            </div>
+            <div class="lp-situacao-estados-caixa">
+              <span class="lp-situacao-selo">classificação ilustrativa</span>
+              <ul class="lp-situacao-estados">
+                <li class="lp-estado-normal">Normal</li>
+                <li class="lp-estado-observacao">Em observação</li>
+                <li class="lp-estado-critico">Crítico</li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="lp-limite lp-cta">
-      <div class="lp-cta-grade">
-        <div>
-          <p class="rotulo">Painel administrativo</p>
-          <h2>Comece pelo painel. Depois instale a extensão.</h2>
-          <p class="lp-entrada">
-            O painel é de uso exclusivo dos administradores: regras, departamentos, mensagens educativas,
-            auditoria e relatórios de letramento em um só lugar. Os colaboradores não fazem login;
-            usam apenas a extensão.
+    <section class="lp-cta" id="comecar">
+      <span class="lp-marca-dagua lp-marca-cta" aria-hidden="true"></span>
+      <div class="lp-limite lp-cta-grade">
+        <div class="lp-cta-texto">
+          <h2>Comece em quatro passos.</h2>
+          <p class="lp-cta-entrada">
+            A implantação começa no painel, passa pelo código de conexão e chega às
+            equipes. A partir daí, o acompanhamento é contínuo: regras, alertas e
+            relatórios no mesmo lugar.
           </p>
           <div class="lp-acoes">
-            <a class="botao primario" href="{{ url_for('login') }}">Entrar no painel</a>
-            <a class="botao" href="#privacidade">Entender a privacidade</a>
+            <a class="botao cta-botao" href="{{ url_for('login') }}">Entrar no painel</a>
+            <a class="botao cta-botao-secundario" href="{{ url_for('baixar_extensao_configurada') }}">Baixar a extensão</a>
           </div>
         </div>
 
-        <div class="lp-cta-lista">
-          <div><span class="lp-num">01</span><h3>Regras e departamentos</h3><p>Matriz editável em português e inglês.</p></div>
-          <div><span class="lp-num">02</span><h3>Alertas e retenção</h3><p>Filtros, paginação e exportação em CSV ou PDF.</p></div>
-          <div><span class="lp-num">03</span><h3>Monitoramento</h3><p>IAs autorizadas, dispositivos e ocorrências.</p></div>
-          <div><span class="lp-num">04</span><h3>Letramento</h3><p>Envios e cancelamentos por departamento.</p></div>
+        <ol class="lp-cta-passos">
+          <li>
+            <span class="lp-cta-num" aria-hidden="true">01</span>
+            <div>
+              <h3>Configure o painel</h3>
+              <p>Revise regras, departamentos, mensagens educativas e tolerância ao risco.</p>
+            </div>
+          </li>
+          <li>
+            <span class="lp-cta-num" aria-hidden="true">02</span>
+            <div>
+              <h3>Copie o código de conexão</h3>
+              <p>Utilize o código gerado no painel para vincular a extensão à organização.</p>
+            </div>
+          </li>
+          <li>
+            <span class="lp-cta-num" aria-hidden="true">03</span>
+            <div>
+              <h3>Distribua a extensão aos colaboradores</h3>
+              <p>Envie o código e as instruções para as equipes que usam ferramentas de IA.</p>
+            </div>
+          </li>
+          <li>
+            <span class="lp-cta-num" aria-hidden="true">04</span>
+            <div>
+              <h3>Acompanhe os alertas e relatórios</h3>
+              <p>Veja evolução, gravidade e comportamento e exporte relatórios em CSV ou PDF.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="lp-secao lp-limite lp-faq" id="faq">
+      <div class="lp-faq-grade">
+        <header class="lp-faq-topo">
+          <p class="rotulo">Perguntas frequentes</p>
+          <h2>Dúvidas comuns antes de começar.</h2>
+          <p class="lp-intro-secao">
+            Respostas curtas sobre o funcionamento, a privacidade e a instalação.
+          </p>
+        </header>
+
+        <div class="lp-faq-lista">
+          <details class="lp-faq-item">
+            <summary>O Sentinela bloqueia o envio?</summary>
+            <div class="lp-faq-resposta">
+              <p>
+                Não. O Sentinela apresenta um alerta com a classificação de risco e a
+                orientação correspondente. Nos níveis médio e alto, o envio exige
+                confirmação, mas a decisão final continua com o colaborador e fica
+                registrada no painel.
+              </p>
+            </div>
+          </details>
+
+          <details class="lp-faq-item">
+            <summary>O conteúdo analisado é armazenado?</summary>
+            <div class="lp-faq-resposta">
+              <p>
+                Não. A análise acontece no navegador. O painel recebe apenas os dados
+                do alerta, como ferramenta utilizada, departamento, nível de risco,
+                categorias identificadas, origem e decisão tomada. O texto, as imagens,
+                os PDFs e o histórico da conversa não são armazenados no painel.
+              </p>
+            </div>
+          </details>
+
+          <details class="lp-faq-item">
+            <summary>Quais navegadores são compatíveis?</summary>
+            <div class="lp-faq-resposta">
+              <p>
+                Chrome e Edge, conforme a compatibilidade atual da extensão.
+              </p>
+            </div>
+          </details>
+
+          <details class="lp-faq-item">
+            <summary>A extensão analisa imagens e PDFs?</summary>
+            <div class="lp-faq-resposta">
+              <p>
+                Sim. Nas ferramentas monitoradas e nos formatos atualmente suportados,
+                o Sentinela pode analisar informações presentes em imagens e PDFs e
+                apresentar alertas quando identifica conteúdo potencialmente sensível.
+                O material analisado não é armazenado no painel.
+              </p>
+            </div>
+          </details>
+
+          <details class="lp-faq-item">
+            <summary>Como é feita a instalação?</summary>
+            <div class="lp-faq-resposta">
+              <p>
+                A instalação começa no painel administrativo, onde é disponibilizado
+                um código de conexão. Em seguida, a extensão é instalada no navegador
+                e vinculada à organização por meio desse código, permitindo o registro
+                dos alertas no ambiente administrativo.
+              </p>
+            </div>
+          </details>
+
+          <details class="lp-faq-item">
+            <summary>Posso adaptar o Sentinela às políticas da minha empresa?</summary>
+            <div class="lp-faq-resposta">
+              <p>
+                Sim. O Sentinela oferece regras, departamentos e mensagens educativas
+                iniciais que podem ser ajustados no painel administrativo conforme as
+                necessidades e políticas de cada organização.
+              </p>
+            </div>
+          </details>
+
+          <details class="lp-faq-item">
+            <summary>Quanto custa?</summary>
+            <div class="lp-faq-resposta">
+              <p>
+                O modelo comercial do Sentinela ainda está em definição. As condições
+                para demonstrações, testes ou implantação poderão ser informadas pelo
+                responsável pelo projeto.
+              </p>
+            </div>
+          </details>
         </div>
       </div>
     </section>
@@ -410,11 +610,10 @@
           <img class="lp-rodape-logo" src="{{ url_for('static', filename='sentinela-logo.svg') }}?v={{ versao_assets }}" alt="" aria-hidden="true" />
           <span class="marca-texto">
             <span class="marca">Sentinela</span>
-            <span class="micro">governança de ia</span>
           </span>
         </a>
         <p class="lp-rodape-texto">
-          Painel de governança, auditoria e letramento em IA.
+          Extensão e painel para acompanhar o uso de IA nas equipes.
         </p>
       </div>
 
@@ -424,16 +623,25 @@
           <a href="{{ url_for('login') }}">Entrar</a>
         </div>
         <div>
-          <span class="rotulo">Projeto</span>
-          <a href="#privacidade">Privacidade</a>
-          <a href="#matriz">Matriz de risco</a>
+          <span class="rotulo">Produto</span>
           <a href="#funciona">Como funciona</a>
+          <a href="#privacidade">Privacidade</a>
+          <a href="#departamentos">Departamentos</a>
+          <a href="#faq">Perguntas frequentes</a>
+        </div>
+        <div>
+          <span class="rotulo">Recursos</span>
+          <a href="{{ url_for('baixar_extensao_configurada') }}">Baixar a extensão</a>
+          {% if baixar_projeto %}
+          <a href="{{ url_for('baixar_projeto') }}" download>Baixar o projeto (.zip)</a>
+          {% endif %}
         </div>
       </div>
     </div>
     <div class="lp-rodape-base">
       <div class="lp-limite">
         <span>© {{ ano }} Sentinela</span>
+        <span>Governança de IA para empresas</span>
       </div>
     </div>
   </footer>

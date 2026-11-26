@@ -798,8 +798,9 @@ textarea:focus {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 18px;
-  padding: 13px 4px;
+  padding: 13px 14px;
   border-bottom: 1px solid var(--linha);
+  border-radius: 9px;
   background: transparent;
   transition: background 0.18s ease;
 }
@@ -2633,7 +2634,9 @@ textarea {
   min-height: 280px;
   padding: 14px 16px 8px;
   border: 1px solid var(--linha);
-  background: linear-gradient(180deg, var(--superficie) 0%, var(--superficie-2) 100%);
+  /* Fundo sólido: o gradiente antigo criava faixas horizontais sutis na
+     área de plotagem. */
+  background: var(--superficie);
 }
 
 .grafico {
@@ -2766,35 +2769,6 @@ tr.carregando-esqueleto td {
   to {
     background-position: -120% 0;
   }
-}
-
-html[data-tema="escuro"] .app,
-html[data-tema="escuro"] .dialogo,
-html[data-tema="escuro"] .toast {
-  --papel: #1a1917;
-  --papel-2: #232220;
-  --superficie: #232220;
-  --superficie-2: #2c2a27;
-  --menu-ativo: #2c2a27;
-  --tinta: #ece9e2;
-  --tinta-suave: #c4bfb4;
-  --cinza: #bdb8ad;
-  --cinza-claro: #938e83;
-  --linha: #3b3935;
-  --linha-forte: #4a4742;
-  --papel-alt: #2c2a27;
-  --marca: #00c896;
-  --marca-claro: #16ddaa;
-  --marca-escuro: #16ddaa;
-  --grafico-complemento: #ffffff;
-  --grafite-sentinela: #171716;
-  --baixo: #16a34a;
-  --medio: #f59e0b;
-  --alto: #dc2626;
-  --baixo-bg: #14281b;
-  --medio-bg: #2a2110;
-  --alto-bg: #2a1515;
-  color-scheme: dark;
 }
 
 html[data-tema="escuro"] .app {
@@ -2991,18 +2965,18 @@ html[data-tema="escuro"],
 html[data-tema="escuro"] .app,
 html[data-tema="escuro"] .dialogo,
 html[data-tema="escuro"] .toast {
-  --papel: #0d1612;
-  --papel-2: #111c16;
-  --papel-alt: #111c16;
-  --superficie: #18241d;
-  --superficie-2: #202d24;
-  --menu-ativo: #17382f;
-  --tinta: #f0f5f2;
-  --tinta-suave: #cfd8d3;
-  --cinza: #b4afa6;
-  --cinza-claro: #9eaaa4;
-  --linha: #344238;
-  --linha-forte: #43544a;
+  --papel: #070908;
+  --papel-2: #0a0d0c;
+  --papel-alt: #0a0d0c;
+  --superficie: #0e1211;
+  --superficie-2: #141918;
+  --menu-ativo: #12211d;
+  --tinta: #eef2f0;
+  --tinta-suave: #c2cac6;
+  --cinza: #98a29e;
+  --cinza-claro: #7f8a86;
+  --linha: #1c2321;
+  --linha-forte: #29322f;
   --marca: #20c99d;
   --marca-acao: #20c99d;
   --marca-claro: #20c99d;
@@ -3010,13 +2984,14 @@ html[data-tema="escuro"] .toast {
   --texto-marca: #10201b;
   --grafite-sentinela: #20c99d;
   --baixo: #20c99d;
-  --baixo-bg: #123027;
+  --baixo-bg: #0c231d;
   --medio: #e5a13d;
-  --medio-bg: #302719;
-  --alto: #f07a84;
-  --alto-bg: #351c21;
-  --envio: #b4afa6;
-  --grafico-complemento: #b4afa6;
+  --medio-bg: #241c10;
+  --alto: #f4646f;
+  --alto-bg: #261317;
+  --envio: #98a29e;
+  --grafico-complemento: #98a29e;
+  color-scheme: dark;
 }
 
 body {
@@ -3482,6 +3457,9 @@ html[data-tema="escuro"] .interruptor-site-trilho::after {
   border-color: var(--linha-forte);
   background: var(--superficie);
   box-shadow: 0 24px 70px rgba(10, 25, 20, 0.24);
+  /* A rolagem fica só no formulário interno: evita a barra dupla. */
+  max-height: none;
+  overflow: hidden;
 }
 
 html[data-tema="escuro"] .dialogo {
@@ -3618,13 +3596,6 @@ html[data-tema="escuro"] .dialogo {
   flex-wrap: wrap;
 }
 
-.nota-indicador {
-  margin-top: 10px;
-  font-size: 10.5px;
-  line-height: 1.6;
-  color: var(--cinza-claro);
-}
-
 .estado-monitoramento {
   border: 1px solid var(--linha-forte);
   background: var(--superficie-2);
@@ -3676,9 +3647,22 @@ html[data-tema="escuro"] .dialogo {
 }
 
 .site-card {
-  border-radius: 8px;
+  border-radius: 9px;
   background: var(--superficie);
 }
+
+/* Respiro nas pontas da tabela de administradores para o conteúdo não
+   encostar nas bordas do bloco. */
+.tabela-admins th:first-child,
+.tabela-admins td:first-child {
+  padding-left: 14px;
+}
+
+.tabela-admins th:last-child,
+.tabela-admins td:last-child {
+  padding-right: 14px;
+}
+
 
 .site-card-ativo {
   background: color-mix(in srgb, var(--marca) 5%, var(--superficie));
@@ -3759,6 +3743,26 @@ html[data-tema="escuro"] .botao.marca:hover {
   background: color-mix(in srgb, var(--alto) 82%, #000);
 }
 
+/* No tema escuro as regras de .botao do painel têm mais especificidade,
+   por isso o vermelho dos botões de excluir precisa ser reaplicado aqui. */
+html[data-tema="escuro"] .app .botao.perigo:hover,
+html[data-tema="escuro"] .app .botao.perigo:focus-visible,
+html[data-tema="escuro"] .dialogo .botao.perigo:hover,
+html[data-tema="escuro"] .dialogo .botao.perigo:focus-visible,
+html[data-tema="escuro"] .app .acoes-tabela .botao-icone:hover,
+html[data-tema="escuro"] .app .acoes-tabela .botao-icone:focus-visible {
+  background: var(--alto-bg);
+  border-color: color-mix(in srgb, var(--alto) 45%, var(--linha));
+  color: var(--alto);
+}
+
+/* O interruptor dentro da tabela de regras fica centralizado com o texto
+   das demais colunas. */
+.tabela td .interruptor-regra {
+  display: flex;
+  align-items: center;
+}
+
 @media (max-width: 680px) {
   .secao-cabecalho {
     align-items: flex-start;
@@ -3782,5 +3786,368 @@ html[data-tema="escuro"] .botao.marca:hover {
 
   .bloco-monitoramento {
     padding: 16px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Visão geral · nova grade de gráficos (mapa de calor, envios por semana,
+   origem do conteúdo)
+--------------------------------------------------------------------------- */
+
+.grade-graficos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.grafico-titulo {
+  margin-bottom: 16px;
+}
+
+.grafico-titulo .micro {
+  margin-top: 4px;
+}
+
+/* Mapa de calor: departamento x nível */
+.mapa-calor {
+  overflow-x: auto;
+}
+
+.mapa-calor-tabela {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 6px 5px;
+}
+
+.mapa-calor-tabela th {
+  padding: 0 2px 4px;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cinza-claro);
+  text-align: center;
+}
+
+.mapa-calor-tabela th:first-child {
+  text-align: left;
+}
+
+.mapa-calor-nome {
+  padding-right: 8px;
+  font-size: 11px;
+  color: var(--tinta);
+  white-space: nowrap;
+}
+
+.celula-mapa {
+  width: 22%;
+}
+
+.celula-mapa-valor {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--linha);
+  border-radius: 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta);
+}
+
+/* Envios após o aviso, por semana */
+.grafico-linha svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.grafico-linha {
+  min-height: 200px;
+}
+
+/* Origem do conteúdo */
+.grafico-origem {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  min-height: 180px;
+  justify-content: center;
+}
+
+.origem-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 10px;
+  align-items: center;
+}
+
+.origem-topo {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--cinza);
+}
+
+.origem-valor {
+  color: var(--tinta);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.origem-trilho {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--superficie-2);
+}
+
+.origem-preenchimento {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.origem-percentual {
+  font-size: 10px;
+  color: var(--cinza-claro);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Categorias na tabela de alertas: selos em vez de texto corrido */
+.celula-selos {
+  max-width: 230px;
+}
+
+.selos-categorias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.selo-categoria {
+  padding: 2px 8px;
+  border: 1px solid var(--linha-forte);
+  border-radius: 999px;
+  background: var(--superficie-2);
+  color: var(--cinza);
+  font-size: 10px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.selo-mais {
+  color: var(--cinza-claro);
+}
+
+@media (max-width: 900px) {
+  .grade-graficos {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .origem-preenchimento {
+    transition: none;
+  }
+}
+
+/* Título dos cards com o botão de informação ao lado */
+.grafico-titulo-linha {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Vazamentos evitados */
+.grafico-vazamentos {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 180px;
+  justify-content: center;
+}
+
+.vazamento-destaque {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.vazamento-numero {
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+
+.vazamento-porcentagem {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--marca);
+  font-variant-numeric: tabular-nums;
+}
+
+.vazamento-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vazamento-topo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--cinza);
+}
+
+.vazamento-valor {
+  color: var(--tinta);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.vazamento-trilho {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--superficie-2);
+}
+
+.vazamento-segmento {
+  display: block;
+  height: 100%;
+  transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.vazamento-segmento + .vazamento-segmento {
+  border-left: 1px solid var(--superficie);
+}
+
+/* Total por departamento no mapa de calor */
+.mapa-calor-total {
+  width: 15%;
+  text-align: center;
+}
+
+.mapa-calor-total-valor {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--linha);
+  border-radius: 6px;
+  background: var(--superficie-2);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--tinta);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vazamento-segmento {
+    transition: none;
+  }
+}
+
+/* Estados de carregamento e vazio */
+.estado-vazio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 26px 18px;
+  border: 1px dashed var(--linha-forte);
+  border-radius: 8px;
+  color: var(--cinza-claro);
+  text-align: center;
+}
+
+.estado-vazio strong {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--cinza);
+}
+
+.estado-vazio p {
+  max-width: 44ch;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.lista-areas > .estado-vazio,
+.lista-atividades > .estado-vazio {
+  list-style: none;
+}
+
+td > .estado-vazio {
+  padding: 14px 8px;
+  border: 0;
+}
+
+.esqueleto-bloco {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 6px 0;
+}
+
+.esqueleto-linha {
+  display: block;
+  height: 12px;
+  width: min(320px, 75%);
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--superficie-2) 0%,
+    color-mix(in srgb, var(--linha) 65%, var(--superficie)) 50%,
+    var(--superficie-2) 100%
+  );
+  background-size: 220% 100%;
+  animation: esqueleto 1.2s ease-in-out infinite;
+}
+
+.esqueleto-linha:nth-child(even) {
+  width: min(240px, 60%);
+}
+
+.esqueleto-cartao {
+  min-height: 96px;
+  border: 1px solid var(--linha);
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    var(--superficie-2) 0%,
+    color-mix(in srgb, var(--linha) 65%, var(--superficie)) 50%,
+    var(--superficie-2) 100%
+  );
+  background-size: 220% 100%;
+  animation: esqueleto 1.2s ease-in-out infinite;
+}
+
+.grade-mensagens > .esqueleto-cartao {
+  min-height: 190px;
+}
+
+.grade-mensagens > .estado-vazio {
+  grid-column: 1 / -1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .esqueleto-linha,
+  .esqueleto-cartao {
+    animation: none;
   }
 }

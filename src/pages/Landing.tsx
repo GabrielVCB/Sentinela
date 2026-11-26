@@ -937,7 +937,6 @@ export default function Landing() {
                 className="h-7 w-7 shrink-0 object-contain"
               />
               <span className="font-serif text-xl leading-none tracking-tight">Sentinela</span>
-              <span className="rotulo leading-none">governança de ia</span>
             </Link>
             <p className="mt-3 max-w-sm text-[11px] leading-5 text-muted-foreground">
               Painel de governança, auditoria e letramento em IA.
